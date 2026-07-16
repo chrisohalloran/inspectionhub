@@ -1,10 +1,12 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { once } from "node:events";
+import { constants as fsConstants } from "node:fs";
 import {
   lstat,
   mkdir,
   mkdtemp,
+  open,
   readFile,
   realpath,
   rm,
@@ -36,6 +38,7 @@ const githubApi = `https://api.github.com/repos/${repositorySlug}`;
 const expectedBlockers = new Set(observedExpectedBlockers);
 const maxHttpBodyBytes = 2 * 1024 * 1024;
 const defaultCommandTimeoutMs = 10 * 60_000;
+const ownershipMarkerName = ".inspectionhub-observer-owner";
 
 export function parseArguments(argv) {
   const parsed = { artifactDirectory: null };
@@ -953,22 +956,26 @@ export async function prepareFreshOutputDirectory(repositoryRoot, path) {
     }
     throw error;
   }
-  const stat = await lstat(absolutePath);
-  const outputReal = await realpath(absolutePath);
-  if (
-    !stat.isDirectory() ||
-    stat.isSymbolicLink() ||
-    outputReal !== absolutePath
-  ) {
-    throw new Error(
-      "Observed output directory ownership could not be verified",
-    );
+  try {
+    const outputReal = await realpath(absolutePath);
+    if (outputReal !== absolutePath) {
+      throw new Error(
+        "Observed output directory ownership could not be verified",
+      );
+    }
+    return await recordOwnedDirectory(absolutePath, path);
+  } catch (error) {
+    try {
+      await rm(absolutePath, { recursive: true, force: true });
+    } catch (cleanupError) {
+      throw new AggregateError(
+        [error, cleanupError],
+        "Observed output ownership setup and cleanup both failed",
+        { cause: error },
+      );
+    }
+    throw error;
   }
-  return {
-    absolutePath,
-    relativePath: path,
-    identity: { device: stat.dev, inode: stat.ino },
-  };
 }
 
 async function ensureDirectoryWithoutSymlinks(root, path) {
@@ -992,18 +999,34 @@ async function ensureDirectoryWithoutSymlinks(root, path) {
   }
 }
 
-async function createOwnedDirectory(path, ownedOutput) {
+export async function createOwnedDirectory(path, ownedOutput) {
   await assertOwnedOutput(ownedOutput);
   const absolutePath = resolveOwnedArtifactPath(path, ownedOutput);
   await mkdir(absolutePath);
+  return recordOwnedDirectory(absolutePath, path);
+}
+
+async function recordOwnedDirectory(absolutePath, relativePath) {
   const stat = await lstat(absolutePath);
   if (!stat.isDirectory() || stat.isSymbolicLink()) {
     throw new Error("Owned artifact subdirectory is unsafe");
   }
+  const markerToken = randomUUID();
+  const markerPath = join(absolutePath, ownershipMarkerName);
+  await writeFile(markerPath, markerToken, { flag: "wx", mode: 0o600 });
+  const markerStat = await lstat(markerPath);
+  if (!markerStat.isFile() || markerStat.isSymbolicLink()) {
+    throw new Error("Owned artifact marker is unsafe");
+  }
   return {
     absolutePath,
-    relativePath: path,
+    relativePath,
     identity: { device: stat.dev, inode: stat.ino },
+    marker: {
+      path: markerPath,
+      token: markerToken,
+      identity: { device: markerStat.dev, inode: markerStat.ino },
+    },
   };
 }
 
@@ -1028,9 +1051,9 @@ async function writeEvidenceArtifact(
     observation,
   };
   const bytes = Buffer.from(`${JSON.stringify(envelope, null, 2)}\n`);
-  const absolutePath = resolveDirectOwnedArtifactPath(path, ownedObservations);
   await assertOwnedOutput(ownedOutput);
   await assertOwnedOutput(ownedObservations);
+  const absolutePath = resolveDirectOwnedArtifactPath(path, ownedObservations);
   await writeFile(absolutePath, bytes, { flag: "wx" });
   return { path, sha256: sha256(bytes) };
 }
@@ -1065,6 +1088,20 @@ async function cleanupOutputDirectory(ownedOutput) {
 }
 
 async function assertOwnedOutput(ownedOutput) {
+  if (
+    !ownedOutput ||
+    typeof ownedOutput.absolutePath !== "string" ||
+    typeof ownedOutput.identity?.device !== "number" ||
+    typeof ownedOutput.identity?.inode !== "number" ||
+    typeof ownedOutput.marker?.path !== "string" ||
+    ownedOutput.marker.path !==
+      join(ownedOutput.absolutePath, ownershipMarkerName) ||
+    typeof ownedOutput.marker?.token !== "string" ||
+    typeof ownedOutput.marker?.identity?.device !== "number" ||
+    typeof ownedOutput.marker?.identity?.inode !== "number"
+  ) {
+    throw new Error("Observed output directory ownership changed");
+  }
   let stat;
   try {
     stat = await lstat(ownedOutput.absolutePath);
@@ -1081,6 +1118,33 @@ async function assertOwnedOutput(ownedOutput) {
     stat.ino !== ownedOutput.identity.inode
   ) {
     throw new Error("Observed output directory ownership changed");
+  }
+  try {
+    const markerHandle = await open(
+      ownedOutput.marker.path,
+      fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+    );
+    try {
+      const markerStat = await markerHandle.stat();
+      const markerToken = await markerHandle.readFile("utf8");
+      if (
+        !markerStat.isFile() ||
+        markerStat.dev !== ownedOutput.marker.identity.device ||
+        markerStat.ino !== ownedOutput.marker.identity.inode ||
+        markerToken !== ownedOutput.marker.token
+      ) {
+        throw new Error("Observed output directory ownership changed");
+      }
+    } finally {
+      await markerHandle.close();
+    }
+  } catch (error) {
+    if (error.message === "Observed output directory ownership changed") {
+      throw error;
+    }
+    throw new Error("Observed output directory ownership changed", {
+      cause: error,
+    });
   }
 }
 

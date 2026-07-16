@@ -1,5 +1,4 @@
 import {
-  lstat,
   mkdtemp,
   mkdir,
   readFile,
@@ -16,6 +15,7 @@ import {
   boundedMarkdownSection,
   captureProcess,
   collectObservedSubmissionEvidence,
+  createOwnedDirectory,
   observeExactCommit,
   observeProvenance,
   observePublicCi,
@@ -265,21 +265,26 @@ describe("observed submission collector", () => {
         dependencies: observationDependencies({
           createOwnedDirectory: async (
             path: string,
-            _ownedOutput: { absolutePath: string; relativePath: string },
+            ownedOutput: {
+              absolutePath: string;
+              relativePath: string;
+              identity: { device: number; inode: number };
+              marker: {
+                path: string;
+                token: string;
+                identity: { device: number; inode: number };
+              };
+            },
           ) => {
-            const absolutePath = join(
-              _ownedOutput.absolutePath,
-              "observations",
+            const ownedObservations = await createOwnedDirectory(
+              path,
+              ownedOutput,
             );
-            await mkdir(absolutePath);
-            const stat = await lstat(absolutePath);
-            const ownedObservations = {
-              absolutePath,
-              relativePath: path,
-              identity: { device: stat.dev, inode: stat.ino },
-            };
-            await rm(absolutePath, { recursive: true, force: true });
-            await symlink(externalTarget, absolutePath);
+            await rm(ownedObservations.absolutePath, {
+              recursive: true,
+              force: true,
+            });
+            await symlink(externalTarget, ownedObservations.absolutePath);
             return ownedObservations;
           },
         }),
@@ -320,11 +325,15 @@ describe("observed submission collector", () => {
             }
           : {
               createOwnedDirectory: async (
-                _path: string,
-                ownedOutput: { absolutePath: string },
+                path: string,
+                ownedOutput: Parameters<typeof createOwnedDirectory>[1],
               ) => {
-                await mkdir(join(ownedOutput.absolutePath, "observations"));
+                const ownedObservations = await createOwnedDirectory(
+                  path,
+                  ownedOutput,
+                );
                 await replaceOutput(ownedOutput);
+                return ownedObservations;
               },
             };
 
