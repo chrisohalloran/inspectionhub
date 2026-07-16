@@ -1,4 +1,10 @@
-# Build Week evidence collection guide
+# Internal product-validation evidence collection guide
+
+This guide supports `pnpm milestone:build-week`, the internal product-quality
+gate. The smaller official Devpost preflight is documented in
+`scripts/submission-readiness/README.md`. Physical-device, human-session and
+accessibility observations below improve product confidence but do not block an
+otherwise compliant Devpost submission.
 
 The milestone result is computed from observed evidence. Do not edit an output
 manifest to change its outcome; create a new input and run the validator.

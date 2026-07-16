@@ -12,6 +12,7 @@
     "build": "turbo run build",
     "clean": "turbo run clean && rimraf .turbo coverage",
     "design:lint": "designmd lint DESIGN.md",
+    "demo:judge": "node scripts/judge-demo/run.mjs",
     "dev": "turbo run dev --parallel",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -27,6 +28,7 @@
     "test:soak": "node scripts/verification/run-gate.mjs soak",
     "test:pdf": "node scripts/verification/run-gate.mjs pdf",
     "test:security": "node scripts/verification/run-gate.mjs security",
+    "milestone:submission": "node scripts/submission-readiness/run.mjs",
     "milestone:build-week": "node scripts/verification/run-milestone.mjs build-week",
     "release:validate": "node scripts/verification/run-milestone.mjs revenue-activation"
   },
@@ -48,6 +50,7 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.64.0",
     "vitest": "4.1.10",
-    "yaml": "2.9.0"
+    "yaml": "2.9.0",
+    "zod": "4.4.3"
   }
 }

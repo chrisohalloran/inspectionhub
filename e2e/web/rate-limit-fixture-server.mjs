@@ -1,8 +1,17 @@
 import { createServer } from "node:http";
 
-const host = "127.0.0.1";
-const port = 54329;
-const credential = "playwright-service-role-key";
+const host = process.env.RATE_LIMIT_FIXTURE_HOST?.trim() || "127.0.0.1";
+if (host !== "127.0.0.1" && host !== "::1") {
+  throw new Error("Rate-limit fixture may bind only to loopback");
+}
+const port = Number(process.env.RATE_LIMIT_FIXTURE_PORT || "54329");
+if (!Number.isInteger(port) || port < 1024 || port > 65_535) {
+  throw new Error(
+    "Rate-limit fixture port must be an integer from 1024 to 65535",
+  );
+}
+const credential =
+  process.env.RATE_LIMIT_FIXTURE_CREDENTIAL || "playwright-service-role-key";
 const limits = Object.freeze({
   booking_quote: 20,
   privileged_action: 10,

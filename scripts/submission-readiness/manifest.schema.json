@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://inspectionhub.example/schemas/devpost-submission-manifest-v1.json",
+  "title": "Immutable Devpost submission preflight manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "milestone",
+    "outcome",
+    "generatedAt",
+    "officialJudgingEndsAt",
+    "run",
+    "evidence",
+    "requirements",
+    "skippedChecks",
+    "blockers",
+    "validationErrors",
+    "integrity",
+    "readinessEvent"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "milestone": { "const": "devpost_submission_preflight" },
+    "outcome": { "enum": ["blocked", "ready"] },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "officialJudgingEndsAt": { "const": "2026-08-06T00:00:00.000Z" },
+    "run": { "type": ["object", "null"] },
+    "evidence": { "type": "array" },
+    "requirements": { "type": "array", "minItems": 11, "maxItems": 11 },
+    "skippedChecks": { "type": "array" },
+    "blockers": { "type": "array", "items": { "type": "string" } },
+    "validationErrors": { "type": "array", "items": { "type": "string" } },
+    "integrity": {
+      "type": "object",
+      "required": ["algorithm", "canonicalPayloadSha256"],
+      "properties": {
+        "algorithm": { "const": "sha256" },
+        "canonicalPayloadSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "readinessEvent": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["eventType", "occurredAt", "manifestPayloadSha256"],
+          "properties": {
+            "eventType": { "const": "devpost_submission.preflight.ready" },
+            "occurredAt": { "type": "string", "format": "date-time" },
+            "manifestPayloadSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

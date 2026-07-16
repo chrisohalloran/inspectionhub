@@ -12,8 +12,10 @@ Primary sources: [official rules](https://openai.devpost.com/rules),
 [official FAQ](https://openai.devpost.com/details/faqs).
 
 The product narrative and submission copy are ready for review. External proof
-is not. Build Week completion requires an independently reviewable manifest,
-not a checklist ticked by the builder.
+is not. `pnpm milestone:submission` evaluates the official Devpost preflight;
+`pnpm milestone:build-week` separately evaluates the stricter internal product
+validation contract. Neither result may be replaced by a checklist ticked by
+the builder.
 
 | Asset                                          | Current evidence state                                |
 | ---------------------------------------------- | ----------------------------------------------------- |
@@ -22,13 +24,14 @@ not a checklist ticked by the builder.
 | Public video URL                               | Unproven                                              |
 | Public repository URL                          | Logged-out HTTP 200 observed; evidence input pending  |
 | Public demo URL                                | Unproven                                              |
+| Local judge test build                         | One-command synthetic path observed; input pending    |
 | Logged-out asset review                        | Unproven                                              |
 | Repository licence                             | AGPL-3.0-only                                         |
 | Primary Codex `/feedback` Session ID           | Goal task ID recorded; `/feedback` confirmation due   |
-| Physical Build Week iPhone journey             | Unproven                                              |
-| Live GPT-5.6 development + locked-holdout gate | Unproven                                              |
+| Physical Build Week iPhone journey             | Internal validation unproven; not a Devpost field     |
+| Live GPT-5.6 development + locked-holdout gate | Blocked by OpenAI Platform connector reauthentication |
 | Two recipient and two client sessions          | Unproven                                              |
-| Accessibility audit                            | Unproven                                              |
+| Accessibility audit                            | Internal validation unproven; not a Devpost field     |
 | Devpost submission                             | Not performed                                         |
 
 Public repository:
@@ -38,6 +41,12 @@ Primary goal task ID:
 `019f5dd7-1480-7ca1-8307-3ed24a80559d`. This is retained as provenance, but
 the exact `/feedback` value must still be confirmed in Codex before the form is
 submitted rather than assumed to be identical.
+
+The secure OpenAI Platform key setup was retried on 16 July 2026 and returned
+`This app connection requires reauthentication before other actions on this app
+can succeed.` No API key was created or copied through an unsafe fallback. The
+live GPT-5.6 requirement therefore remains blocked until that connector is
+reauthenticated and the bounded live evaluation is observed.
 
 ## Official asset contract
 
@@ -58,21 +67,32 @@ fixtures alone therefore cannot satisfy the submission: the public demo,
 repository and video need an observed GPT-5.6 run with an inspector-reviewable,
 source-grounded result and a visible manual fallback.
 
+Devpost requires a working judge-access path, but does not require a separate
+physical-iPhone, human-session or accessibility-audit record. Those remain
+quality evidence in the internal gate. A simulator run without a website,
+functioning demo or test build still does not satisfy judge access.
+
 ## Submission materials
 
 - [Demo script](demo-script.md)
 - [Devpost copy](devpost-copy.md)
 - [Architecture](architecture.md)
 - [Setup and verification](setup.md)
+- [Local judge demo](judge-demo.md)
 - [Privacy and limitations](privacy-limitations.md)
 - [Codex and GPT-5.6](codex-and-gpt.md)
 - [Evidence collection guide](evidence-guide.md)
 
 Before submission, reopen the official Devpost challenge page from a logged-out
-browser and record the observed fields, rules and link checks. The public URL,
-video, repository, README and submission description must all work logged out.
-Do not replace that observation with localhost, build logs or hosting-provider
+browser and record the observed fields, rules and link checks. The public video,
+public repository (when public) and any public judge-access URL must work logged
+out; the README and submission-description fields must be complete. Do not
+replace those observations with localhost, build logs or hosting-provider
 status.
+
+The final Devpost URL and submission receipt are post-submit observations. They
+are deliberately excluded from preflight so the gate does not depend on an
+asset that cannot exist until after submission.
 
 ## Exact U12 boundary
 

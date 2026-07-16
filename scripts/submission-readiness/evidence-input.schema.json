@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://inspectionhub.example/schemas/devpost-submission-evidence-v1.json",
+  "title": "Observed Devpost submission preflight input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "run",
+    "evidence",
+    "requirements",
+    "skippedChecks"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startedAt", "endedAt", "commitSha"],
+      "properties": {
+        "startedAt": { "type": "string", "format": "date-time" },
+        "endedAt": { "type": "string", "format": "date-time" },
+        "commitSha": { "type": "string", "pattern": "^[a-f0-9]{40,64}$" }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "claim",
+          "provenance",
+          "artifact",
+          "details"
+        ],
+        "properties": {
+          "id": { "type": "string", "minLength": 3 },
+          "kind": {
+            "enum": [
+              "project_run",
+              "technology_use",
+              "submission_field",
+              "video_check",
+              "repository_check",
+              "judge_access_check",
+              "rights_review"
+            ]
+          },
+          "claim": { "type": "string", "minLength": 10 },
+          "provenance": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["mode", "observer", "observedAt"],
+            "properties": {
+              "mode": { "const": "observed" },
+              "observer": { "type": "string", "minLength": 3 },
+              "observedAt": { "type": "string", "format": "date-time" }
+            }
+          },
+          "artifact": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "sha256"],
+            "properties": {
+              "path": { "type": "string", "pattern": "^artifacts/validation/" },
+              "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+            }
+          },
+          "details": { "type": "object" }
+        }
+      }
+    },
+    "requirements": {
+      "type": "array",
+      "minItems": 11,
+      "maxItems": 11,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "status", "evidenceIds", "reason"],
+        "properties": {
+          "id": {
+            "enum": [
+              "working_project",
+              "codex_and_gpt56",
+              "track",
+              "description",
+              "video",
+              "repository",
+              "feedback_session",
+              "judge_access",
+              "provenance",
+              "rights_and_safety",
+              "devpost_form"
+            ]
+          },
+          "status": { "enum": ["pass", "fail", "unproven"] },
+          "evidenceIds": { "type": "array", "items": { "type": "string" } },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "skippedChecks": { "type": "array" }
+  }
+}

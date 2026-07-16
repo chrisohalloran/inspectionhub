@@ -8,33 +8,82 @@ import {
   RECIPIENT_PENDING_COOKIE,
   RECIPIENT_SESSION_COOKIE,
 } from "../../../../(reports)/reports/_lib/recipient-session";
+import {
+  consumeBoundaryRateLimit,
+  type BoundaryRateLimit,
+} from "../../../../api/webhooks/rate-limit";
 
-export async function POST(request: Request) {
-  try {
-    const pending = await readPendingSessionToken();
-    const data = await request.formData();
-    if (pending === null) {
-      throw new DemoRecipientAuthError();
-    }
-    const session = await completeDemoOtp(pending, stringField(data, "otp"));
-    const response = relativeRedirect("/reports/demo");
-    response.cookies.set(
-      RECIPIENT_SESSION_COOKIE,
-      session,
-      recipientCookieOptions(60 * 60),
-    );
-    response.cookies.set(RECIPIENT_PENDING_COOKIE, "", {
-      ...recipientCookieOptions(0),
-      expires: new Date(0),
-    });
-    return response;
-  } catch (error) {
-    if (!(error instanceof DemoRecipientAuthError)) {
-      console.error("Recipient mailbox verification failed safely", {
-        errorName: error instanceof Error ? error.name : "unknown",
+type ReadPendingSession = typeof readPendingSessionToken;
+type CompleteOtp = typeof completeDemoOtp;
+
+export function createOtpVerificationHandler(input: {
+  consumeRateLimit: BoundaryRateLimit;
+  readPendingSession?: ReadPendingSession;
+  completeOtp?: CompleteOtp;
+}) {
+  return async function post(request: Request) {
+    const rateLimit = await consumeRecipientRateLimit(input.consumeRateLimit);
+    if (rateLimit !== null) return rateLimit;
+
+    try {
+      const pending = await (
+        input.readPendingSession ?? readPendingSessionToken
+      )();
+      const data = await request.formData();
+      if (pending === null) {
+        throw new DemoRecipientAuthError();
+      }
+      const session = await (input.completeOtp ?? completeDemoOtp)(
+        pending,
+        stringField(data, "otp"),
+      );
+      const response = relativeRedirect("/reports/demo");
+      response.cookies.set(
+        RECIPIENT_SESSION_COOKIE,
+        session,
+        recipientCookieOptions(60 * 60),
+      );
+      response.cookies.set(RECIPIENT_PENDING_COOKIE, "", {
+        ...recipientCookieOptions(0),
+        expires: new Date(0),
       });
+      return response;
+    } catch (error) {
+      if (!(error instanceof DemoRecipientAuthError)) {
+        console.error("Recipient mailbox verification failed safely", {
+          errorName: error instanceof Error ? error.name : "unknown",
+        });
+      }
+      return relativeRedirect("/auth/verify?error=invalid");
     }
-    return relativeRedirect("/auth/verify?error=invalid");
+  };
+}
+
+export const POST = createOtpVerificationHandler({
+  consumeRateLimit: consumeBoundaryRateLimit,
+});
+
+async function consumeRecipientRateLimit(
+  consumeRateLimit: BoundaryRateLimit,
+): Promise<NextResponse | null> {
+  try {
+    const decision = await consumeRateLimit(
+      "recipient_access",
+      "recipient-otp-verify",
+    );
+    if (decision.allowed) return null;
+    return NextResponse.json(
+      { error: "rate_limited" },
+      {
+        headers: { "retry-after": String(decision.retryAfterSeconds) },
+        status: 429,
+      },
+    );
+  } catch {
+    return NextResponse.json(
+      { error: "security_boundary_unavailable" },
+      { status: 503 },
+    );
   }
 }
 

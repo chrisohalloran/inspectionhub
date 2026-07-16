@@ -22,6 +22,11 @@ hard privacy default. A missing OpenAI key must leave drafting on the complete
 manual path and the live eval gate blocked; it must not be replaced with a
 fabricated result.
 
+As of 16 July 2026, the approved OpenAI Platform key-setup connector requires
+reauthentication, so no live key has been created for this project. Do not work
+around that boundary by placing a secret in source, shell history or a public
+artifact.
+
 ## Run
 
 ```bash
@@ -63,15 +68,33 @@ Run the focused milestone machinery tests with:
 
 ```bash
 node --test scripts/milestone-build-week/validation.test.mjs
+node --test scripts/submission-readiness/validation.test.mjs
 ```
 
-## Build Week manifest
+## Devpost submission preflight
+
+```bash
+pnpm milestone:submission
+```
+
+With no evidence, this writes a truthful `blocked` manifest and exits 4. It
+checks only the official competition submission contract. Passing evidence must
+be observed and checksum-backed; see
+`scripts/submission-readiness/README.md`. The required judge-access path must
+remain free and working through `2026-08-06T00:00:00.000Z`, the UTC equivalent
+of 5:00 PM Pacific Time on 5 August 2026.
+
+The preflight does not contain or infer a submitted status, receipt or final
+Devpost project URL. Verify those separately after the external submission.
+
+## Internal Build Week product-validation manifest
 
 ```bash
 pnpm milestone:build-week
 ```
 
-No evidence input intentionally produces a `blocked` manifest under
+This stricter internal gate does not determine Devpost eligibility. No evidence
+input intentionally produces a `blocked` manifest under
 `artifacts/validation/<run-id>/manifest.json` and exits non-zero. To evaluate a
 real run, collect observed evidence following `evidence-guide.md`, populate all
 29 atomic rubric results and six must-pass gates, then pass the evidence file to

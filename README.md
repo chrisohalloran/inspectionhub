@@ -81,6 +81,12 @@ The default adapter mode is `fake`. Never add service-role or provider secrets
 to `NEXT_PUBLIC_*` variables, source files, fixtures or manifests. See the full
 [setup guide](docs/submission/setup.md).
 
+For a one-command, loopback-only synthetic walkthrough, run `pnpm demo:judge`.
+It builds the optimized web app, prints the local URL and demo credentials, and
+removes its unique temporary state on shutdown. See the
+[local judge demo guide](docs/submission/judge-demo.md). This is not a public or
+production deployment and does not call live providers.
+
 ## Verification
 
 ```bash
@@ -123,14 +129,16 @@ gate. See [privacy and limitations](docs/submission/privacy-limitations.md).
 - Track: **Work and Productivity**
 - Submission deadline: **22 July 2026 at 10:00 AM AEST**
 - [Submission status and asset checklist](docs/submission/README.md)
+- [One-command local judge demo](docs/submission/judge-demo.md)
 - [Under-three-minute demo script](docs/submission/demo-script.md)
 - [Devpost copy](docs/submission/devpost-copy.md)
 - [How Codex and GPT-5.6 are used](docs/submission/codex-and-gpt.md)
 - [Build Week evidence status](docs/validation/build-week/README.md)
 
-No public URL, video URL, repository URL or Devpost submission is represented
-as verified until the logged-out checks appear in the immutable milestone
-manifest.
+The public source repository has a separate logged-out HTTP 200 observation.
+No public demo URL, video URL or Devpost submission is represented as verified
+until the corresponding observed evidence appears in the immutable submission
+preflight.
 
 ## License
 
