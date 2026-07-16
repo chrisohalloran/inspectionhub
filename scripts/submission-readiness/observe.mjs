@@ -1,6 +1,5 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { once } from "node:events";
 import { constants as fsConstants } from "node:fs";
 import {
   lstat,
@@ -30,6 +29,9 @@ import {
   SUBMISSION_PERIOD_START,
   validateAndBuildSubmissionManifest,
 } from "./validation.mjs";
+import { stopProcessLeader, terminateProcessTree } from "./process-tree.mjs";
+
+export { stopProcessLeader, terminateProcessTree };
 
 const defaultRepositoryRoot = resolve(import.meta.dirname, "../..");
 const repositorySlug = "chrisohalloran/inspectionhub";
@@ -681,7 +683,7 @@ export async function observeJudgeDemo({
   fetchImpl = fetch,
 }) {
   const port = await availableLoopbackPort();
-  const child = spawn("pnpm", ["demo:judge"], {
+  const child = spawn(process.execPath, ["scripts/judge-demo/run.mjs"], {
     cwd: repositoryRoot,
     env: {
       ...environment,
@@ -756,7 +758,7 @@ export async function observeJudgeDemo({
         "Judge demo report is missing expected synthetic content",
       );
     }
-    const exitCode = await stopProcessTree(child, "SIGINT", 10_000);
+    const exitCode = await stopProcessLeader(child, "SIGINT", 10_000);
     if (exitCode !== 0) throw new Error(`Judge demo exited with ${exitCode}`);
     return {
       statuses: {
@@ -785,54 +787,6 @@ async function waitForOutput(child, predicate, timeoutMs = 120_000) {
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 100));
   }
   throw new Error("Judge demo did not become ready before the timeout");
-}
-
-async function waitForExit(child, timeoutMs) {
-  if (child.exitCode !== null || child.signalCode !== null) {
-    return child.exitCode;
-  }
-  let timeoutId;
-  const timeout = new Promise((_, reject) => {
-    timeoutId = setTimeout(
-      () => reject(new Error("Process did not stop before the timeout")),
-      timeoutMs,
-    );
-  });
-  try {
-    const [code] = await Promise.race([once(child, "exit"), timeout]);
-    return code;
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-
-function signalProcessTree(child, signal) {
-  if (child.exitCode !== null || child.signalCode !== null) return;
-  try {
-    process.kill(-child.pid, signal);
-  } catch {
-    child.kill(signal);
-  }
-}
-
-async function stopProcessTree(child, signal, timeoutMs) {
-  if (child.exitCode !== null || child.signalCode !== null) {
-    return child.exitCode;
-  }
-  signalProcessTree(child, signal);
-  return waitForExit(child, timeoutMs);
-}
-
-export async function terminateProcessTree(child, graceMs = 2_000) {
-  if (child.exitCode !== null || child.signalCode !== null) return;
-  signalProcessTree(child, "SIGTERM");
-  try {
-    await waitForExit(child, graceMs);
-    return;
-  } catch {
-    signalProcessTree(child, "SIGKILL");
-    await waitForExit(child, 2_000).catch(() => undefined);
-  }
 }
 
 function cookieHeader(response) {
