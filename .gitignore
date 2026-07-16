@@ -14,4 +14,6 @@ tmp/
 apps/mobile/android/
 apps/mobile/ios/
 *.log
+*.tsbuildinfo
+supabase/.temp/
 .DS_Store
