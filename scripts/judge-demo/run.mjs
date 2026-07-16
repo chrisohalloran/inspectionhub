@@ -48,13 +48,7 @@ try {
     rateLimit,
   );
 
-  for (const packageName of [
-    "@inspection/reporting",
-    "@inspection/recipient-access",
-    "@inspection/web",
-  ]) {
-    await run("pnpm", ["--filter", packageName, "build"], environment);
-  }
+  await run("pnpm", ["--filter", "@inspection/web...", "build"], environment);
 
   const web = start(
     "pnpm",

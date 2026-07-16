@@ -29,7 +29,7 @@ export default defineConfig({
     },
     {
       command:
-        "pnpm --filter @inspection/reporting build && pnpm --filter @inspection/recipient-access build && pnpm --filter @inspection/web build && pnpm --filter @inspection/web exec next start --hostname 127.0.0.1 --port 3010",
+        "pnpm --filter @inspection/web... build && pnpm --filter @inspection/web exec next start --hostname 127.0.0.1 --port 3010",
       env: {
         ...process.env,
         APP_ENV: "test",
