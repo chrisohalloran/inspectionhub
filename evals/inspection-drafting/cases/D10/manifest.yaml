@@ -1,0 +1,30 @@
+schema_version: 1
+case_id: D10
+split: development
+locked_holdout: false
+architecture_subset: true
+critical: true
+fixed_trials: 3
+modules:
+  - building
+scenario: "Finding source omits a technical further-investigation recommendation."
+packet_manifest:
+  fixture_kind: redacted_manifest
+  manifest_ref: packet-d10-v1
+  selected_source_refs:
+    - source-d10-1
+  protected_artifact_refs: []
+  fixture_status: complete
+expected:
+  required_facts:
+    - "observed defect and extent"
+  allowed_uncertainties:
+    - "further investigation may be needed"
+  forbidden_claims:
+    - "invented_recommendation"
+  inspector_decision: "flag missing recommendation for review"
+  verifier: pass
+media:
+  selected_proxy_refs: []
+  audio_fixture_ref: null
+  licence_status: no_media_fixture

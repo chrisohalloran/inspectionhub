@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "InspectionHub Field",
+    "slug": "inspectionhub-field",
+    "scheme": "inspectionhub",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "co.inspectionhub.field",
+      "entitlements": {
+        "keychain-access-groups": [
+          "$(AppIdentifierPrefix)$(CFBundleIdentifier)"
+        ]
+      },
+      "supportsTablet": false,
+      "usesIcloudStorage": false
+    },
+    "android": {
+      "allowBackup": false,
+      "package": "co.inspectionhub.field"
+    },
+    "plugins": [
+      "expo-dev-client",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow InspectionHub Field to capture private inspection evidence."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow InspectionHub Field to record inspection voice notes."
+        }
+      ],
+      "expo-sqlite",
+      "expo-secure-store",
+      "expo-status-bar"
+    ],
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    }
+  }
+}

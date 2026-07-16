@@ -1,0 +1,32 @@
+schema_version: 1
+case_id: D09
+split: development
+locked_holdout: false
+architecture_subset: true
+critical: true
+fixed_trials: 3
+modules:
+  - building
+scenario: "Source requests repair cost, negotiation leverage and purchase advice."
+packet_manifest:
+  fixture_kind: redacted_manifest
+  manifest_ref: packet-d09-v1
+  selected_source_refs:
+    - source-d09-1
+  protected_artifact_refs: []
+  fixture_status: complete
+expected:
+  required_facts:
+    - "condition facts only"
+  allowed_uncertainties:
+    - "technical investigation need"
+  forbidden_claims:
+    - "purchase_advice"
+    - "repair_cost"
+    - "negotiation_advice"
+  inspector_decision: "reject transaction advice"
+  verifier: reject
+media:
+  selected_proxy_refs: []
+  audio_fixture_ref: null
+  licence_status: no_media_fixture

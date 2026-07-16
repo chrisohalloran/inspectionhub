@@ -1,0 +1,476 @@
+.page {
+  display: grid;
+  gap: var(--space-5);
+  margin: 0 auto;
+  max-width: 76rem;
+  min-height: 100dvh;
+  padding: var(--space-4);
+}
+
+.masthead {
+  align-items: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  display: flex;
+  gap: var(--space-4);
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+}
+
+.masthead > div {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.brand,
+.masthead a,
+.releaseBoundary a {
+  color: var(--color-action);
+  font-weight: 700;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.brand,
+.masthead nav a,
+.releaseBoundary a {
+  align-items: center;
+  display: inline-flex;
+  min-height: var(--target-minimum);
+}
+
+.environment,
+.stateLabel,
+.attentionLabel {
+  border: 1px solid currentColor;
+  border-radius: var(--radius-small);
+  display: inline-block;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.3;
+  padding: var(--space-2);
+}
+
+.environment,
+.stateLabel {
+  background: var(--color-building-container);
+  color: var(--color-building);
+}
+
+.attentionLabel {
+  background: var(--color-limitation-container);
+  color: var(--color-limitation);
+}
+
+.masthead nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.masthead a[aria-current="page"] {
+  text-decoration-thickness: 4px;
+}
+
+.brand:focus-visible,
+.masthead a:focus-visible,
+.releaseBoundary a:focus-visible,
+.panel input:focus-visible,
+.panel button:focus-visible,
+.history summary:focus-visible {
+  border-radius: var(--radius-small);
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.titleBlock {
+  margin: var(--space-5) 0;
+}
+
+.titleBlock h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1.15;
+  max-width: none;
+}
+
+.titleBlock > p:last-child,
+.helper,
+.integrationList p,
+.releaseBoundary p {
+  color: var(--color-ink-muted);
+  line-height: 1.55;
+}
+
+.eyebrow {
+  color: var(--color-action);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin: 0 0 var(--space-2);
+}
+
+.permissionBoundary {
+  border: 0;
+  display: grid;
+  gap: var(--space-5);
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.permissionBoundary:disabled {
+  opacity: 0.68;
+}
+
+.panel,
+.releaseBoundary {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  padding: clamp(var(--space-4), 4vw, var(--space-6));
+}
+
+.panelHeading {
+  align-items: start;
+  display: flex;
+  gap: var(--space-4);
+  justify-content: space-between;
+}
+
+.panel h2,
+.releaseBoundary h2 {
+  font-size: 1.5rem;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.panel h3 {
+  line-height: 1.3;
+}
+
+.formGrid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: var(--space-5);
+}
+
+.formGrid label {
+  display: grid;
+  font-weight: 700;
+  gap: var(--space-2);
+}
+
+.formGrid input {
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  color: var(--color-ink);
+  font: inherit;
+  min-height: var(--target-minimum);
+  min-width: 0;
+  padding: var(--space-3);
+  width: 100%;
+}
+
+.checkboxGrid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: var(--space-4) 0;
+}
+
+.checkboxGrid label {
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  display: flex;
+  font-weight: 700;
+  gap: var(--space-3);
+  min-height: var(--target-minimum);
+  padding: var(--space-3);
+}
+
+.checkboxGrid input {
+  accent-color: var(--color-action);
+  height: 1.35rem;
+  width: 1.35rem;
+}
+
+.unsaved,
+.reviewBox,
+.successNotice,
+.errorNotice {
+  border-left: 6px solid currentColor;
+  border-radius: var(--radius-small);
+  line-height: 1.5;
+  margin: var(--space-4) 0;
+  padding: var(--space-3) var(--space-4);
+}
+
+.unsaved,
+.reviewBox {
+  background: var(--color-limitation-container);
+  color: var(--color-limitation);
+}
+
+.successNotice {
+  background: var(--color-building-container);
+  color: var(--color-building);
+}
+
+.errorNotice {
+  background: var(--color-major-container);
+  color: var(--color-major);
+}
+
+.errorNotice p,
+.reviewBox p {
+  margin-bottom: 0;
+}
+
+.actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  margin-top: var(--space-4);
+}
+
+.actions button {
+  min-height: var(--target-primary);
+}
+
+.secondaryButton {
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  color: var(--color-ink);
+}
+
+.secondaryButton:hover {
+  background: var(--color-canvas);
+}
+
+.panel button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.history {
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+}
+
+.history summary {
+  align-items: center;
+  color: var(--color-action);
+  cursor: pointer;
+  display: flex;
+  font-weight: 700;
+  min-height: var(--target-minimum);
+}
+
+.history table {
+  border-collapse: collapse;
+  margin-top: var(--space-3);
+  width: 100%;
+}
+
+.history caption {
+  font-weight: 700;
+  padding-bottom: var(--space-2);
+  text-align: left;
+}
+
+.history th,
+.history td {
+  border-bottom: 1px solid var(--color-border);
+  font-variant-numeric: tabular-nums;
+  padding: var(--space-3);
+  text-align: left;
+}
+
+.preview,
+.authorityPreview {
+  background: var(--color-canvas);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+}
+
+.preview h3 {
+  margin-top: 0;
+}
+
+.preview li {
+  line-height: 1.5;
+  margin-top: var(--space-2);
+}
+
+.authorityPreview {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.authorityPreview div {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  padding: var(--space-3);
+}
+
+.authorityPreview dt {
+  color: var(--color-ink-muted);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.authorityPreview dd {
+  font-weight: 700;
+  margin: var(--space-2) 0 0;
+}
+
+.integrationList {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: var(--space-4);
+}
+
+.integrationList section {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  min-width: 0;
+  padding: var(--space-4);
+}
+
+.integrationList section > div {
+  align-items: start;
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+
+.integrationList h3 {
+  margin: 0;
+}
+
+.releaseBoundary a {
+  margin-top: var(--space-2);
+}
+
+.srOnly {
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  width: 1px;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 50rem) {
+  .integrationList {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 40rem) {
+  .masthead,
+  .panelHeading {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .masthead nav {
+    width: 100%;
+  }
+
+  .formGrid,
+  .checkboxGrid,
+  .authorityPreview {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .actions button {
+    width: 100%;
+  }
+
+  .history {
+    overflow: visible;
+  }
+
+  .history table,
+  .history tbody,
+  .history tr,
+  .history th,
+  .history td {
+    display: block;
+    width: 100%;
+  }
+
+  .history thead {
+    clip: rect(0 0 0 0);
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    position: absolute;
+    width: 1px;
+  }
+
+  .history tr {
+    border: 1px solid var(--color-border);
+    margin-bottom: var(--space-3);
+    padding: var(--space-2);
+  }
+
+  .history th,
+  .history td {
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    gap: var(--space-3);
+    justify-content: space-between;
+    padding: var(--space-2);
+  }
+
+  .history td::before {
+    content: attr(data-label);
+    font-weight: 700;
+  }
+
+  .history td:last-child {
+    border-bottom: 0;
+  }
+}
+
+@media (max-width: 22rem) {
+  .page {
+    padding: var(--space-3);
+  }
+
+  .panel,
+  .releaseBoundary {
+    padding: var(--space-4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page *,
+  .page *::before,
+  .page *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

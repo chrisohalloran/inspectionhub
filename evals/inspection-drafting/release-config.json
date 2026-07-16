@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "model": "gpt-5.6",
+  "modelAliasTargetChecked": "gpt-5.6-sol",
+  "pricingCheckedAt": "2026-07-15",
+  "pricing": {
+    "version": "gpt-5.6-sol-standard-2026-07-15",
+    "inputUsdPerMillionTokens": 5,
+    "outputUsdPerMillionTokens": 30
+  },
+  "reasoningEffort": "low",
+  "thinPromptVersion": "inspection-draft-thin-v1",
+  "plannerPromptVersion": "inspection-draft-agent-v1",
+  "packetPromptVersion": "inspection-draft-v1",
+  "skillVersions": [
+    "building-inspection@1.0.0",
+    "timber-pest-inspection@1.0.0",
+    "report-language@1.0.0"
+  ],
+  "fixedTrials": 3,
+  "architectureSubsetSize": 10,
+  "liveComparison": {
+    "status": "blocked",
+    "reason": "openai_platform_connector_reauthentication_required",
+    "selectedArchitecture": null,
+    "evidenceArtifact": null
+  }
+}

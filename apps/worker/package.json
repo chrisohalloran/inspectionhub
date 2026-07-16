@@ -1,0 +1,22 @@
+{
+  "name": "@inspection/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rimraf dist",
+    "dev": "tsx watch src/index.ts",
+    "lint": "eslint src",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@inspection/config": "workspace:*",
+    "@inspection/storage": "workspace:*",
+    "@inspection/task-queue": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "4.23.1"
+  }
+}

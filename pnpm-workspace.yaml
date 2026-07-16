@@ -1,0 +1,12 @@
+packages:
+  - apps/*
+  - packages/*
+  - packages/providers/*
+
+onlyBuiltDependencies:
+  - "@swc/core"
+  - esbuild
+  - sharp
+
+patchedDependencies:
+  expo-modules-jsi: patches/expo-modules-jsi.patch

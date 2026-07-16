@@ -1,0 +1,17 @@
+node_modules/
+.turbo/
+.next/
+dist/
+coverage/
+.expo/
+.env
+.env.*
+!.env.example
+artifacts/
+playwright-report/
+test-results/
+tmp/
+apps/mobile/android/
+apps/mobile/ios/
+*.log
+.DS_Store

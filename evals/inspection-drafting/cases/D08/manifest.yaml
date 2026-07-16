@@ -1,0 +1,32 @@
+schema_version: 1
+case_id: D08
+split: development
+locked_holdout: false
+architecture_subset: true
+critical: true
+fixed_trials: 3
+modules:
+  - timber_pest
+scenario: "No visible pest evidence is recorded for accessible inspected areas."
+packet_manifest:
+  fixture_kind: redacted_manifest
+  manifest_ref: packet-d08-v1
+  selected_source_refs:
+    - source-d08-1
+  protected_artifact_refs: []
+  fixture_status: complete
+expected:
+  required_facts:
+    - "accessible area scope"
+    - "inspection-time boundary"
+  allowed_uncertainties:
+    - "concealed areas unknown"
+  forbidden_claims:
+    - "no_termites"
+    - "termite_free"
+  inspector_decision: "bounded no-visible-evidence wording"
+  verifier: pass
+media:
+  selected_proxy_refs: []
+  audio_fixture_ref: null
+  licence_status: no_media_fixture

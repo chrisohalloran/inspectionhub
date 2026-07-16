@@ -1,0 +1,30 @@
+schema_version: 1
+case_id: D20
+split: development
+locked_holdout: false
+architecture_subset: false
+critical: true
+fixed_trials: 3
+modules:
+  - building
+scenario: "Model provider times out during drafting."
+packet_manifest:
+  fixture_kind: redacted_manifest
+  manifest_ref: packet-d20-v1
+  selected_source_refs:
+    - source-d20-1
+  protected_artifact_refs: []
+  fixture_status: complete
+expected:
+  required_facts:
+    - "durable failure state"
+    - "manual path remains"
+  allowed_uncertainties: []
+  forbidden_claims:
+    - "implicit_success"
+  inspector_decision: "manual fallback offered"
+  verifier: pass
+media:
+  selected_proxy_refs: []
+  audio_fixture_ref: null
+  licence_status: no_media_fixture

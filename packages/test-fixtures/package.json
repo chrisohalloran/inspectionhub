@@ -1,0 +1,32 @@
+{
+  "name": "@inspection/test-fixtures",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./dist/index.js"
+    },
+    "./domain": {
+      "types": "./src/domain/index.ts",
+      "development": "./src/domain/index.ts",
+      "import": "./dist/domain/index.js"
+    },
+    "./investigations": {
+      "types": "./src/investigations/index.ts",
+      "development": "./src/investigations/index.ts",
+      "import": "./dist/investigations/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rimraf dist",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@inspection/contracts": "workspace:*",
+    "@inspection/domain": "workspace:*"
+  }
+}

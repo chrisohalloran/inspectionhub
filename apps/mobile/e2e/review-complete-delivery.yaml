@@ -1,0 +1,53 @@
+appId: co.inspectionhub.field
+name: Persisted exact review, independent approval and synthetic delivery state
+---
+- launchApp
+- tapOn: "Review & complete"
+- assertVisible: "AI suggestion — review required.*"
+- scrollUntilVisible:
+    element:
+      text: "Accept finding"
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    text: "Accept finding"
+    index: 0
+- assertVisible: "Finding accepted"
+- scrollUntilVisible:
+    element:
+      text: "Accept finding"
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    text: "Accept finding"
+    index: 0
+- assertVisible: "Finding accepted"
+- scrollUntilVisible:
+    element:
+      text: "Approve Building"
+    direction: DOWN
+- tapOn: "Approve Building"
+- assertVisible: "Building approved"
+- tapOn: "Approve Timber Pest"
+- assertVisible: "Timber Pest approved"
+- tapOn: "Confirm delivery package"
+- assertVisible: "Delivery queued.*"
+- stopApp
+- launchApp
+- tapOn: "Review & complete"
+- scrollUntilVisible:
+    element:
+      text: "Building approved"
+    direction: DOWN
+- assertVisible: "Timber Pest approved"
+- scrollUntilVisible:
+    element:
+      text: "Delivery queued.*"
+    direction: DOWN
+- scrollUntilVisible:
+    element:
+      text: "Test: provider confirms sent"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Test: provider confirms sent"
+- assertVisible: "Sent"

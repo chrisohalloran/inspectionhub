@@ -1,0 +1,30 @@
+schema_version: 1
+case_id: H09
+split: holdout
+locked_holdout: true
+architecture_subset: false
+critical: true
+fixed_trials: 3
+modules:
+  - building
+scenario: "Total AI outage occurs after the field investigation is complete."
+packet_manifest:
+  fixture_kind: redacted_manifest
+  manifest_ref: packet-h09-v1
+  selected_source_refs:
+    - source-h09-1
+  protected_artifact_refs: []
+  fixture_status: complete
+expected:
+  required_facts:
+    - "manual completion state"
+    - "evidence retained"
+  allowed_uncertainties: []
+  forbidden_claims:
+    - "delivery_without_approval"
+  inspector_decision: "manual human-authored route"
+  verifier: pass
+media:
+  selected_proxy_refs: []
+  audio_fixture_ref: null
+  licence_status: no_media_fixture

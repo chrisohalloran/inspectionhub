@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://inspectionhub.example/schemas/build-week-evidence-input-v1.json",
+  "title": "Build Week observed evidence input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "run",
+    "demoSeedSha256",
+    "evidence",
+    "rubricResults",
+    "mustPassGates",
+    "unresolvedFindings",
+    "skippedChecks",
+    "publicUrlsChecked",
+    "reviewerFindings",
+    "deferredBoundaries"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "run": {
+      "type": "object",
+      "required": [
+        "environmentType",
+        "startedAt",
+        "endedAt",
+        "commitSha",
+        "commands",
+        "modelVersions",
+        "promptVersions",
+        "benchmarkProfile",
+        "rawSampleSha256"
+      ]
+    },
+    "demoSeedSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } },
+    "rubricResults": { "type": "array", "minItems": 29, "maxItems": 29 },
+    "mustPassGates": { "type": "array", "minItems": 6, "maxItems": 6 },
+    "unresolvedFindings": { "type": "array" },
+    "skippedChecks": { "type": "array" },
+    "publicUrlsChecked": { "type": "array" },
+    "reviewerFindings": { "type": "array" },
+    "deferredBoundaries": { "type": "array", "minItems": 17, "maxItems": 17 }
+  },
+  "$defs": {
+    "evidence": {
+      "type": "object",
+      "required": ["id", "kind", "claim", "provenance", "artifact", "details"],
+      "properties": {
+        "id": { "type": "string", "minLength": 3 },
+        "kind": {
+          "enum": [
+            "automated_run",
+            "physical_device",
+            "human_session",
+            "accessibility_audit",
+            "public_url",
+            "link_check",
+            "review"
+          ]
+        },
+        "claim": { "type": "string", "minLength": 10 },
+        "provenance": {
+          "type": "object",
+          "required": ["mode", "observer", "observedAt"],
+          "properties": {
+            "mode": { "const": "observed" },
+            "observer": { "type": "string", "minLength": 3 },
+            "observedAt": { "type": "string", "format": "date-time" }
+          }
+        },
+        "artifact": {
+          "type": "object",
+          "required": ["path", "sha256"],
+          "properties": {
+            "path": { "type": "string", "pattern": "^artifacts/validation/" },
+            "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+          }
+        },
+        "details": { "type": "object" }
+      }
+    }
+  }
+}

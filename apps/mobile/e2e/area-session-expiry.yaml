@@ -1,0 +1,23 @@
+appId: co.inspectionhub.field
+name: Area change and cached-job capture after session expiry
+---
+- launchApp
+- tapOn:
+    text: "Continue"
+    optional: true
+- tapOn:
+    text: "Close"
+    optional: true
+- assertVisible: "Protected local storage ready."
+- tapOn: "Start investigation"
+- assertVisible: ".*Investigation started — capture remains private until inspector review.*"
+- tapOn: "Change area"
+- assertVisible: "Second floor / Adjacent bedroom selected — active investigation retained."
+- stopApp
+- launchApp
+- assertVisible: "Protected local storage ready."
+- assertVisible: ".*Investigation active. Voice note ready.*"
+- tapOn: "Test: expire session"
+- assertVisible: "Session expired — the open cached job can still capture; sync and approval require sign-in.*"
+- tapOn: "Take photo"
+- assertVisible: ".*Photo saved locally and linked to the active investigation — queued for sync.*"

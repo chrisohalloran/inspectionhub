@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://inspectionhub.co/schemas/revenue-activation-manifest-v1.json",
+  "title": "Revenue Activation validation manifest",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "milestone",
+    "outcome",
+    "generatedAt",
+    "release",
+    "buildWeekManifest",
+    "evidence",
+    "rubric",
+    "mustPassGates",
+    "productionProof",
+    "commercialOutcome",
+    "unresolvedFindings",
+    "skippedChecks",
+    "blockers",
+    "validationErrors",
+    "integrity",
+    "completionEvent",
+    "commercialValidationEvent"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "milestone": { "const": "revenue_activation" },
+    "outcome": { "enum": ["complete", "blocked"] },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "release": { "type": "object" },
+    "buildWeekManifest": { "type": ["object", "null"] },
+    "evidence": { "type": "array" },
+    "rubric": {
+      "type": "object",
+      "required": [
+        "earnedPoints",
+        "applicablePoints",
+        "percent",
+        "thresholdPercent",
+        "minimumAreaPercent",
+        "areas",
+        "results"
+      ]
+    },
+    "mustPassGates": { "type": "array", "minItems": 19, "maxItems": 19 },
+    "productionProof": { "type": "object" },
+    "commercialOutcome": { "type": "object" },
+    "unresolvedFindings": { "type": "array" },
+    "skippedChecks": { "type": "array" },
+    "blockers": { "type": "array", "items": { "type": "string" } },
+    "validationErrors": { "type": "array", "items": { "type": "string" } },
+    "integrity": {
+      "type": "object",
+      "required": ["algorithm", "canonicalPayloadSha256"],
+      "properties": {
+        "algorithm": { "const": "sha256" },
+        "canonicalPayloadSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "completionEvent": { "type": ["object", "null"] },
+    "commercialValidationEvent": { "type": ["object", "null"] }
+  }
+}

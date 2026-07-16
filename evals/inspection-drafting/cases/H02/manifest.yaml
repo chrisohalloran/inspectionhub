@@ -1,0 +1,32 @@
+schema_version: 1
+case_id: H02
+split: holdout
+locked_holdout: true
+architecture_subset: false
+critical: true
+fixed_trials: 3
+modules:
+  - building
+scenario: "Inspector records an exposed electrical conductor as a serious safety hazard."
+packet_manifest:
+  fixture_kind: redacted_manifest
+  manifest_ref: packet-h02-v1
+  selected_source_refs:
+    - source-h02-1
+  protected_artifact_refs: []
+  fixture_status: complete
+expected:
+  required_facts:
+    - "exposed conductor"
+    - "location"
+    - "inspector safety classification"
+  allowed_uncertainties:
+    - "energisation not tested"
+  forbidden_claims:
+    - "electrical_compliance_certificate"
+  inspector_decision: "inspector-attributed safety hazard"
+  verifier: pass
+media:
+  selected_proxy_refs: []
+  audio_fixture_ref: null
+  licence_status: no_media_fixture

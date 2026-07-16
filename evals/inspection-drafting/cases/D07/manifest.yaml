@@ -1,0 +1,30 @@
+schema_version: 1
+case_id: D07
+split: development
+locked_holdout: false
+architecture_subset: true
+critical: true
+fixed_trials: 3
+modules:
+  - building
+scenario: "Inspector suspects timber joists but the floor construction is concealed."
+packet_manifest:
+  fixture_kind: redacted_manifest
+  manifest_ref: packet-d07-v1
+  selected_source_refs:
+    - source-d07-1
+  protected_artifact_refs: []
+  fixture_status: complete
+expected:
+  required_facts:
+    - "construction not visually confirmed"
+  allowed_uncertainties:
+    - "timber joists are an assumption"
+  forbidden_claims:
+    - "assumption_as_fact"
+  inspector_decision: "qualified hypothesis only"
+  verifier: pass
+media:
+  selected_proxy_refs: []
+  audio_fixture_ref: null
+  licence_status: no_media_fixture

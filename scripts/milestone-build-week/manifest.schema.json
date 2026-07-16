@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://inspectionhub.example/schemas/build-week-manifest-v1.json",
+  "title": "Immutable Build Week validation manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "milestone",
+    "outcome",
+    "generatedAt",
+    "run",
+    "demoSeedSha256",
+    "evidence",
+    "rubric",
+    "mustPassGates",
+    "externalProof",
+    "unresolvedFindings",
+    "reviewerFindings",
+    "skippedChecks",
+    "publicUrlsChecked",
+    "deferredBoundaries",
+    "blockers",
+    "validationErrors",
+    "integrity",
+    "completionEvent"
+  ],
+  "allOf": [
+    {
+      "if": { "properties": { "outcome": { "const": "complete" } } },
+      "then": {
+        "properties": {
+          "blockers": { "maxItems": 0 },
+          "validationErrors": { "maxItems": 0 },
+          "completionEvent": { "type": "object" }
+        }
+      },
+      "else": {
+        "properties": { "completionEvent": { "type": "null" } }
+      }
+    }
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "milestone": { "const": "build_week" },
+    "outcome": { "enum": ["blocked", "complete"] },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "run": { "type": "object" },
+    "demoSeedSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "evidence": { "type": "array" },
+    "rubric": { "type": "object" },
+    "mustPassGates": { "type": "array", "minItems": 6, "maxItems": 6 },
+    "externalProof": { "type": "object" },
+    "unresolvedFindings": { "type": "array" },
+    "reviewerFindings": { "type": "array" },
+    "skippedChecks": { "type": "array" },
+    "publicUrlsChecked": { "type": "array" },
+    "deferredBoundaries": { "type": "array", "minItems": 17, "maxItems": 17 },
+    "blockers": { "type": "array", "items": { "type": "string" } },
+    "validationErrors": { "type": "array", "items": { "type": "string" } },
+    "integrity": {
+      "type": "object",
+      "required": ["algorithm", "canonicalPayloadSha256"],
+      "properties": {
+        "algorithm": { "const": "sha256" },
+        "canonicalPayloadSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "completionEvent": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["eventType", "occurredAt", "manifestPayloadSha256"],
+          "properties": {
+            "eventType": { "const": "build_week.milestone.completed" },
+            "occurredAt": { "type": "string", "format": "date-time" },
+            "manifestPayloadSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

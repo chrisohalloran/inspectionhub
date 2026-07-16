@@ -1,0 +1,264 @@
+schema_version: 1
+profile_id: inspectionhub-launch-v1
+profile_revision: 1
+declared_on: "2026-07-14"
+declaration_state: pre_measurement
+governing_plan: docs/plans/2026-07-14-001-feat-building-timber-pest-inspection-platform-plan.md
+profile_mutation_policy: immutable_after_first_measurement
+
+profile_lock:
+  results_started: false
+  first_measurement_at_utc: null
+  locked_profile_sha256: null
+  rule: >-
+    Before the first measured warm-up or sample, record the profile file SHA-256
+    and first-measurement time in the run manifest. Results are rejected if the
+    profile changes after that time; corrections require a new profile revision.
+
+milestones:
+  build_week:
+    required: true
+    evidence_mode: synthetic_or_deidentified_with_authorised_test_modes
+    device_floor:
+      ios_physical_inspector_device: required
+      android: deferred_to_revenue_activation
+    native_storage_oracle: blocking
+    public_url:
+      platform_url_allowed: true
+      canonical_custom_domains_required: false
+  revenue_activation:
+    required_for_real_customer_release: true
+    device_floor:
+      ios:
+        model: iPhone 12
+        substitution_rule: documented_slower_supported_device_selected_before_results
+      android:
+        model: Pixel 6
+        substitution_rule: documented_slower_supported_device_selected_before_results
+    native_storage_oracle: blocking_on_each_declared_support_floor
+    canonical_custom_domains_required: true
+    live_provider_and_restore_proof_required: true
+
+devices:
+  build_week_inspector_iphone:
+    required: true
+    status: pending_user_measurement
+    physical_device_required: true
+    measurement_source: inspector_physical_iphone
+    model: null
+    os_name: iOS
+    os_version: null
+    os_build: null
+    app_version: null
+    native_runtime_version: null
+    free_storage_gb_at_start: null
+    battery_percent_at_start: null
+    thermal_state_at_start: null
+    consumer_backup_disabled: null
+    measured_at_utc: null
+    pending_fields_must_be_completed_before_results: true
+  revenue_ios_floor:
+    required_for: revenue_activation
+    status: pending_pre_run_declaration
+    model: iPhone 12
+    slower_substitute_model: null
+    os_version: null
+    os_build: null
+    selected_at_utc: null
+  revenue_android_floor:
+    required_for: revenue_activation
+    status: pending_pre_run_declaration
+    model: Pixel 6
+    slower_substitute_model: null
+    os_version: null
+    os_build: null
+    selected_at_utc: null
+
+start_conditions:
+  minimum_free_storage_gb: 5
+  minimum_battery_percent: 50
+  required_thermal_state: normal
+  consumer_backup_disabled: true
+  unmeasured_warmup_captures: 10
+  reject_if_condition_not_met: true
+
+workload:
+  simulated_walkthrough_minutes: 60
+  report_modules:
+    - building
+    - timber_pest
+  investigations: 10
+  photos:
+    count: 300
+    source: real_property_calibration_distribution
+    megapixels: 12
+    allowed_original_formats:
+      - HEIC
+      - JPEG
+    calibration_set_count: 30
+    calibration_status: pending_user_measurement
+    byte_distribution:
+      median_bytes: null
+      p95_bytes: null
+      maximum_bytes: null
+    distribution_must_be_recorded_before_soak: true
+    tiny_generated_images_prohibited: true
+  voice_notes:
+    count: 30
+    duration_seconds:
+      minimum: 15
+      maximum: 90
+      minimum_median: 30
+      declared_sample_durations: []
+      declaration_status: pending_pre_run_declaration
+    background_noise_fixtures_required: true
+  disruptions:
+    offline_interval_minutes: 20
+    forced_app_terminations: 1
+    low_battery_transition: true
+    wrong_area_correction: true
+    cross_area_investigation: true
+    late_attached_photo: true
+    queued_delivery_departure: true
+
+network_profiles:
+  baseline_4g:
+    round_trip_latency_ms: 80
+    downstream_kbps: 10000
+    upstream_kbps: 3000
+    packet_loss_percent: 1
+    offline_interval_minutes: 0
+    used_for:
+      - transcript_availability
+      - first_investigation_draft
+      - recipient_condition_overview
+  adverse:
+    round_trip_latency_ms: 400
+    downstream_kbps: 2000
+    upstream_kbps: 750
+    packet_loss_percent: 5
+    offline_interval_minutes: 20
+    used_for:
+      - evidence_soak
+      - retry_and_reconnection
+      - termination_recovery
+
+sample_collection:
+  timestamp_source: application_instrumentation
+  shutter_acknowledgement_samples_minimum: 300
+  local_durable_save_samples_minimum: 300
+  voice_start_samples_minimum: 30
+  investigation_draft_samples: full_workload
+  percentile_method: nearest_rank
+  raw_timestamped_observations_required: true
+  outlier_policy: retain_all
+  profile_change_after_results_prohibited: true
+  raw_sample_checksum_algorithm: sha256
+
+performance_targets:
+  shutter_acknowledgement_p95_ms_maximum: 150
+  local_durable_save_p95_ms_maximum: 750
+  voice_recording_start_p95_ms_maximum: 300
+  transcript_availability_p95_ms_maximum: 15000
+  first_investigation_draft_p95_ms_maximum: 60000
+  ten_finding_closeout_seconds_maximum: 300
+  recipient_condition_overview_p75_ms_maximum: 2500
+  evidence_loss_count_maximum: 0
+  duplicate_capture_identity_count_maximum: 0
+  shutter_must_not_wait_for:
+    - network
+    - ai
+
+native_storage_oracle:
+  build_week_status: pending_user_measurement
+  android_revenue_status: pending_pre_run_measurement
+  development_build_required: true
+  same_filesystem_required: true
+  steps:
+    - generate_unique_capture_id
+    - write_partial_file
+    - durably_synchronise_file
+    - hash_file
+    - atomically_rename_to_immutable_app_path
+    - transactionally_insert_sqlite_artifact_and_queue_rows
+    - acknowledge_capture
+    - reconcile_unacknowledged_orphan_on_startup
+  surfaced_failure_fixture_required: true
+  close_or_rename_alone_is_durable_flush: false
+  failure_action: block_u4_and_open_named_cross_platform_native_module_task
+
+field_checks:
+  - sunlight
+  - wet_hand
+  - light_glove
+  - one_handed
+  - stairs_or_hazard_interruption
+  - text_scale_200_percent
+  - haptics_off
+  - audio_off
+  - device_revocation_after_full_sync
+  - lost_device_before_full_sync
+
+run_manifest_required_fields:
+  - milestone
+  - commit_sha
+  - environment_type
+  - profile_id
+  - profile_revision
+  - locked_profile_sha256
+  - run_started_at_utc
+  - run_ended_at_utc
+  - device_model
+  - os_version
+  - os_build
+  - app_version
+  - native_runtime_version
+  - media_distribution
+  - network_shaper
+  - thermal_state_at_start
+  - battery_percent_at_start
+  - free_storage_gb_at_start
+  - raw_sample_sha256
+  - percentile_method
+  - test_command_exit_codes
+  - skipped_checks
+  - verifier_findings
+
+validation_contract:
+  reject_missing_required_fields: true
+  reject_null_pending_fields_when_results_started: true
+  reject_results_without_locked_profile_sha256: true
+  reject_results_started_before_profile_declaration: true
+  reject_profile_hash_mismatch: true
+  reject_profile_mutation_after_first_measurement: true
+  reject_post_hoc_device_or_workload_declaration: true
+  reject_deleted_outliers: true
+  reject_tiny_generated_photo_fixture_substitution: true
+  reject_unsupported_percentile_method: true
+  reject_unmet_start_conditions: true
+  allowed_pending_statuses_before_results:
+    - pending_user_measurement
+    - pending_pre_run_declaration
+    - pending_pre_run_measurement
+  required_pre_run_paths:
+    - devices.build_week_inspector_iphone.model
+    - devices.build_week_inspector_iphone.os_version
+    - devices.build_week_inspector_iphone.os_build
+    - devices.build_week_inspector_iphone.app_version
+    - devices.build_week_inspector_iphone.native_runtime_version
+    - devices.build_week_inspector_iphone.free_storage_gb_at_start
+    - devices.build_week_inspector_iphone.battery_percent_at_start
+    - devices.build_week_inspector_iphone.thermal_state_at_start
+    - devices.build_week_inspector_iphone.consumer_backup_disabled
+    - devices.build_week_inspector_iphone.measured_at_utc
+    - workload.photos.byte_distribution.median_bytes
+    - workload.photos.byte_distribution.p95_bytes
+    - workload.photos.byte_distribution.maximum_bytes
+    - workload.voice_notes.duration_seconds.declared_sample_durations
+  revenue_only_required_pre_run_paths:
+    - devices.revenue_ios_floor.os_version
+    - devices.revenue_ios_floor.os_build
+    - devices.revenue_ios_floor.selected_at_utc
+    - devices.revenue_android_floor.os_version
+    - devices.revenue_android_floor.os_build
+    - devices.revenue_android_floor.selected_at_utc

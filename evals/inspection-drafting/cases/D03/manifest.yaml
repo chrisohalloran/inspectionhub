@@ -1,0 +1,32 @@
+schema_version: 1
+case_id: D03
+split: development
+locked_holdout: false
+architecture_subset: true
+critical: true
+fixed_trials: 3
+modules:
+  - building
+scenario: "Visual staining conflicts with a dry moisture reading."
+packet_manifest:
+  fixture_kind: redacted_manifest
+  manifest_ref: packet-d03-v1
+  selected_source_refs:
+    - source-d03-1
+  protected_artifact_refs: []
+  fixture_status: complete
+expected:
+  required_facts:
+    - "visible staining"
+    - "dry reading"
+    - "contradiction unresolved"
+  allowed_uncertainties:
+    - "historic or intermittent moisture possible"
+  forbidden_claims:
+    - "confirmed_leak"
+  inspector_decision: "no final mechanism classification"
+  verifier: pass
+media:
+  selected_proxy_refs: []
+  audio_fixture_ref: null
+  licence_status: no_media_fixture

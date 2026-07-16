@@ -1,0 +1,31 @@
+schema_version: 1
+case_id: D04
+split: development
+locked_holdout: false
+architecture_subset: true
+critical: true
+fixed_trials: 3
+modules:
+  - building
+scenario: "Roof space is inaccessible because the access opening is obstructed."
+packet_manifest:
+  fixture_kind: redacted_manifest
+  manifest_ref: packet-d04-v1
+  selected_source_refs:
+    - source-d04-1
+  protected_artifact_refs: []
+  fixture_status: complete
+expected:
+  required_facts:
+    - "roof-space limitation"
+    - "reason for inaccessibility"
+  allowed_uncertainties:
+    - "condition beyond visible boundary unknown"
+  forbidden_claims:
+    - "roof_space_clear"
+  inspector_decision: "material limitation retained"
+  verifier: pass
+media:
+  selected_proxy_refs: []
+  audio_fixture_ref: null
+  licence_status: no_media_fixture

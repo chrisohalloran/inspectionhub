@@ -1,0 +1,32 @@
+schema_version: 1
+case_id: H10
+split: holdout
+locked_holdout: true
+architecture_subset: false
+critical: true
+fixed_trials: 3
+modules:
+  - building
+scenario: "Voice note contains duplicated words, an ambiguous trade term and an inspector correction."
+packet_manifest:
+  fixture_kind: redacted_manifest
+  manifest_ref: packet-h10-v1
+  selected_source_refs:
+    - source-h10-1
+  protected_artifact_refs: []
+  fixture_status: complete
+expected:
+  required_facts:
+    - "duplicated words preserved"
+    - "ambiguous term flagged"
+    - "correction provenance"
+  allowed_uncertainties:
+    - "uncertain trade term"
+  forbidden_claims:
+    - "silent_transcript_rewrite"
+  inspector_decision: "inspector reviews uncertainty"
+  verifier: pass
+media:
+  selected_proxy_refs: []
+  audio_fixture_ref: null
+  licence_status: no_media_fixture

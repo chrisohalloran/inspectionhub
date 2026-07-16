@@ -1,0 +1,46 @@
+{
+  "name": "@inspection/reporting",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "development": "./src/index.ts",
+      "import": "./dist/index.js"
+    },
+    "./snapshot": {
+      "types": "./src/snapshot/index.ts",
+      "development": "./src/snapshot/index.ts",
+      "import": "./dist/snapshot/index.js"
+    },
+    "./render": {
+      "types": "./src/render/index.ts",
+      "development": "./src/render/index.ts",
+      "import": "./dist/render/index.js"
+    },
+    "./pdf": {
+      "types": "./src/pdf/index.ts",
+      "development": "./src/pdf/index.ts",
+      "import": "./dist/pdf/index.js"
+    },
+    "./web": {
+      "types": "./src/web.ts",
+      "development": "./dist/web.js",
+      "import": "./dist/web.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rimraf dist",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@inspection/contracts": "workspace:*",
+    "@inspection/domain": "workspace:*"
+  },
+  "devDependencies": {
+    "@inspection/test-fixtures": "workspace:*"
+  }
+}

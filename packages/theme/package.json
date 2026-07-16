@@ -1,0 +1,19 @@
+{
+  "name": "@inspection/theme",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tokens": {
+      "types": "./src/tokens.ts",
+      "import": "./dist/tokens.js"
+    },
+    "./tokens.css": "./styles/tokens.css"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rimraf dist",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  }
+}

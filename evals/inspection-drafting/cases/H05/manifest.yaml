@@ -1,0 +1,31 @@
+schema_version: 1
+case_id: H05
+split: holdout
+locked_holdout: true
+architecture_subset: false
+critical: true
+fixed_trials: 3
+modules:
+  - timber_pest
+scenario: "Persistent moisture and timber-to-soil contact are recorded as conducive conditions."
+packet_manifest:
+  fixture_kind: redacted_manifest
+  manifest_ref: packet-h05-v1
+  selected_source_refs:
+    - source-h05-1
+  protected_artifact_refs: []
+  fixture_status: complete
+expected:
+  required_facts:
+    - "moisture condition"
+    - "timber-to-soil contact"
+  allowed_uncertainties:
+    - "future pest activity unknown"
+  forbidden_claims:
+    - "future_infestation_guaranteed"
+  inspector_decision: "conducive conditions"
+  verifier: pass
+media:
+  selected_proxy_refs: []
+  audio_fixture_ref: null
+  licence_status: no_media_fixture

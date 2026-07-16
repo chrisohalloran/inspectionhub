@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "milestone": "build_week",
+  "thresholdPercent": 90,
+  "minimumAreaPercent": 70,
+  "maximumNotApplicablePoints": 10,
+  "notApplicableAllowlist": ["SO4"],
+  "items": [
+    {
+      "id": "EI1",
+      "area": "evidence_integrity",
+      "points": 6,
+      "mustPass": true
+    },
+    {
+      "id": "EI2",
+      "area": "evidence_integrity",
+      "points": 5,
+      "mustPass": true
+    },
+    {
+      "id": "EI3",
+      "area": "evidence_integrity",
+      "points": 5,
+      "mustPass": true
+    },
+    {
+      "id": "EI4",
+      "area": "evidence_integrity",
+      "points": 5,
+      "mustPass": true
+    },
+    {
+      "id": "EI5",
+      "area": "evidence_integrity",
+      "points": 4,
+      "mustPass": true
+    },
+    {
+      "id": "IF1",
+      "area": "inspector_efficiency",
+      "points": 4,
+      "mustPass": false
+    },
+    {
+      "id": "IF2",
+      "area": "inspector_efficiency",
+      "points": 3,
+      "mustPass": false
+    },
+    {
+      "id": "IF3",
+      "area": "inspector_efficiency",
+      "points": 4,
+      "mustPass": false
+    },
+    {
+      "id": "IF4",
+      "area": "inspector_efficiency",
+      "points": 5,
+      "mustPass": false
+    },
+    {
+      "id": "IF5",
+      "area": "inspector_efficiency",
+      "points": 4,
+      "mustPass": false
+    },
+    { "id": "AI1", "area": "ai_control", "points": 6, "mustPass": true },
+    { "id": "AI2", "area": "ai_control", "points": 4, "mustPass": true },
+    { "id": "AI3", "area": "ai_control", "points": 4, "mustPass": true },
+    { "id": "AI4", "area": "ai_control", "points": 4, "mustPass": true },
+    { "id": "AI5", "area": "ai_control", "points": 2, "mustPass": true },
+    {
+      "id": "RC1",
+      "area": "recipient_integrity",
+      "points": 4,
+      "mustPass": true
+    },
+    {
+      "id": "RC2",
+      "area": "recipient_integrity",
+      "points": 3,
+      "mustPass": false
+    },
+    {
+      "id": "RC3",
+      "area": "recipient_integrity",
+      "points": 3,
+      "mustPass": false
+    },
+    {
+      "id": "RC4",
+      "area": "recipient_integrity",
+      "points": 3,
+      "mustPass": false
+    },
+    {
+      "id": "RC5",
+      "area": "recipient_integrity",
+      "points": 2,
+      "mustPass": false
+    },
+    { "id": "AC1", "area": "accessibility", "points": 3, "mustPass": true },
+    { "id": "AC2", "area": "accessibility", "points": 3, "mustPass": true },
+    { "id": "AC3", "area": "accessibility", "points": 2, "mustPass": false },
+    { "id": "AC4", "area": "accessibility", "points": 2, "mustPass": true },
+    {
+      "id": "SO1",
+      "area": "security_operations",
+      "points": 2,
+      "mustPass": true
+    },
+    {
+      "id": "SO2",
+      "area": "security_operations",
+      "points": 2,
+      "mustPass": false
+    },
+    {
+      "id": "SO3",
+      "area": "security_operations",
+      "points": 2,
+      "mustPass": false
+    },
+    {
+      "id": "SO4",
+      "area": "security_operations",
+      "points": 2,
+      "mustPass": false
+    },
+    {
+      "id": "SO5",
+      "area": "security_operations",
+      "points": 2,
+      "mustPass": true
+    }
+  ],
+  "mustPassGates": [
+    "evidence_integrity",
+    "ai_safety_and_authority",
+    "independent_module_approval_and_package",
+    "public_recipient_security",
+    "physical_field_and_accessibility",
+    "logged_out_submission_assets"
+  ]
+}

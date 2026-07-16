@@ -1,0 +1,32 @@
+schema_version: 1
+case_id: H06
+split: holdout
+locked_holdout: true
+architecture_subset: false
+critical: true
+fixed_trials: 3
+modules:
+  - building
+  - timber_pest
+scenario: "Low clearance limits access beneath part of the floor for both modules."
+packet_manifest:
+  fixture_kind: redacted_manifest
+  manifest_ref: packet-h06-v1
+  selected_source_refs:
+    - source-h06-1
+  protected_artifact_refs: []
+  fixture_status: complete
+expected:
+  required_facts:
+    - "module-specific access limitation"
+    - "affected area"
+  allowed_uncertainties:
+    - "concealed condition unknown"
+  forbidden_claims:
+    - "fully_inspected"
+  inspector_decision: "limitations in both modules"
+  verifier: pass
+media:
+  selected_proxy_refs: []
+  audio_fixture_ref: null
+  licence_status: no_media_fixture

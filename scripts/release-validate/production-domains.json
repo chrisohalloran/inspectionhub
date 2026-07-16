@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "probePath": "/?utm_source=revenue_activation_validation",
+  "domains": [
+    {
+      "host": "inspectionhub.co",
+      "role": "canonical",
+      "canonicalOrigin": "https://inspectionhub.co",
+      "surface": "inspection_hub",
+      "expectedText": "InspectionHub"
+    },
+    {
+      "host": "seeitinspections.com.au",
+      "role": "canonical",
+      "canonicalOrigin": "https://seeitinspections.com.au",
+      "surface": "see_it_inspections",
+      "expectedText": "See It Inspections"
+    },
+    {
+      "host": "buildingpestinspectiongoldcoast.com.au",
+      "role": "canonical",
+      "canonicalOrigin": "https://buildingpestinspectiongoldcoast.com.au",
+      "surface": "gold_coast_service",
+      "expectedText": "Gold Coast Building & Pest Inspections"
+    },
+    {
+      "host": "www.inspectionhub.co",
+      "role": "alias",
+      "canonicalOrigin": "https://inspectionhub.co",
+      "surface": "inspection_hub",
+      "expectedText": "InspectionHub"
+    },
+    {
+      "host": "www.seeitinspections.com.au",
+      "role": "alias",
+      "canonicalOrigin": "https://seeitinspections.com.au",
+      "surface": "see_it_inspections",
+      "expectedText": "See It Inspections"
+    },
+    {
+      "host": "www.buildingpestinspectiongoldcoast.com.au",
+      "role": "alias",
+      "canonicalOrigin": "https://buildingpestinspectiongoldcoast.com.au",
+      "surface": "gold_coast_service",
+      "expectedText": "Gold Coast Building & Pest Inspections"
+    },
+    {
+      "host": "buildinginspectiongoldcoast.com",
+      "role": "legacy_alias",
+      "canonicalOrigin": "https://buildingpestinspectiongoldcoast.com.au",
+      "surface": "gold_coast_service",
+      "expectedText": "Gold Coast Building & Pest Inspections"
+    },
+    {
+      "host": "www.buildinginspectiongoldcoast.com",
+      "role": "legacy_alias",
+      "canonicalOrigin": "https://buildingpestinspectiongoldcoast.com.au",
+      "surface": "gold_coast_service",
+      "expectedText": "Gold Coast Building & Pest Inspections"
+    },
+    {
+      "host": "buildinginspectiongoldcoast.com.au",
+      "role": "legacy_alias",
+      "canonicalOrigin": "https://buildingpestinspectiongoldcoast.com.au",
+      "surface": "gold_coast_service",
+      "expectedText": "Gold Coast Building & Pest Inspections"
+    },
+    {
+      "host": "www.buildinginspectiongoldcoast.com.au",
+      "role": "legacy_alias",
+      "canonicalOrigin": "https://buildingpestinspectiongoldcoast.com.au",
+      "surface": "gold_coast_service",
+      "expectedText": "Gold Coast Building & Pest Inspections"
+    },
+    {
+      "host": "buildingpestinspectiongoldcoast.com",
+      "role": "legacy_alias",
+      "canonicalOrigin": "https://buildingpestinspectiongoldcoast.com.au",
+      "surface": "gold_coast_service",
+      "expectedText": "Gold Coast Building & Pest Inspections"
+    },
+    {
+      "host": "www.buildingpestinspectiongoldcoast.com",
+      "role": "legacy_alias",
+      "canonicalOrigin": "https://buildingpestinspectiongoldcoast.com.au",
+      "surface": "gold_coast_service",
+      "expectedText": "Gold Coast Building & Pest Inspections"
+    },
+    {
+      "host": "houseinspect.co",
+      "role": "legacy_alias",
+      "canonicalOrigin": "https://inspectionhub.co",
+      "surface": "inspection_hub",
+      "expectedText": "InspectionHub"
+    },
+    {
+      "host": "www.houseinspect.co",
+      "role": "legacy_alias",
+      "canonicalOrigin": "https://inspectionhub.co",
+      "surface": "inspection_hub",
+      "expectedText": "InspectionHub"
+    },
+    {
+      "host": "seeitinspections.com",
+      "role": "legacy_alias",
+      "canonicalOrigin": "https://seeitinspections.com.au",
+      "surface": "see_it_inspections",
+      "expectedText": "See It Inspections"
+    },
+    {
+      "host": "www.seeitinspections.com",
+      "role": "legacy_alias",
+      "canonicalOrigin": "https://seeitinspections.com.au",
+      "surface": "see_it_inspections",
+      "expectedText": "See It Inspections"
+    }
+  ]
+}

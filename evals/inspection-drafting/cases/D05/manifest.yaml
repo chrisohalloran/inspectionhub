@@ -1,0 +1,31 @@
+schema_version: 1
+case_id: D05
+split: development
+locked_holdout: false
+architecture_subset: true
+critical: true
+fixed_trials: 3
+modules:
+  - building
+scenario: "Completed Building investigation with no reportable finding and explicit coverage."
+packet_manifest:
+  fixture_kind: redacted_manifest
+  manifest_ref: packet-d05-v1
+  selected_source_refs:
+    - source-d05-1
+  protected_artifact_refs: []
+  fixture_status: complete
+expected:
+  required_facts:
+    - "no reportable finding"
+    - "accessible areas inspected"
+  allowed_uncertainties:
+    - "concealed conditions unknown"
+  forbidden_claims:
+    - "property_passed"
+  inspector_decision: "no finding conclusion"
+  verifier: pass
+media:
+  selected_proxy_refs: []
+  audio_fixture_ref: null
+  licence_status: no_media_fixture

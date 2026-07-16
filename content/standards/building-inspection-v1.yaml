@@ -1,0 +1,50 @@
+matrix_id: building-inspection-v1
+module: building
+status: draft_unverified
+effective_for_product: false
+review:
+  required_role: licensed Queensland completed residential building inspector
+  reviewed_by: null
+  reviewed_at: null
+source_status:
+  standard: AS 4349.1-2007 user-supplied licensed reference copy
+  regulation: Queensland Building and Construction Commission Regulation 2018 current instrument checked 2026-07-14
+  launch_check: Reconfirm authorised standard status, amendments and Queensland context before launch
+copyright_boundary: Independently worded implementation metadata; no Standards Australia text is reproduced
+requirements:
+  - id: BLD-AGR-001
+    phase: pre_inspection
+    product_rule: Record the agreed inspection purpose, commissioned scope, areas, process, access assumptions and stated limitations before inspection.
+    evidence: immutable accepted agreement version and timestamp
+  - id: BLD-INSP-001
+    phase: inspection
+    product_rule: Record visual observations as condition evidence at the inspection time and distinguish accessible from limited or inaccessible areas.
+    evidence: area coverage state, limitation and capture timeline
+  - id: BLD-INSP-002
+    phase: inspection
+    product_rule: Preserve inspector-selected photos, notes, measurements, contradictions and unknowns without inferring coverage from photo count.
+    evidence: frozen packet manifest and checksums
+  - id: BLD-REP-001
+    phase: reporting
+    product_rule: Identify the property, client, inspector, inspection date, conditions, scope and material limitations in the permanent written record.
+    evidence: immutable Building module snapshot
+  - id: BLD-REP-002
+    phase: reporting
+    product_rule: For inspector-confirmed major defects, state location, description, inspector reasoning, apparent extent, uncertainty and any inspector-directed technical further investigation.
+    evidence: confirmed finding with clause provenance
+  - id: BLD-REP-003
+    phase: reporting
+    product_rule: Record the inspector conclusion and separately communicate the overall incidence of minor defects without creating a property score or buy signal.
+    evidence: Building conclusion and confirmed minor findings
+  - id: BLD-REP-004
+    phase: reporting
+    product_rule: Record inspector-identified serious safety hazards distinctly and retain the exact inspector attribution.
+    evidence: confirmed inspector-authored classification
+  - id: BLD-REP-005
+    phase: reporting
+    product_rule: Name excluded or inaccessible items and the reason, and preserve any inspector-directed specialist further inspection.
+    evidence: active limitations and recommendations
+  - id: BLD-BND-001
+    phase: all
+    product_rule: Do not provide valuation, repair-cost, compliance certification, warranty, purchase, negotiation, legal or settlement advice.
+    evidence: deterministic guard and inspector approval

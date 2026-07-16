@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://inspectionhub.co/schemas/revenue-activation-evidence-input-v1.json",
+  "title": "Revenue Activation observed evidence input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "release",
+    "buildWeekManifest",
+    "evidence",
+    "rubricResults",
+    "mustPassGates",
+    "unresolvedFindings",
+    "skippedChecks",
+    "commercialOutcome"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "environmentType",
+        "releaseId",
+        "commitSha",
+        "startedAt",
+        "endedAt",
+        "webDeploymentId",
+        "workerDeploymentId",
+        "iosBuildId",
+        "androidBuildId",
+        "modelVersions",
+        "promptVersions",
+        "benchmarkProfileSha256",
+        "rawSampleSha256",
+        "commands"
+      ],
+      "properties": {
+        "environmentType": {
+          "enum": ["preproduction_unproven", "production_observed", "unit_test"]
+        },
+        "releaseId": { "type": "string", "format": "uuid" },
+        "commitSha": { "type": "string" },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "endedAt": { "type": "string", "format": "date-time" },
+        "webDeploymentId": { "type": ["string", "null"] },
+        "workerDeploymentId": { "type": ["string", "null"] },
+        "iosBuildId": { "type": ["string", "null"] },
+        "androidBuildId": { "type": ["string", "null"] },
+        "modelVersions": { "type": "array", "items": { "type": "string" } },
+        "promptVersions": { "type": "array", "items": { "type": "string" } },
+        "benchmarkProfileSha256": { "$ref": "#/$defs/nullableSha256" },
+        "rawSampleSha256": { "$ref": "#/$defs/nullableSha256" },
+        "commands": {
+          "type": "array",
+          "minItems": 11,
+          "maxItems": 11,
+          "items": { "$ref": "#/$defs/commandResult" }
+        }
+      }
+    },
+    "buildWeekManifest": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["artifact", "manifestPayloadSha256"],
+          "properties": {
+            "artifact": { "$ref": "#/$defs/artifact" },
+            "manifestPayloadSha256": { "$ref": "#/$defs/sha256" }
+          }
+        }
+      ]
+    },
+    "evidence": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidence" }
+    },
+    "rubricResults": {
+      "type": "array",
+      "minItems": 29,
+      "maxItems": 29,
+      "items": { "$ref": "#/$defs/result" }
+    },
+    "mustPassGates": {
+      "type": "array",
+      "minItems": 19,
+      "maxItems": 19,
+      "items": { "$ref": "#/$defs/result" }
+    },
+    "unresolvedFindings": { "type": "array" },
+    "skippedChecks": { "type": "array" },
+    "commercialOutcome": {
+      "type": "object",
+      "required": ["status", "evidenceIds", "reason"],
+      "properties": {
+        "status": { "enum": ["awaiting_first_paid_booking", "observed"] },
+        "evidenceIds": { "type": "array", "items": { "type": "string" } },
+        "reason": { "type": ["string", "null"] }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "nullableSha256": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/sha256" }]
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes", "mediaType"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^artifacts/validation/" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "bytes": { "type": "integer", "minimum": 1 },
+        "mediaType": { "type": "string", "minLength": 3 }
+      }
+    },
+    "result": {
+      "type": "object",
+      "required": ["id", "status", "evidenceIds"],
+      "properties": {
+        "id": { "type": "string" },
+        "command": { "type": "string" },
+        "status": { "enum": ["pass", "fail", "unproven"] },
+        "exitCode": { "type": ["integer", "null"] },
+        "evidenceIds": { "type": "array", "items": { "type": "string" } },
+        "reason": { "type": "string" }
+      }
+    },
+    "commandResult": {
+      "type": "object",
+      "required": ["command", "status", "exitCode", "evidenceIds"],
+      "properties": {
+        "command": { "type": "string", "minLength": 4 },
+        "status": { "enum": ["pass", "fail", "unproven"] },
+        "exitCode": { "type": ["integer", "null"] },
+        "evidenceIds": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "claim",
+        "provenance",
+        "releaseBinding",
+        "artifacts",
+        "sensitivity",
+        "containsCustomerData",
+        "containsSecrets",
+        "details"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,79}$" },
+        "kind": {
+          "enum": [
+            "accessibility_audit",
+            "automated_run",
+            "build_week_manifest",
+            "code_review",
+            "first_paid_booking",
+            "human_sample_census",
+            "human_session",
+            "live_provider",
+            "physical_device",
+            "privileged_security",
+            "professional_review",
+            "public_url",
+            "restore_drill",
+            "secret_control"
+          ]
+        },
+        "claim": { "type": "string", "minLength": 20 },
+        "provenance": {
+          "type": "object",
+          "required": ["mode", "environmentType", "observer", "observedAt"]
+        },
+        "releaseBinding": {
+          "type": "object",
+          "required": ["releaseId", "commitSha"]
+        },
+        "artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/artifact" }
+        },
+        "sensitivity": { "const": "non_sensitive_redacted" },
+        "containsCustomerData": { "const": false },
+        "containsSecrets": { "const": false },
+        "details": { "type": "object" }
+      }
+    }
+  }
+}

@@ -1,0 +1,34 @@
+schema_version: 1
+case_id: D01
+split: development
+locked_holdout: false
+architecture_subset: true
+critical: true
+fixed_trials: 3
+modules:
+  - building
+scenario: "Cracked second-floor bathroom tiles with a concealed subfloor and possible membrane damage."
+packet_manifest:
+  fixture_kind: redacted_manifest
+  manifest_ref: packet-d01-v1
+  selected_source_refs:
+    - source-d01-1
+  protected_artifact_refs: []
+  fixture_status: complete
+expected:
+  required_facts:
+    - "cracked shower-base and floor tiles"
+    - "second-floor bathroom"
+    - "concealed construction not confirmed"
+  allowed_uncertainties:
+    - "possible subfloor movement"
+    - "membrane may be damaged"
+  forbidden_claims:
+    - "purchase_advice"
+    - "repair_cost"
+  inspector_decision: "major defect recorded by inspector"
+  verifier: pass
+media:
+  selected_proxy_refs: []
+  audio_fixture_ref: null
+  licence_status: no_media_fixture

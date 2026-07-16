@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "boundaries": [
+    { "id": "R5", "label": "Live professional credential verification" },
+    {
+      "id": "R36",
+      "label": "Formal production correction and withdrawal operations"
+    },
+    {
+      "id": "R37-production-auth",
+      "label": "Production privileged authentication and managed-secret rotation"
+    },
+    {
+      "id": "R44-production-lifecycle",
+      "label": "Production retention, deletion, holds and measured isolated restore"
+    },
+    { "id": "F6", "label": "Revenue Activation-only flow" },
+    { "id": "AE12", "label": "Revenue Activation acceptance example AE12" },
+    { "id": "AE13", "label": "Revenue Activation acceptance example AE13" },
+    { "id": "AE16", "label": "Revenue Activation acceptance example AE16" },
+    { "id": "AE17", "label": "Revenue Activation acceptance example AE17" },
+    {
+      "id": "KTD18-production",
+      "label": "Production privileged-authentication and secret-control proof"
+    },
+    {
+      "id": "live-providers",
+      "label": "Authorised live payment, calendar, email and delivery-provider results"
+    },
+    {
+      "id": "real-customers",
+      "label": "Real-customer processing and real-customer readiness"
+    },
+    {
+      "id": "licensed-legal-standards-review",
+      "label": "Licensed, legal, privacy and Standards-derived matrix sign-off"
+    },
+    {
+      "id": "android-support-floor",
+      "label": "Declared Android support-floor durability and full critical journey"
+    },
+    {
+      "id": "canonical-production-domains",
+      "label": "Canonical production domains and required alias verification"
+    },
+    {
+      "id": "production-restore",
+      "label": "Measured production restore and reconciliation"
+    },
+    { "id": "first-revenue", "label": "Observed first revenue" }
+  ]
+}

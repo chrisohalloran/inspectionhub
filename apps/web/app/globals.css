@@ -1,0 +1,136 @@
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: Inter, Arial, Helvetica, sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  display: grid;
+  gap: var(--space-6);
+  margin: 0 auto;
+  max-width: 72rem;
+  min-height: 100dvh;
+  padding: clamp(var(--space-5), 7vw, 5rem) var(--space-4);
+}
+
+.hero,
+.module-preview {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  padding: clamp(var(--space-5), 5vw, 4rem);
+}
+
+.hero {
+  max-width: 54rem;
+}
+
+.eyebrow {
+  color: var(--color-action);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin: 0 0 var(--space-3);
+  text-transform: uppercase;
+}
+
+h1,
+h2 {
+  line-height: 1.05;
+  margin: 0;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: 2rem;
+  max-width: 13ch;
+}
+
+.summary {
+  color: var(--color-ink-muted);
+  font-size: clamp(1.1rem, 2.4vw, 1.4rem);
+  line-height: 1.55;
+  max-width: 58ch;
+}
+
+button,
+.primary-link {
+  background: var(--color-action);
+  border: 0;
+  border-radius: var(--radius-medium);
+  color: white;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  min-height: var(--target-primary);
+  padding: var(--space-3) var(--space-5);
+}
+
+button:hover,
+.primary-link:hover {
+  background: var(--color-action-pressed);
+}
+
+button:focus-visible,
+.primary-link:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.primary-link {
+  align-items: center;
+  display: inline-flex;
+  text-decoration: none;
+}
+
+.module-preview {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: minmax(0, 1fr) minmax(14rem, 0.7fr);
+}
+
+.module-preview ul {
+  display: grid;
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.module-preview li {
+  border: 1px solid currentColor;
+  border-radius: var(--radius-medium);
+  font-weight: 700;
+  padding: var(--space-4);
+}
+
+.module-preview li[data-module="building"] {
+  color: var(--color-building);
+}
+
+.module-preview li[data-module="timber-pest"] {
+  color: var(--color-timber-pest);
+}
+
+@media (max-width: 40rem) {
+  .module-preview {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

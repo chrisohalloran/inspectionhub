@@ -1,0 +1,52 @@
+{
+  "name": "building-timber-pest-inspection-platform",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.29.3",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "clean": "turbo run clean && rimraf .turbo coverage",
+    "design:lint": "/Users/chrisohalloran/.codex/skills/design-md/scripts/design_md.sh lint DESIGN.md",
+    "dev": "turbo run dev --parallel",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "foundation:validate": "node scripts/verification/foundation-validation.mjs",
+    "native:validate": "node scripts/verification/validate-native-module.mjs",
+    "lint": "turbo run lint && pnpm format:check && node scripts/quality/check-repository.mjs && pnpm foundation:validate",
+    "typecheck": "turbo run typecheck",
+    "test": "vitest run --config vitest.config.ts",
+    "test:integration": "node scripts/verification/run-gate.mjs integration",
+    "test:e2e:web": "node scripts/verification/run-gate.mjs e2e-web",
+    "test:e2e:mobile": "node scripts/verification/run-gate.mjs e2e-mobile",
+    "test:eval": "node scripts/verification/run-gate.mjs eval",
+    "test:soak": "node scripts/verification/run-gate.mjs soak",
+    "test:pdf": "node scripts/verification/run-gate.mjs pdf",
+    "test:security": "node scripts/verification/run-gate.mjs security",
+    "milestone:build-week": "node scripts/verification/run-milestone.mjs build-week",
+    "release:validate": "node scripts/verification/run-milestone.mjs revenue-activation"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.12.1",
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.61.1",
+    "@types/node": "26.1.1",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.3",
+    "eslint": "10.7.0",
+    "globals": "17.7.0",
+    "jsdom": "29.1.1",
+    "prettier": "3.9.5",
+    "rimraf": "6.1.2",
+    "turbo": "2.10.5",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.64.0",
+    "vitest": "4.1.10",
+    "yaml": "2.9.0"
+  }
+}

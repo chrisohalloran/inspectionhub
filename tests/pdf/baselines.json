@@ -1,0 +1,36 @@
+{
+  "popplerVersion": "pdftoppm version 26.05.0",
+  "fixtures": [
+    {
+      "fixture": "cracked-tile-building",
+      "pdfHash": "fe682afa62e1fbcf07166deeb3df5dc679f66a540d0630b0313850134dfae403",
+      "imageHashes": [
+        "907ed8ab7aecfb3719d841f12351ba6850e184d1c1d0f58aa0a69507e27c7ea4",
+        "7a6832ca300022eeade9998f43b7b1c843bab3fb7828198697c747a2d13d90da"
+      ]
+    },
+    {
+      "fixture": "cracked-tile-timber-pest",
+      "pdfHash": "900f90a0fb053c1446837969630fd3d8236809594eaba282b10554c114f7e5e6",
+      "imageHashes": [
+        "a4ec347cb991da0787f2ef61488d9090d309b7719ace75712c42fdad82ff85ec",
+        "74685a31a8ff098fa536b0876bf9726c6051e98329f29f7d97d604d31c4e3ddc"
+      ]
+    },
+    {
+      "fixture": "no-major-defect",
+      "pdfHash": "1974f2e3687d7f824016d480971e11ef191783aaf4326c45c90fdd4fc42a6127",
+      "imageHashes": [
+        "8318cc30aa399aa635dbfd1d81b4a121247c6e0dbf4f95d6fc30b43ea727bd17"
+      ]
+    },
+    {
+      "fixture": "access-limitation",
+      "pdfHash": "900f90a0fb053c1446837969630fd3d8236809594eaba282b10554c114f7e5e6",
+      "imageHashes": [
+        "a4ec347cb991da0787f2ef61488d9090d309b7719ace75712c42fdad82ff85ec",
+        "74685a31a8ff098fa536b0876bf9726c6051e98329f29f7d97d604d31c4e3ddc"
+      ]
+    }
+  ]
+}

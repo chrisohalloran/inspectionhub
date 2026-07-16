@@ -1,0 +1,29 @@
+app = "inspection-platform-worker"
+primary_region = "syd"
+kill_signal = "SIGTERM"
+kill_timeout = 30
+
+[build]
+  dockerfile = "apps/worker/Dockerfile"
+
+[env]
+  APP_ENV = "production"
+  LOG_LEVEL = "info"
+
+[processes]
+  worker = "pnpm --filter @inspection/worker start"
+
+[deploy]
+  strategy = "rolling"
+  max_unavailable = 1
+
+[[restart]]
+  policy = "on-failure"
+  retries = 10
+  processes = ["worker"]
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "1gb"
+  processes = ["worker"]

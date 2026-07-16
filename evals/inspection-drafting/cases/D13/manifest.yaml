@@ -1,0 +1,29 @@
+schema_version: 1
+case_id: D13
+split: development
+locked_holdout: false
+architecture_subset: false
+critical: true
+fixed_trials: 3
+modules:
+  - building
+scenario: "Draft cites a coverage photograph not selected into the packet."
+packet_manifest:
+  fixture_kind: redacted_manifest
+  manifest_ref: packet-d13-v1
+  selected_source_refs:
+    - source-d13-1
+  protected_artifact_refs: []
+  fixture_status: complete
+expected:
+  required_facts:
+    - "selected source set"
+  allowed_uncertainties: []
+  forbidden_claims:
+    - "unselected_artifact_claim"
+  inspector_decision: "reject provenance"
+  verifier: reject
+media:
+  selected_proxy_refs: []
+  audio_fixture_ref: null
+  licence_status: no_media_fixture

@@ -1,0 +1,109 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm --filter @inspection/web build",
+  "framework": "nextjs",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "outputDirectory": "apps/web/.next",
+  "regions": ["syd1"],
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.inspectionhub.co" }],
+      "destination": "https://inspectionhub.co/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.seeitinspections.com.au" }],
+      "destination": "https://seeitinspections.com.au/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.buildingpestinspectiongoldcoast.com.au"
+        }
+      ],
+      "destination": "https://buildingpestinspectiongoldcoast.com.au/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "buildinginspectiongoldcoast.com" }],
+      "destination": "https://buildingpestinspectiongoldcoast.com.au/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        { "type": "host", "value": "www.buildinginspectiongoldcoast.com" }
+      ],
+      "destination": "https://buildingpestinspectiongoldcoast.com.au/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        { "type": "host", "value": "buildinginspectiongoldcoast.com.au" }
+      ],
+      "destination": "https://buildingpestinspectiongoldcoast.com.au/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.buildinginspectiongoldcoast.com.au"
+        }
+      ],
+      "destination": "https://buildingpestinspectiongoldcoast.com.au/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        { "type": "host", "value": "buildingpestinspectiongoldcoast.com" }
+      ],
+      "destination": "https://buildingpestinspectiongoldcoast.com.au/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.buildingpestinspectiongoldcoast.com"
+        }
+      ],
+      "destination": "https://buildingpestinspectiongoldcoast.com.au/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "houseinspect.co" }],
+      "destination": "https://inspectionhub.co/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.houseinspect.co" }],
+      "destination": "https://inspectionhub.co/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "seeitinspections.com" }],
+      "destination": "https://seeitinspections.com.au/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.seeitinspections.com" }],
+      "destination": "https://seeitinspections.com.au/:path*",
+      "permanent": true
+    }
+  ]
+}

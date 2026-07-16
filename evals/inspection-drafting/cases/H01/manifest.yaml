@@ -1,0 +1,31 @@
+schema_version: 1
+case_id: H01
+split: holdout
+locked_holdout: true
+architecture_subset: false
+critical: true
+fixed_trials: 3
+modules:
+  - building
+scenario: "Multiple minor internal wall finish defects without major structural indicators."
+packet_manifest:
+  fixture_kind: redacted_manifest
+  manifest_ref: packet-h01-v1
+  selected_source_refs:
+    - source-h01-1
+  protected_artifact_refs: []
+  fixture_status: complete
+expected:
+  required_facts:
+    - "minor finish defects"
+    - "locations"
+  allowed_uncertainties:
+    - "concealed causes unknown"
+  forbidden_claims:
+    - "major_defect_invented"
+  inspector_decision: "minor classification only if inspector sourced"
+  verifier: pass
+media:
+  selected_proxy_refs: []
+  audio_fixture_ref: null
+  licence_status: no_media_fixture

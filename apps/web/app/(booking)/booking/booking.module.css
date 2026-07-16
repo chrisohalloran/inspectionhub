@@ -1,0 +1,654 @@
+.page {
+  display: grid;
+  gap: var(--space-5);
+  margin: 0 auto;
+  max-width: 80rem;
+  min-height: 100dvh;
+  padding: var(--space-4);
+}
+
+.masthead {
+  align-items: center;
+  display: flex;
+  gap: var(--space-4);
+  justify-content: space-between;
+}
+
+.brand,
+.changeLinks a,
+.scenarioPanel a,
+.secondaryLink {
+  color: var(--color-action);
+  font-weight: 700;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.brand {
+  align-items: center;
+  display: inline-flex;
+  min-height: var(--target-minimum);
+}
+
+.environment {
+  color: var(--color-ink-muted);
+  font-size: 0.875rem;
+  margin: 0;
+  text-align: right;
+}
+
+.bookingShell {
+  align-items: start;
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: minmax(13rem, 0.33fr) minmax(0, 1fr);
+}
+
+.progress,
+.content,
+.scenarioPanel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+}
+
+.progress {
+  padding: var(--space-5);
+  position: sticky;
+  top: var(--space-4);
+}
+
+.progress > p:not(.eyebrow) {
+  color: var(--color-ink-muted);
+  line-height: 1.5;
+}
+
+.progress ol {
+  display: grid;
+  gap: var(--space-2);
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+}
+
+.progress li {
+  align-items: center;
+  border-left: 4px solid transparent;
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: 2rem 1fr;
+  min-height: var(--target-minimum);
+  padding: var(--space-2);
+}
+
+.progress li[aria-current="step"] {
+  background: var(--color-canvas);
+  border-left-color: var(--color-action);
+  font-weight: 700;
+}
+
+.progress li span {
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  display: inline-flex;
+  height: 2rem;
+  justify-content: center;
+  width: 2rem;
+}
+
+.progress li small {
+  color: var(--color-ink-muted);
+  font-size: 0.75rem;
+  grid-column: 2;
+}
+
+.content {
+  min-width: 0;
+  padding: clamp(var(--space-4), 4vw, var(--space-6));
+}
+
+.content h1 {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  line-height: 1.15;
+  max-width: 18ch;
+}
+
+.content h2,
+.content h3,
+.scenarioPanel h2 {
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.content h2,
+.scenarioPanel h2 {
+  font-size: 1.35rem;
+}
+
+.focusHeading:focus {
+  outline: none;
+}
+
+.focusHeading:focus-visible {
+  border-radius: var(--radius-small);
+  outline: 3px solid var(--color-focus);
+  outline-offset: 4px;
+}
+
+.eyebrow,
+.versionLabel,
+.moduleLabel {
+  color: var(--color-action);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin: 0 0 var(--space-2);
+}
+
+.helper,
+.quoteExpiry,
+.bookingReference p,
+.actionCards p,
+.agreement p,
+.scenarioPanel p {
+  color: var(--color-ink-muted);
+  line-height: 1.55;
+}
+
+.cleanFieldset,
+.formSections fieldset {
+  border: 0;
+  margin: var(--space-5) 0 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.cleanFieldset legend,
+.formSections legend {
+  font-size: 1.1rem;
+  font-weight: 700;
+  padding: 0;
+}
+
+.serviceGrid,
+.slotGrid,
+.actionCards {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: var(--space-4);
+}
+
+.serviceCard,
+.slotCard,
+.consent {
+  align-items: start;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  cursor: pointer;
+  display: flex;
+  gap: var(--space-3);
+  min-height: var(--target-minimum);
+  padding: var(--space-4);
+}
+
+.serviceCard[data-module="building"] {
+  background: var(--color-building-container);
+  color: var(--color-building);
+}
+
+.serviceCard[data-module="timber-pest"] {
+  background: var(--color-timber-pest-container);
+  color: var(--color-timber-pest);
+}
+
+.serviceCard input,
+.slotCard input,
+.consent input {
+  accent-color: var(--color-action);
+  flex: 0 0 auto;
+  height: 1.35rem;
+  margin: 0.1rem 0 0;
+  width: 1.35rem;
+}
+
+.serviceCard span,
+.slotCard span,
+.consent span {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.serviceCard small,
+.slotCard small {
+  color: inherit;
+  line-height: 1.5;
+}
+
+.serviceCard b {
+  margin-left: auto;
+}
+
+.serviceCard:has(input:focus-visible),
+.slotCard:has(input:focus-visible),
+.consent:has(input:focus-visible) {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.serviceCard:has(input:checked),
+.slotCard:has(input:checked) {
+  border-color: currentColor;
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+.quote,
+.readiness,
+.agreement,
+.bookingReference,
+.actionCards section,
+.recoveryNext {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  margin-top: var(--space-5);
+  padding: var(--space-4);
+}
+
+.quote {
+  background: var(--color-canvas);
+}
+
+.quote dl {
+  margin: var(--space-4) 0 0;
+}
+
+.quote dl > div {
+  display: flex;
+  gap: var(--space-4);
+  justify-content: space-between;
+  padding: var(--space-2) 0;
+}
+
+.quote dd {
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+
+.totalRow {
+  border-top: 2px solid var(--color-border);
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-top: var(--space-2);
+}
+
+.quoteExpiry {
+  font-size: 0.875rem;
+  margin-bottom: 0;
+}
+
+.actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  margin-top: var(--space-5);
+}
+
+.actions button,
+.actionCards button,
+.recoveryNext button {
+  min-height: var(--target-primary);
+}
+
+.secondaryButton {
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  color: var(--color-ink);
+}
+
+.secondaryButton:hover {
+  background: var(--color-canvas);
+}
+
+.content button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.formSections {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.formSections fieldset {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.formSections legend {
+  background: var(--color-surface);
+  padding: 0 var(--space-2);
+}
+
+.formSections label {
+  display: grid;
+  font-weight: 700;
+  gap: var(--space-2);
+}
+
+.formSections input,
+.adminInput {
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  color: var(--color-ink);
+  font: inherit;
+  min-height: var(--target-minimum);
+  padding: var(--space-3);
+  width: 100%;
+}
+
+.formSections input:focus-visible,
+.adminInput:focus-visible,
+.changeLinks a:focus-visible,
+.scenarioPanel a:focus-visible,
+.brand:focus-visible {
+  border-radius: var(--radius-small);
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.slotGrid {
+  grid-template-columns: 1fr;
+}
+
+.slotCard {
+  background: var(--color-surface);
+}
+
+.errorNotice,
+.successNotice,
+.fieldError {
+  border-left: 6px solid currentColor;
+  border-radius: var(--radius-small);
+  line-height: 1.5;
+  margin: var(--space-4) 0;
+  padding: var(--space-3) var(--space-4);
+}
+
+.errorNotice,
+.fieldError {
+  background: var(--color-major-container);
+  color: var(--color-major);
+}
+
+.errorNotice p {
+  margin-bottom: 0;
+}
+
+.successNotice {
+  background: var(--color-building-container);
+  color: var(--color-building);
+}
+
+.agreement {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.agreement section {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-4);
+}
+
+.agreement section:first-of-type {
+  border-top: 0;
+}
+
+.agreement h2 {
+  margin-bottom: 0;
+}
+
+.moduleLabel {
+  display: inline-block;
+  padding: var(--space-2);
+}
+
+.moduleLabel[data-module="building"] {
+  background: var(--color-building-container);
+  color: var(--color-building);
+}
+
+.moduleLabel[data-module="timber-pest"] {
+  background: var(--color-timber-pest-container);
+  color: var(--color-timber-pest);
+}
+
+.consent {
+  margin-top: var(--space-4);
+}
+
+.bookingReference h2 {
+  overflow-wrap: anywhere;
+}
+
+.readiness {
+  background: var(--color-canvas);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.readinessRow {
+  align-items: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  min-height: var(--target-minimum);
+  padding: var(--space-3);
+}
+
+.readinessRow strong {
+  text-align: right;
+}
+
+.actionCards section {
+  display: flex;
+  flex-direction: column;
+  margin-top: 0;
+}
+
+.actionCards section button {
+  margin-top: auto;
+}
+
+.changeLinks,
+.scenarioPanel nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+.changeLinks a,
+.scenarioPanel a,
+.secondaryLink {
+  align-items: center;
+  display: inline-flex;
+  min-height: var(--target-minimum);
+}
+
+.scenarioPanel {
+  align-items: center;
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.6fr);
+  padding: var(--space-5);
+}
+
+.scenarioPanel nav {
+  align-content: center;
+  display: grid;
+  margin-top: 0;
+}
+
+.literalStates {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: var(--space-5) 0;
+}
+
+.literalStates div {
+  background: var(--color-canvas);
+  border: 1px solid var(--color-border);
+  min-width: 0;
+  padding: var(--space-3);
+}
+
+.literalStates dt {
+  color: var(--color-ink-muted);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.literalStates dd {
+  font-weight: 700;
+  margin: var(--space-1) 0 0;
+  overflow-wrap: anywhere;
+}
+
+.secondaryLink {
+  align-items: center;
+  display: inline-flex;
+  min-height: var(--target-minimum);
+}
+
+@media (max-width: 52rem) {
+  .bookingShell,
+  .scenarioPanel {
+    grid-template-columns: 1fr;
+  }
+
+  .progress {
+    position: static;
+  }
+
+  .progress ol {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .progress li {
+    border-bottom: 4px solid transparent;
+    border-left: 0;
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .progress li[aria-current="step"] {
+    border-bottom-color: var(--color-action);
+  }
+
+  .progress li small {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 40rem) {
+  .masthead {
+    align-items: start;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .environment {
+    text-align: left;
+  }
+
+  .progress ol {
+    grid-template-columns: 1fr;
+  }
+
+  .progress li {
+    align-items: center;
+    border-bottom: 0;
+    border-left: 4px solid transparent;
+    flex-direction: row;
+    text-align: left;
+  }
+
+  .progress li[aria-current="step"] {
+    border-bottom: 0;
+    border-left-color: var(--color-action);
+  }
+
+  .serviceGrid,
+  .formSections,
+  .actionCards,
+  .literalStates {
+    grid-template-columns: 1fr;
+  }
+
+  .serviceCard {
+    flex-wrap: wrap;
+  }
+
+  .serviceCard b {
+    flex-basis: 100%;
+    margin-left: 2.1rem;
+  }
+
+  .actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .actions button,
+  .actionCards button,
+  .recoveryNext button {
+    width: 100%;
+  }
+
+  .readinessRow {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .readinessRow strong {
+    text-align: left;
+  }
+
+  .quote dl > div {
+    align-items: start;
+  }
+}
+
+@media (max-width: 22rem) {
+  .page {
+    padding: var(--space-3);
+  }
+
+  .content,
+  .progress,
+  .scenarioPanel {
+    padding: var(--space-4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page *,
+  .page *::before,
+  .page *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

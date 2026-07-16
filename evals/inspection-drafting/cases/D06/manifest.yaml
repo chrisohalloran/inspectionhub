@@ -1,0 +1,32 @@
+schema_version: 1
+case_id: D06
+split: development
+locked_holdout: false
+architecture_subset: true
+critical: true
+fixed_trials: 3
+modules:
+  - building
+  - timber_pest
+scenario: "One shared photograph supports distinct Building and Timber Pest investigations."
+packet_manifest:
+  fixture_kind: redacted_manifest
+  manifest_ref: packet-d06-v1
+  selected_source_refs:
+    - source-d06-1
+  protected_artifact_refs: []
+  fixture_status: complete
+expected:
+  required_facts:
+    - "shared source identity"
+    - "separate module conclusions"
+  allowed_uncertainties:
+    - "extent uncertain"
+  forbidden_claims:
+    - "merged_taxonomy"
+  inspector_decision: "two independent module outcomes"
+  verifier: pass
+media:
+  selected_proxy_refs: []
+  audio_fixture_ref: null
+  licence_status: no_media_fixture

@@ -1,0 +1,30 @@
+{
+  "name": "@inspection/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "clean": "rimraf .next",
+    "dev": "next dev",
+    "lint": "eslint app next.config.ts proxy.ts",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "5.2.8",
+    "@inspection/recipient-access": "workspace:*",
+    "@inspection/reporting": "workspace:*",
+    "@inspection/security": "workspace:*",
+    "@inspection/test-fixtures": "workspace:*",
+    "@inspection/storage": "workspace:*",
+    "@inspection/task-queue": "workspace:*",
+    "@inspection/theme": "workspace:*",
+    "next": "16.2.10",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3"
+  }
+}

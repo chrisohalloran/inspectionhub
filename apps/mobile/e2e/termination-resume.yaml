@@ -1,0 +1,21 @@
+appId: co.inspectionhub.field
+name: Atomic-rename termination and startup recovery
+---
+- launchApp
+- tapOn:
+    text: "Continue"
+    optional: true
+- tapOn:
+    text: "Close"
+    optional: true
+- assertVisible: "Take photo"
+- tapOn: "Test: terminate after rename"
+- assertVisible: ".*Next synthetic capture will terminate after atomic rename.*"
+- tapOn: "Take photo"
+- launchApp
+- assertVisible: ".*Recovery checked 1 interrupted capture boundary.*"
+- scrollUntilVisible:
+    element:
+      text: ".*1 photos.*"
+    direction: DOWN
+- assertVisible: ".*1 photos.*"

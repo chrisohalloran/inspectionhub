@@ -1,0 +1,52 @@
+{
+  "integration": {
+    "status": "active",
+    "unit": "U2",
+    "command": ["node", "scripts/integration/run-postgres.mjs"]
+  },
+  "e2e-web": {
+    "status": "active",
+    "unit": "U3",
+    "command": [
+      "pnpm",
+      "exec",
+      "playwright",
+      "test",
+      "--config",
+      "e2e/web/playwright.config.ts"
+    ]
+  },
+  "e2e-mobile": {
+    "status": "active",
+    "unit": "U4",
+    "command": ["node", "scripts/mobile/run-mobile-e2e.mjs"]
+  },
+  "eval": {
+    "status": "active",
+    "unit": "U7",
+    "command": ["node", "scripts/verification/run-agent-evals.mjs"]
+  },
+  "soak": {
+    "status": "active",
+    "unit": "U6",
+    "command": [
+      "pnpm",
+      "exec",
+      "vitest",
+      "run",
+      "--config",
+      "tests/soak/vitest.config.ts",
+      "tests/soak/u6-evidence-soak.test.ts"
+    ]
+  },
+  "pdf": {
+    "status": "active",
+    "unit": "U9",
+    "command": ["node", "tests/pdf/run.mjs"]
+  },
+  "security": {
+    "status": "active",
+    "unit": "U10",
+    "command": ["node", "scripts/security-check/run-security-gate.mjs"]
+  }
+}
