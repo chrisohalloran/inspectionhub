@@ -1,7 +1,7 @@
 # Build Week validation status
 
 Status: **blocked by missing observed prerequisites**
-Date: 15 July 2026
+Date: 16 July 2026
 
 The U11 machinery is installed and fail-closed. Its default run produces a
 valid `blocked` manifest with 29 unique atomic results, six must-pass gates, 17
@@ -33,16 +33,28 @@ They do **not** prove the product milestone.
   post-revocation denial has been supplied.
 - The two recipient, two client and accessibility-audit samples have not been
   supplied.
-- Public video, repository and submission-description links have not been
-  checked logged out.
-- No immutable commit SHA is available in the current unborn worktree.
-- No independently observed implementation, security and document review with
-  zero unresolved P0/P1 has been supplied.
-- The complete project gate and P0/P1 review set must be rerun after all units
-  settle.
+- Public video and submission-description links have not been checked logged
+  out. The public repository is observed at
+  `https://github.com/chrisohalloran/inspectionhub`; the bounded check is
+  recorded in `public-repository-check-2026-07-16.md`.
+- An immutable commit SHA is available and the default validator no longer
+  emits `immutable_commit_sha_missing`.
+- Parallel adversarial implementation, security and document review completed
+  with zero unresolved P0/P1. The model-assisted review boundary and resolved
+  findings are recorded in `adversarial-review-2026-07-16.md`; it is not
+  represented as an external human review.
+- The complete local project gate has been rerun and is green. Its command logs,
+  the review artifacts and all remaining external observations still need to be
+  assembled into one checksum-linked milestone evidence input.
 
 These are prerequisites, not test stubs. The validator does not invent their
 values and cannot be switched to complete with a CLI flag.
+
+The latest default run at commit
+`6d08e2933ccfd1607e8212aeb7cda60ec5336429` remained truthfully blocked with
+zero validation errors. It no longer reported a missing immutable SHA, but a
+default evidence input intentionally does not infer the checked repository or
+review records from prose.
 
 ## Evidence protocols
 

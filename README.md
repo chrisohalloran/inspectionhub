@@ -7,11 +7,13 @@ professional module independently and leave the site with delivery sent or
 durably queued. Recipients get separate, plain-language Building and Timber
 Pest reports instead of a merged score or purchase recommendation.
 
-> **Current status — 15 July 2026:** active Build Week implementation. The
+> **Current status — 16 July 2026:** active Build Week implementation. The
 > repository is not yet a completed submission or a production service. The
 > physical-iPhone journey, live GPT-5.6 comparison, public demo, human sample,
-> accessibility audit and logged-out submission assets remain unproven. The
-> milestone validator therefore emits `blocked`, never a completion event.
+> accessibility audit, public video and published submission description remain
+> unproven. The [public source repository](https://github.com/chrisohalloran/inspectionhub)
+> has been checked logged out, but the milestone validator still emits `blocked`,
+> never a completion event.
 
 ## Product principles
 
