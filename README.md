@@ -120,6 +120,8 @@ gate. See [privacy and limitations](docs/submission/privacy-limitations.md).
 
 ## Build Week submission
 
+- Track: **Work and Productivity**
+- Submission deadline: **22 July 2026 at 10:00 AM AEST**
 - [Submission status and asset checklist](docs/submission/README.md)
 - [Under-three-minute demo script](docs/submission/demo-script.md)
 - [Devpost copy](docs/submission/devpost-copy.md)
@@ -129,3 +131,11 @@ gate. See [privacy and limitations](docs/submission/privacy-limitations.md).
 No public URL, video URL, repository URL or Devpost submission is represented
 as verified until the logged-out checks appear in the immutable milestone
 manifest.
+
+## License
+
+InspectionHub is licensed under the GNU Affero General Public License v3.0 only
+(`AGPL-3.0-only`). This keeps the Build Week source inspectable while requiring
+operators of modified network versions to make their corresponding source
+available. Third-party dependencies and assets remain under their respective
+licenses.

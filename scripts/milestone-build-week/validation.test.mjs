@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -333,6 +333,76 @@ test("the evidence-input generator emits every required result and gate", () => 
   assert.equal(input.mustPassGates.length, 6);
   assert.equal(input.deferredBoundaries.length, 17);
   assert.equal(input.evidence.length, 0);
+});
+
+test("the observed-local collector checksums bounded evidence without promoting unproven gates", async (t) => {
+  const artifactDirectory = `artifacts/validation/build-week-observed-test-${process.pid}`;
+  t.after(async () => {
+    await rm(resolve(import.meta.dirname, "../..", artifactDirectory), {
+      force: true,
+      recursive: true,
+    });
+  });
+  const run = spawnSync(
+    process.execPath,
+    [
+      resolve(import.meta.dirname, "create-evidence-input.mjs"),
+      "--observed-local",
+      "--artifact-directory",
+      artifactDirectory,
+    ],
+    { cwd: resolve(import.meta.dirname, "../.."), encoding: "utf8" },
+  );
+  assert.equal(run.status, 0, run.stderr);
+  const input = JSON.parse(run.stdout);
+  assert.equal(input.evidence.length, 2);
+  assert.equal(
+    input.evidence.some((record) => record.kind === "automated_run"),
+    false,
+  );
+  assert.deepEqual(input.run.commands, []);
+  assert.equal(
+    input.evidence.every((record) =>
+      record.artifact.path.startsWith(`${artifactDirectory}/observations/`),
+    ),
+    true,
+  );
+  assert.equal(
+    input.rubricResults.every((result) => result.status === "unproven"),
+    true,
+  );
+  assert.equal(
+    input.mustPassGates.every((gate) => gate.status === "unproven"),
+    true,
+  );
+
+  const contracts = await loadContracts();
+  const result = await validateAndBuildManifest(input, contracts, {
+    expectedSeedSha256: seed.integrity.canonicalPayloadSha256,
+    generatedAt: fixedNow,
+  });
+  assert.equal(result.valid, true);
+  assert.equal(result.complete, false);
+  assert.equal(result.manifest.completionEvent, null);
+  assert.equal(
+    result.manifest.blockers.includes("logged_out_repository_link_unproven"),
+    false,
+  );
+  assert.equal(
+    result.manifest.blockers.includes("independent_p0_p1_review_unproven"),
+    false,
+  );
+  for (const blocker of [
+    "physical_iphone_golden_and_recovery_path_unproven",
+    "two_recipient_sessions_unproven",
+    "two_client_sessions_unproven",
+    "accessibility_audit_unproven",
+    "public_demo_https_and_recipient_security_unproven",
+    "logged_out_video_link_unproven",
+    "logged_out_submission_description_link_unproven",
+  ]) {
+    assert.equal(result.manifest.blockers.includes(blocker), true, blocker);
+  }
 });
 
 test("the JSON contracts are parseable", async () => {

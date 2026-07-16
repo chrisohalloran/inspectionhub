@@ -1,5 +1,9 @@
 # Devpost copy
 
+## Track
+
+Work and Productivity
+
 ## Project name
 
 InspectionHub — field evidence to plain-language property reports
@@ -77,3 +81,12 @@ or legal sign-off, production credential verification, Android support,
 production restore, canonical-domain activation, real-customer readiness or
 revenue. Public, physical-device, human and live-model claims must be backed by
 the immutable milestone manifest before this copy is submitted.
+
+## Required form metadata
+
+- Public repository: `https://github.com/chrisohalloran/inspectionhub`
+- Repository licence: `AGPL-3.0-only`
+- Public demo URL: `[PENDING]`
+- Public YouTube video: `[PENDING]`
+- Primary goal task ID: `019f5dd7-1480-7ca1-8307-3ed24a80559d`
+- Primary Codex `/feedback` Session ID: `[PENDING — confirm from this task]`
