@@ -1,0 +1,597 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://inspectionhub.example/schemas/devpost-evidence-envelope-v1.json",
+  "title": "Claim-bound Devpost evidence artifact envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "evidenceId",
+    "evidenceKind",
+    "commitSha",
+    "observedAt",
+    "bindingSha256",
+    "observation"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "evidenceId": { "type": "string", "minLength": 3 },
+    "evidenceKind": {
+      "enum": [
+        "project_run",
+        "technology_use",
+        "submission_field",
+        "video_check",
+        "repository_check",
+        "judge_access_check",
+        "rights_review"
+      ]
+    },
+    "commitSha": { "$ref": "#/$defs/commitSha" },
+    "observedAt": { "type": "string", "format": "date-time" },
+    "bindingSha256": { "$ref": "#/$defs/sha256" },
+    "observation": { "$ref": "#/$defs/observation" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": ["evidenceKind"],
+        "properties": { "evidenceKind": { "const": "project_run" } }
+      },
+      "then": {
+        "properties": {
+          "observation": { "$ref": "#/$defs/projectObservation" }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["evidenceKind"],
+        "properties": { "evidenceKind": { "const": "technology_use" } }
+      },
+      "then": {
+        "properties": {
+          "observation": { "$ref": "#/$defs/technologyObservation" }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["evidenceKind"],
+        "properties": { "evidenceKind": { "const": "submission_field" } }
+      },
+      "then": {
+        "properties": {
+          "observation": { "$ref": "#/$defs/submissionFieldObservation" }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["evidenceKind"],
+        "properties": { "evidenceKind": { "const": "video_check" } }
+      },
+      "then": {
+        "properties": {
+          "observation": { "$ref": "#/$defs/videoObservation" }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["evidenceKind"],
+        "properties": { "evidenceKind": { "const": "repository_check" } }
+      },
+      "then": {
+        "properties": {
+          "observation": { "$ref": "#/$defs/repositoryObservation" }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["evidenceKind"],
+        "properties": {
+          "evidenceKind": { "const": "judge_access_check" }
+        }
+      },
+      "then": {
+        "properties": {
+          "observation": { "$ref": "#/$defs/judgeObservation" }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["evidenceKind"],
+        "properties": { "evidenceKind": { "const": "rights_review" } }
+      },
+      "then": {
+        "properties": {
+          "observation": { "$ref": "#/$defs/rightsObservation" }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "commitSha": { "type": "string", "pattern": "^[a-f0-9]{40,64}$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "commandResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "exitCode", "stdout", "outputTailSha256"],
+      "properties": {
+        "command": { "type": "string", "minLength": 1 },
+        "exitCode": { "const": 0 },
+        "stdout": { "type": "string" },
+        "outputTailSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "statuses": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "invitation", "otp", "report"],
+      "properties": {
+        "root": { "const": 200 },
+        "invitation": { "const": 303 },
+        "otp": { "const": 303 },
+        "report": { "const": 200 }
+      }
+    },
+    "projectObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commitSha", "ci", "cleanBuild", "judgeDemo", "runtime"],
+      "properties": {
+        "commitSha": { "$ref": "#/$defs/commitSha" },
+        "ci": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "headSha",
+            "headBranch",
+            "event",
+            "workflowPath",
+            "conclusion",
+            "status",
+            "runAttempt",
+            "url",
+            "runId"
+          ],
+          "properties": {
+            "headSha": { "$ref": "#/$defs/commitSha" },
+            "headBranch": { "const": "main" },
+            "event": { "const": "push" },
+            "workflowPath": { "const": ".github/workflows/ci.yml" },
+            "conclusion": { "const": "success" },
+            "status": { "const": "completed" },
+            "runAttempt": { "type": "integer", "minimum": 1 },
+            "url": { "type": "string", "format": "uri" },
+            "runId": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "cleanBuild": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["install", "build"],
+          "properties": {
+            "install": { "$ref": "#/$defs/commandResult" },
+            "build": { "$ref": "#/$defs/commandResult" }
+          }
+        },
+        "judgeDemo": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "statuses",
+            "expectedContentPresent",
+            "exitCode",
+            "outputTailSha256"
+          ],
+          "properties": {
+            "statuses": { "$ref": "#/$defs/statuses" },
+            "expectedContentPresent": { "const": true },
+            "exitCode": { "const": 0 },
+            "outputTailSha256": { "$ref": "#/$defs/sha256" }
+          }
+        },
+        "runtime": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["node", "pnpm"],
+          "properties": {
+            "node": { "type": "string", "minLength": 1 },
+            "pnpm": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "technologyObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "model",
+        "responseId",
+        "outputArtifactSha256",
+        "store",
+        "inspectorConfirmed",
+        "sessionId"
+      ],
+      "properties": {
+        "provider": { "const": "openai" },
+        "model": { "const": "gpt-5.6" },
+        "responseId": {
+          "type": "string",
+          "pattern": "^resp_[A-Za-z0-9_-]{8,}$"
+        },
+        "outputArtifactSha256": { "$ref": "#/$defs/sha256" },
+        "store": { "const": false },
+        "inspectorConfirmed": { "const": true },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9-]{8,}$"
+        }
+      }
+    },
+    "trackObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourcePath", "sourceSha256", "track"],
+      "properties": {
+        "sourcePath": { "type": "string", "minLength": 1 },
+        "sourceSha256": { "$ref": "#/$defs/sha256" },
+        "track": { "const": "Work and Productivity" }
+      }
+    },
+    "descriptionObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourcePath",
+        "sourceText",
+        "sourceSha256",
+        "sections",
+        "sectionLengths",
+        "englishDescriptionPresent",
+        "featuresAndFunctionalityPresent"
+      ],
+      "properties": {
+        "sourcePath": { "const": "docs/submission/devpost-copy.md" },
+        "sourceText": {
+          "type": "string",
+          "minLength": 400,
+          "maxLength": 30000
+        },
+        "sourceSha256": { "$ref": "#/$defs/sha256" },
+        "sections": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["oneLine", "whatWeBuilt", "codexAndGpt"],
+          "properties": {
+            "oneLine": { "type": "string", "minLength": 50, "maxLength": 600 },
+            "whatWeBuilt": {
+              "type": "string",
+              "minLength": 250,
+              "maxLength": 6000
+            },
+            "codexAndGpt": {
+              "type": "string",
+              "minLength": 120,
+              "maxLength": 4000
+            }
+          }
+        },
+        "sectionLengths": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["oneLine", "whatWeBuilt", "codexAndGpt"],
+          "properties": {
+            "oneLine": { "type": "integer", "minimum": 50, "maximum": 600 },
+            "whatWeBuilt": {
+              "type": "integer",
+              "minimum": 250,
+              "maximum": 6000
+            },
+            "codexAndGpt": {
+              "type": "integer",
+              "minimum": 120,
+              "maximum": 4000
+            }
+          }
+        },
+        "englishDescriptionPresent": { "const": true },
+        "featuresAndFunctionalityPresent": { "const": true }
+      }
+    },
+    "feedbackObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sessionId", "source", "fromPrimaryBuildThread"],
+      "properties": {
+        "sessionId": { "type": "string", "pattern": "^[A-Za-z0-9-]{8,}$" },
+        "source": { "const": "codex_feedback_command" },
+        "fromPrimaryBuildThread": { "const": true }
+      }
+    },
+    "provenanceObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rootCommitCount",
+        "rootCommitSha",
+        "rootCommitAt",
+        "publicRootCommitSha",
+        "publicRootCommitAt",
+        "repositoryCreatedAt"
+      ],
+      "properties": {
+        "rootCommitCount": { "const": 1 },
+        "rootCommitSha": { "$ref": "#/$defs/commitSha" },
+        "rootCommitAt": { "type": "string", "format": "date-time" },
+        "publicRootCommitSha": { "$ref": "#/$defs/commitSha" },
+        "publicRootCommitAt": { "type": "string", "format": "date-time" },
+        "repositoryCreatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "devpostObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "formId", "formRevision", "requiredFieldsComplete"],
+      "properties": {
+        "url": { "type": "string", "format": "uri" },
+        "formId": { "type": "string", "minLength": 1 },
+        "formRevision": { "type": "string", "minLength": 1 },
+        "requiredFieldsComplete": { "const": true }
+      }
+    },
+    "publicRepositoryObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "url",
+        "finalUrl",
+        "status",
+        "loggedOut",
+        "headSha",
+        "readmeStatus",
+        "licenseStatus",
+        "codexStoryStatus",
+        "judgeGuideUrl",
+        "judgeGuideStatus",
+        "readmeSha256",
+        "licenseSha256",
+        "collaborationSectionLength"
+      ],
+      "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://[^?#]+$"
+        },
+        "finalUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://[^?#]+$"
+        },
+        "status": { "const": 200 },
+        "loggedOut": { "const": true },
+        "headSha": { "$ref": "#/$defs/commitSha" },
+        "readmeStatus": { "const": 200 },
+        "licenseStatus": { "const": 200 },
+        "codexStoryStatus": { "const": 200 },
+        "judgeGuideUrl": { "type": "string", "format": "uri" },
+        "judgeGuideStatus": { "const": 200 },
+        "readmeSha256": { "$ref": "#/$defs/sha256" },
+        "licenseSha256": { "$ref": "#/$defs/sha256" },
+        "collaborationSectionLength": { "type": "integer", "minimum": 120 }
+      }
+    },
+    "privateRepositoryObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "url",
+        "finalUrl",
+        "status",
+        "loggedOut",
+        "headSha",
+        "readmeStatus",
+        "licenseStatus",
+        "codexStoryStatus",
+        "judgeGuideUrl",
+        "judgeGuideStatus",
+        "readmeSha256",
+        "licenseSha256",
+        "collaborationSectionLength",
+        "access",
+        "sharedWith",
+        "sharingVerification"
+      ],
+      "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://[^?#]+$"
+        },
+        "finalUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://[^?#]+$"
+        },
+        "status": { "const": 200 },
+        "loggedOut": { "const": false },
+        "headSha": { "$ref": "#/$defs/commitSha" },
+        "readmeStatus": { "const": 200 },
+        "licenseStatus": { "const": 200 },
+        "codexStoryStatus": { "const": 200 },
+        "judgeGuideUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://[^?#]+$"
+        },
+        "judgeGuideStatus": { "const": 200 },
+        "readmeSha256": { "$ref": "#/$defs/sha256" },
+        "licenseSha256": { "$ref": "#/$defs/sha256" },
+        "collaborationSectionLength": { "type": "integer", "minimum": 120 },
+        "access": { "const": "private_shared" },
+        "sharedWith": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "type": "string", "format": "email" },
+          "allOf": [
+            { "contains": { "const": "testing@devpost.com" } },
+            {
+              "contains": { "const": "build-week-event@openai.com" }
+            }
+          ]
+        },
+        "sharingVerification": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method", "verifiedAt"],
+          "properties": {
+            "method": { "const": "authenticated_repository_settings" },
+            "verifiedAt": { "type": "string", "format": "date-time" }
+          }
+        }
+      }
+    },
+    "repositoryObservation": {
+      "oneOf": [
+        { "$ref": "#/$defs/publicRepositoryObservation" },
+        { "$ref": "#/$defs/privateRepositoryObservation" }
+      ]
+    },
+    "videoObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "url",
+        "finalUrl",
+        "public",
+        "loggedOut",
+        "status",
+        "expectedContent",
+        "expectedContentPresent",
+        "durationSeconds",
+        "workingProjectShown",
+        "audioPresent",
+        "coversWhatWasBuilt",
+        "coversCodexUse",
+        "coversGpt56Use",
+        "englishOrTranslationProvided"
+      ],
+      "properties": {
+        "url": { "type": "string", "format": "uri" },
+        "finalUrl": { "type": "string", "format": "uri" },
+        "public": { "const": true },
+        "loggedOut": { "const": true },
+        "status": { "type": "integer", "minimum": 200, "maximum": 299 },
+        "expectedContent": { "type": "string", "minLength": 3 },
+        "expectedContentPresent": { "const": true },
+        "durationSeconds": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 180
+        },
+        "workingProjectShown": { "const": true },
+        "audioPresent": { "const": true },
+        "coversWhatWasBuilt": { "const": true },
+        "coversCodexUse": { "const": true },
+        "coversGpt56Use": { "const": true },
+        "englishOrTranslationProvided": { "const": true }
+      }
+    },
+    "judgeObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "url",
+        "finalUrl",
+        "loggedOut",
+        "status",
+        "expectedContentPresent",
+        "observedWorking",
+        "freeOfCharge",
+        "availableWithoutRestriction",
+        "availableThrough",
+        "credentialsRequired",
+        "commitSha",
+        "availabilityBasis"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "website",
+            "functioning_demo",
+            "test_build",
+            "sandbox",
+            "test_account"
+          ]
+        },
+        "url": { "type": "string", "format": "uri" },
+        "finalUrl": { "type": "string", "format": "uri" },
+        "loggedOut": { "const": true },
+        "status": { "type": "integer", "minimum": 200, "maximum": 299 },
+        "expectedContentPresent": { "const": true },
+        "instructions": { "type": "string", "minLength": 20 },
+        "observedWorking": { "const": true },
+        "freeOfCharge": { "const": true },
+        "availableWithoutRestriction": { "const": true },
+        "availableThrough": { "type": "string", "format": "date-time" },
+        "credentialsRequired": { "type": "boolean" },
+        "credentialsReferencePresent": { "type": "boolean" },
+        "commitSha": { "$ref": "#/$defs/commitSha" },
+        "availabilityBasis": { "const": "public_deployment_observation" }
+      }
+    },
+    "rightsObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entrantOwnsSubmission",
+        "thirdPartyUseAuthorized",
+        "videoContainsNoUnlicensedAssets",
+        "reviewer",
+        "reviewedAt",
+        "attestationSha256"
+      ],
+      "properties": {
+        "entrantOwnsSubmission": { "const": true },
+        "thirdPartyUseAuthorized": { "const": true },
+        "videoContainsNoUnlicensedAssets": { "const": true },
+        "reviewer": { "type": "string", "minLength": 1 },
+        "reviewedAt": { "type": "string", "format": "date-time" },
+        "attestationSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "submissionFieldObservation": {
+      "oneOf": [
+        { "$ref": "#/$defs/trackObservation" },
+        { "$ref": "#/$defs/descriptionObservation" },
+        { "$ref": "#/$defs/feedbackObservation" },
+        { "$ref": "#/$defs/provenanceObservation" },
+        { "$ref": "#/$defs/devpostObservation" }
+      ]
+    },
+    "observation": {
+      "oneOf": [
+        { "$ref": "#/$defs/projectObservation" },
+        { "$ref": "#/$defs/technologyObservation" },
+        { "$ref": "#/$defs/trackObservation" },
+        { "$ref": "#/$defs/descriptionObservation" },
+        { "$ref": "#/$defs/feedbackObservation" },
+        { "$ref": "#/$defs/provenanceObservation" },
+        { "$ref": "#/$defs/devpostObservation" },
+        { "$ref": "#/$defs/repositoryObservation" },
+        { "$ref": "#/$defs/videoObservation" },
+        { "$ref": "#/$defs/judgeObservation" },
+        { "$ref": "#/$defs/rightsObservation" }
+      ]
+    }
+  }
+}

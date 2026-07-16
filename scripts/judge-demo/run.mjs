@@ -1,9 +1,9 @@
 import { spawn } from "node:child_process";
-import { createServer } from "node:net";
 import { once } from "node:events";
 import { rmSync } from "node:fs";
 
 import {
+  availableLoopbackPort,
   createJudgeDemoState,
   judgeDemoEnvironment,
   LOOPBACK_HOST,
@@ -30,9 +30,10 @@ process.once("exit", removeStateSync);
 
 try {
   state = await createJudgeDemoState();
-  const webPort = requestedWebPort() ?? (await availablePort());
-  let rateLimitPort = await availablePort();
-  while (rateLimitPort === webPort) rateLimitPort = await availablePort();
+  const webPort = requestedWebPort() ?? (await availableLoopbackPort());
+  let rateLimitPort = await availableLoopbackPort();
+  while (rateLimitPort === webPort)
+    rateLimitPort = await availableLoopbackPort();
   const environment = judgeDemoEnvironment({
     rateLimitPort,
     recipientStateFile: state.recipientStateFile,
@@ -114,20 +115,6 @@ async function run(command, arguments_, environment) {
       `${command} ${arguments_.join(" ")} failed (${signal ?? `exit ${code ?? 1}`})`,
     );
   }
-}
-
-async function availablePort() {
-  const server = createServer();
-  server.unref();
-  server.listen(0, LOOPBACK_HOST);
-  await once(server, "listening");
-  const address = server.address();
-  const port = typeof address === "object" && address ? address.port : 0;
-  await new Promise((resolve, reject) =>
-    server.close((error) => (error ? reject(error) : resolve())),
-  );
-  if (!port) throw new Error("Could not allocate a loopback port");
-  return port;
 }
 
 async function waitForHttp(url, child, timeoutMs = 10_000) {

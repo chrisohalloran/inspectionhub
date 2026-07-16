@@ -1,5 +1,7 @@
 import { randomBytes } from "node:crypto";
+import { once } from "node:events";
 import { mkdtemp, rm } from "node:fs/promises";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -13,6 +15,20 @@ export function requestedWebPort(environment = process.env) {
   if (!Number.isInteger(port) || port < 1024 || port > 65_535) {
     throw new Error("JUDGE_DEMO_PORT must be an integer from 1024 to 65535");
   }
+  return port;
+}
+
+export async function availableLoopbackPort() {
+  const server = createServer();
+  server.unref();
+  server.listen(0, LOOPBACK_HOST);
+  await once(server, "listening");
+  const address = server.address();
+  const port = typeof address === "object" && address ? address.port : 0;
+  await new Promise((resolve, reject) =>
+    server.close((error) => (error ? reject(error) : resolve())),
+  );
+  if (!port) throw new Error("Could not allocate a loopback port");
   return port;
 }
 

@@ -42,13 +42,13 @@ milestones:
 devices:
   build_week_inspector_iphone:
     required: true
-    status: pending_user_measurement
+    status: partially_declared_pending_connection
     physical_device_required: true
     measurement_source: inspector_physical_iphone
-    model: null
+    model: iPhone 16 Pro
     os_name: iOS
-    os_version: null
-    os_build: null
+    os_version: "26.5.2"
+    os_build: "23F84"
     app_version: null
     native_runtime_version: null
     free_storage_gb_at_start: null
@@ -240,6 +240,7 @@ validation_contract:
     - pending_user_measurement
     - pending_pre_run_declaration
     - pending_pre_run_measurement
+    - partially_declared_pending_connection
   required_pre_run_paths:
     - devices.build_week_inspector_iphone.model
     - devices.build_week_inspector_iphone.os_version

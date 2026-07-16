@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  availableLoopbackPort,
   createJudgeDemoState,
   judgeDemoEnvironment,
   LOOPBACK_HOST,
@@ -49,6 +50,13 @@ describe("local judge demo boundary", () => {
     expect(requestedWebPort({})).toBeUndefined();
     expect(() => requestedWebPort({ JUDGE_DEMO_PORT: "0" })).toThrow();
     expect(() => requestedWebPort({ JUDGE_DEMO_PORT: "public" })).toThrow();
+  });
+
+  it("allocates an unprivileged loopback port for judge services", async () => {
+    const port = await availableLoopbackPort();
+    expect(Number.isInteger(port)).toBe(true);
+    expect(port).toBeGreaterThanOrEqual(1024);
+    expect(port).toBeLessThanOrEqual(65_535);
   });
 
   it("creates unique state and removes the whole fixture directory", async () => {

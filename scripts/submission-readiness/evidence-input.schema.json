@@ -13,96 +13,492 @@
   ],
   "properties": {
     "schemaVersion": { "const": 1 },
+    "run": { "$ref": "#/$defs/run" },
+    "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } },
+    "requirements": {
+      "type": "array",
+      "minItems": 11,
+      "maxItems": 11,
+      "items": { "$ref": "#/$defs/requirement" }
+    },
+    "skippedChecks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/skippedCheck" }
+    }
+  },
+  "$defs": {
+    "timestamp": { "type": "string", "format": "date-time" },
+    "commitSha": { "type": "string", "pattern": "^[a-f0-9]{40,64}$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "run": {
       "type": "object",
       "additionalProperties": false,
       "required": ["startedAt", "endedAt", "commitSha"],
       "properties": {
-        "startedAt": { "type": "string", "format": "date-time" },
-        "endedAt": { "type": "string", "format": "date-time" },
-        "commitSha": { "type": "string", "pattern": "^[a-f0-9]{40,64}$" }
+        "startedAt": { "$ref": "#/$defs/timestamp" },
+        "endedAt": { "$ref": "#/$defs/timestamp" },
+        "commitSha": { "$ref": "#/$defs/commitSha" }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "observer", "observedAt"],
+      "properties": {
+        "mode": { "const": "observed" },
+        "observer": { "type": "string", "minLength": 3 },
+        "observedAt": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^artifacts/validation/(?!\\.\\.)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\).+$"
+        },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "evidenceBase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "claim", "provenance", "artifact", "details"],
+      "properties": {
+        "id": { "type": "string", "minLength": 3 },
+        "kind": { "type": "string" },
+        "claim": { "type": "string", "minLength": 10 },
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "artifact": { "$ref": "#/$defs/artifact" },
+        "details": { "type": "object" }
+      }
+    },
+    "projectDetails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "projectWorking",
+        "installOrRunConsistently",
+        "intendedPlatform",
+        "commitSha",
+        "ciRunUrl",
+        "ciConclusion",
+        "localStatuses"
+      ],
+      "properties": {
+        "projectWorking": { "const": true },
+        "installOrRunConsistently": { "const": true },
+        "intendedPlatform": { "type": "string", "minLength": 2 },
+        "commitSha": { "$ref": "#/$defs/commitSha" },
+        "ciRunUrl": { "type": "string", "format": "uri" },
+        "ciConclusion": { "const": "success" },
+        "localStatuses": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["root", "invitation", "otp", "report"],
+          "properties": {
+            "root": { "const": 200 },
+            "invitation": { "const": 303 },
+            "otp": { "const": 303 },
+            "report": { "const": 200 }
+          }
+        }
+      }
+    },
+    "technologyDetails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "codexMeaningfulUse",
+        "gpt56MeaningfulLiveUse",
+        "liveRunSucceeded",
+        "model"
+      ],
+      "properties": {
+        "codexMeaningfulUse": { "const": true },
+        "gpt56MeaningfulLiveUse": { "const": true },
+        "liveRunSucceeded": { "const": true },
+        "model": { "const": "gpt-5.6" }
+      }
+    },
+    "trackDetails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "value"],
+      "properties": {
+        "field": { "const": "track" },
+        "value": {
+          "enum": [
+            "apps_for_your_life",
+            "work_and_productivity",
+            "developer_tools",
+            "education"
+          ]
+        }
+      }
+    },
+    "descriptionDetails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field",
+        "present",
+        "explainsFeaturesAndFunctionality",
+        "englishOrTranslationProvided"
+      ],
+      "properties": {
+        "field": { "const": "description" },
+        "present": { "const": true },
+        "explainsFeaturesAndFunctionality": { "const": true },
+        "englishOrTranslationProvided": { "const": true }
+      }
+    },
+    "feedbackDetails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "sessionId", "fromPrimaryBuildThread"],
+      "properties": {
+        "field": { "const": "feedback_session" },
+        "sessionId": { "type": "string", "pattern": "^[A-Za-z0-9-]{8,}$" },
+        "fromPrimaryBuildThread": { "const": true }
+      }
+    },
+    "provenanceDetails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field",
+        "createdDuringSubmissionPeriod",
+        "preexistingExtensionDocumented",
+        "rootCommitCount",
+        "rootCommitSha",
+        "rootCommitAt",
+        "publicRootCommitSha",
+        "repositoryCreatedAt"
+      ],
+      "properties": {
+        "field": { "const": "provenance" },
+        "createdDuringSubmissionPeriod": { "const": true },
+        "preexistingExtensionDocumented": { "const": false },
+        "rootCommitCount": { "const": 1 },
+        "rootCommitSha": { "$ref": "#/$defs/commitSha" },
+        "rootCommitAt": { "$ref": "#/$defs/timestamp" },
+        "publicRootCommitSha": { "$ref": "#/$defs/commitSha" },
+        "repositoryCreatedAt": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "devpostDetails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "requiredFieldsComplete"],
+      "properties": {
+        "field": { "const": "devpost_form" },
+        "requiredFieldsComplete": { "const": true }
+      }
+    },
+    "submissionFieldDetails": {
+      "oneOf": [
+        { "$ref": "#/$defs/trackDetails" },
+        { "$ref": "#/$defs/descriptionDetails" },
+        { "$ref": "#/$defs/feedbackDetails" },
+        { "$ref": "#/$defs/provenanceDetails" },
+        { "$ref": "#/$defs/devpostDetails" }
+      ]
+    },
+    "videoDetails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "url",
+        "finalUrl",
+        "public",
+        "loggedOut",
+        "status",
+        "expectedContent",
+        "expectedContentPresent",
+        "durationSeconds",
+        "workingProjectShown",
+        "audioPresent",
+        "coversWhatWasBuilt",
+        "coversCodexUse",
+        "coversGpt56Use",
+        "englishOrTranslationProvided"
+      ],
+      "properties": {
+        "url": { "type": "string", "format": "uri" },
+        "finalUrl": { "type": "string", "format": "uri" },
+        "public": { "const": true },
+        "loggedOut": { "const": true },
+        "status": { "type": "integer", "minimum": 200, "maximum": 299 },
+        "expectedContent": { "type": "string", "minLength": 3 },
+        "expectedContentPresent": { "const": true },
+        "durationSeconds": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 180
+        },
+        "workingProjectShown": { "const": true },
+        "audioPresent": { "const": true },
+        "coversWhatWasBuilt": { "const": true },
+        "coversCodexUse": { "const": true },
+        "coversGpt56Use": { "const": true },
+        "englishOrTranslationProvided": { "const": true }
+      }
+    },
+    "repositoryDetails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "url",
+        "finalUrl",
+        "access",
+        "loggedOut",
+        "status",
+        "readmeSetupInstructions",
+        "readmeTestInstructions",
+        "readmeSampleDataOrNotNeeded",
+        "readmeCodexCollaborationAndDecisions",
+        "readmeGpt56Integration",
+        "commitSha"
+      ],
+      "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://[^?#]+$"
+        },
+        "finalUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://[^?#]+$"
+        },
+        "access": { "enum": ["public", "private_shared"] },
+        "loggedOut": { "type": "boolean" },
+        "status": { "type": "integer" },
+        "sharedWith": {
+          "type": "array",
+          "items": { "type": "string", "format": "email" },
+          "uniqueItems": true
+        },
+        "relevantLicensePresent": { "type": "boolean" },
+        "readmeSetupInstructions": { "const": true },
+        "readmeTestInstructions": { "const": true },
+        "readmeSampleDataOrNotNeeded": { "const": true },
+        "readmeCodexCollaborationAndDecisions": { "const": true },
+        "readmeGpt56Integration": { "const": true },
+        "commitSha": { "$ref": "#/$defs/commitSha" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["access"],
+            "properties": { "access": { "const": "public" } }
+          },
+          "then": {
+            "properties": {
+              "loggedOut": { "const": true },
+              "status": { "const": 200 }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["access"],
+            "properties": { "access": { "const": "private_shared" } }
+          },
+          "then": {
+            "required": ["sharedWith"],
+            "properties": {
+              "loggedOut": { "const": false },
+              "status": { "const": 200 },
+              "sharedWith": {
+                "minItems": 2,
+                "maxItems": 2,
+                "allOf": [
+                  { "contains": { "const": "testing@devpost.com" } },
+                  {
+                    "contains": {
+                      "const": "build-week-event@openai.com"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "judgeAccessDetails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "observedWorking",
+        "freeOfCharge",
+        "availableWithoutRestriction",
+        "availableThrough",
+        "credentialsRequired",
+        "commitSha"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "website",
+            "functioning_demo",
+            "test_build",
+            "sandbox",
+            "test_account"
+          ]
+        },
+        "url": { "type": "string", "format": "uri" },
+        "finalUrl": { "type": "string", "format": "uri" },
+        "loggedOut": { "type": "boolean" },
+        "status": { "type": "integer" },
+        "expectedContentPresent": { "type": "boolean" },
+        "instructions": { "type": "string", "minLength": 20 },
+        "observedWorking": { "const": true },
+        "freeOfCharge": { "const": true },
+        "availableWithoutRestriction": { "const": true },
+        "availableThrough": { "$ref": "#/$defs/timestamp" },
+        "credentialsRequired": { "type": "boolean" },
+        "credentialsReferencePresent": { "type": "boolean" },
+        "commitSha": { "$ref": "#/$defs/commitSha" }
+      }
+    },
+    "rightsDetails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entrantOwnsSubmission",
+        "thirdPartyUseAuthorized",
+        "videoContainsNoUnlicensedAssets"
+      ],
+      "properties": {
+        "entrantOwnsSubmission": { "const": true },
+        "thirdPartyUseAuthorized": { "const": true },
+        "videoContainsNoUnlicensedAssets": { "const": true }
       }
     },
     "evidence": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "id",
-          "kind",
-          "claim",
-          "provenance",
-          "artifact",
-          "details"
-        ],
-        "properties": {
-          "id": { "type": "string", "minLength": 3 },
-          "kind": {
-            "enum": [
-              "project_run",
-              "technology_use",
-              "submission_field",
-              "video_check",
-              "repository_check",
-              "judge_access_check",
-              "rights_review"
-            ]
-          },
-          "claim": { "type": "string", "minLength": 10 },
-          "provenance": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["mode", "observer", "observedAt"],
-            "properties": {
-              "mode": { "const": "observed" },
-              "observer": { "type": "string", "minLength": 3 },
-              "observedAt": { "type": "string", "format": "date-time" }
+      "oneOf": [
+        {
+          "allOf": [
+            { "$ref": "#/$defs/evidenceBase" },
+            {
+              "properties": {
+                "kind": { "const": "project_run" },
+                "details": { "$ref": "#/$defs/projectDetails" }
+              }
             }
-          },
-          "artifact": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["path", "sha256"],
-            "properties": {
-              "path": { "type": "string", "pattern": "^artifacts/validation/" },
-              "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/evidenceBase" },
+            {
+              "properties": {
+                "kind": { "const": "technology_use" },
+                "details": { "$ref": "#/$defs/technologyDetails" }
+              }
             }
-          },
-          "details": { "type": "object" }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/evidenceBase" },
+            {
+              "properties": {
+                "kind": { "const": "submission_field" },
+                "details": { "$ref": "#/$defs/submissionFieldDetails" }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/evidenceBase" },
+            {
+              "properties": {
+                "kind": { "const": "video_check" },
+                "details": { "$ref": "#/$defs/videoDetails" }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/evidenceBase" },
+            {
+              "properties": {
+                "kind": { "const": "repository_check" },
+                "details": { "$ref": "#/$defs/repositoryDetails" }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/evidenceBase" },
+            {
+              "properties": {
+                "kind": { "const": "judge_access_check" },
+                "details": { "$ref": "#/$defs/judgeAccessDetails" }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/evidenceBase" },
+            {
+              "properties": {
+                "kind": { "const": "rights_review" },
+                "details": { "$ref": "#/$defs/rightsDetails" }
+              }
+            }
+          ]
         }
+      ]
+    },
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "evidenceIds", "reason"],
+      "properties": {
+        "id": {
+          "enum": [
+            "working_project",
+            "codex_and_gpt56",
+            "track",
+            "description",
+            "video",
+            "repository",
+            "feedback_session",
+            "judge_access",
+            "provenance",
+            "rights_and_safety",
+            "devpost_form"
+          ]
+        },
+        "status": { "enum": ["pass", "fail", "unproven"] },
+        "evidenceIds": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 3 },
+          "uniqueItems": true
+        },
+        "reason": { "type": "string", "minLength": 3 }
       }
     },
-    "requirements": {
-      "type": "array",
-      "minItems": 11,
-      "maxItems": 11,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["id", "status", "evidenceIds", "reason"],
-        "properties": {
-          "id": {
-            "enum": [
-              "working_project",
-              "codex_and_gpt56",
-              "track",
-              "description",
-              "video",
-              "repository",
-              "feedback_session",
-              "judge_access",
-              "provenance",
-              "rights_and_safety",
-              "devpost_form"
-            ]
-          },
-          "status": { "enum": ["pass", "fail", "unproven"] },
-          "evidenceIds": { "type": "array", "items": { "type": "string" } },
-          "reason": { "type": "string" }
-        }
+    "skippedCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "reason"],
+      "properties": {
+        "id": { "type": "string", "minLength": 3 },
+        "reason": { "type": "string", "minLength": 3 }
       }
-    },
-    "skippedChecks": { "type": "array" }
+    }
   }
 }

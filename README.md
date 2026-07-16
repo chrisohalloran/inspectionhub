@@ -110,6 +110,27 @@ physical, public and human prerequisite has checksum-linked observed evidence.
 The gate rejects missing or duplicate rubric IDs, more than 10 N/A points,
 N/A must-pass checks, unresolved P0/P1 findings and unverified external claims.
 
+## Codex collaboration and GPT-5.6
+
+Codex has been the primary environment for product research, adversarial UX
+design, architecture, implementation, test construction, security review and
+submission validation. It accelerated the conversion of the inspector's real
+workflow into executable contracts, while the key product decisions remained
+explicit: acknowledge capture only after local durability; organise evidence
+as investigation threads; preserve non-defect coverage photos; keep Building
+and Timber Pest conclusions separate; and leave classification, approval and
+delivery under inspector control.
+
+GPT-5.6 is integrated only as a bounded provisional drafting capability. It
+receives an exact evidence packet, can use narrow read tools and returns
+source-linked suggestions for deterministic verification and inspector review.
+It cannot classify, approve, publish, share or advise whether to purchase a
+property. The harness and locked-holdout evals are implemented, but meaningful
+live GPT-5.6 use remains explicitly unproven until an authorised live run is
+recorded; deterministic fixtures are not represented as that proof. The full
+[Codex and GPT-5.6 decision record](docs/submission/codex-and-gpt.md) explains
+the baseline-versus-planner evaluation and privacy boundary.
+
 ## Privacy, professional and standards boundary
 
 The Build Week path uses synthetic/de-identified data and fake/test adapters.

@@ -68,10 +68,39 @@ Run the focused milestone machinery tests with:
 
 ```bash
 node --test scripts/milestone-build-week/validation.test.mjs
-node --test scripts/submission-readiness/validation.test.mjs
+pnpm test:submission-readiness
 ```
 
 ## Devpost submission preflight
+
+From a clean public commit, first capture the evidence that can be observed
+without external form or video claims:
+
+```bash
+pnpm submission:evidence:observe
+```
+
+The observer requires a clean worktree with `HEAD` equal to `origin/main`. It
+checks the exact public `main` SHA and requires the latest matching CI
+`main`/`push` attempt for that SHA to be completed successfully, verifies
+substantive README and Devpost-copy sections,
+then creates a temporary detached worktree at the exact commit. Inside that
+isolated checkout it runs `pnpm install --frozen-lockfile`, the full build and
+the one-command judge flow through invitation, OTP and recipient report. The
+temporary checkout is always removed.
+
+Each of the five bounded passes (`working_project`, `track`, `description`,
+`repository` and `provenance`) receives its own claim-specific, checksum-bound
+JSON envelope. Any collection or validation failure cleans up the newly owned
+output directory rather than retaining a partial packet. The evidence-input and
+artifact-envelope contracts are version 1; the emitted manifest contract is
+version 2.
+
+The public-provenance pass is additionally bound to runtime-only verification
+context from the live observer. That context is never serialized into candidate
+evidence or the manifest. Replaying the JSON can check its structure and
+checksum but cannot self-authorize provenance or future judge access; those
+external facts must be observed again by the trusted harness.
 
 ```bash
 pnpm milestone:submission
@@ -82,7 +111,9 @@ checks only the official competition submission contract. Passing evidence must
 be observed and checksum-backed; see
 `scripts/submission-readiness/README.md`. The required judge-access path must
 remain free and working through `2026-08-06T00:00:00.000Z`, the UTC equivalent
-of 5:00 PM Pacific Time on 5 August 2026.
+of 5:00 PM Pacific Time on 5 August 2026. The local observer leaves
+`judge_access` unproven because a local run cannot demonstrate that future
+availability.
 
 The preflight does not contain or infer a submitted status, receipt or final
 Devpost project URL. Verify those separately after the external submission.

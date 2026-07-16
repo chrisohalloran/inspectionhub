@@ -14,7 +14,29 @@ describe("U1 foundation validation", () => {
       await readFile("benchmarks/launch-profile.yaml", "utf8"),
     );
 
+    expect(profile.profile_lock.results_started).toBe(false);
+    expect(profile.devices.build_week_inspector_iphone.status).toBe(
+      "partially_declared_pending_connection",
+    );
+    expect(
+      profile.validation_contract.allowed_pending_statuses_before_results,
+    ).toContain("partially_declared_pending_connection");
     expect(validateLaunchProfile(profile)).toEqual([]);
+  });
+
+  it("rejects a missing or undeclared device status before benchmark results start", async () => {
+    const baseProfile = parseYaml(
+      await readFile("benchmarks/launch-profile.yaml", "utf8"),
+    );
+
+    for (const status of [null, "undeclared_status"]) {
+      const profile = structuredClone(baseProfile);
+      profile.devices.build_week_inspector_iphone.status = status;
+
+      expect(validateLaunchProfile(profile)).toContain(
+        "devices.build_week_inspector_iphone.status must be one of validation_contract.allowed_pending_statuses_before_results before results start.",
+      );
+    }
   });
 
   it("rejects a result-bearing profile with post-hoc or null declarations", async () => {
@@ -23,6 +45,7 @@ describe("U1 foundation validation", () => {
     );
     profile.profile_lock.results_started = true;
     profile.declaration_state = "measurement_started";
+    profile.devices.build_week_inspector_iphone.model = null;
 
     expect(validateLaunchProfile(profile)).toEqual(
       expect.arrayContaining([

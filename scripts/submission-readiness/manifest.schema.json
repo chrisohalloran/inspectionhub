@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://inspectionhub.example/schemas/devpost-submission-manifest-v1.json",
+  "$id": "https://inspectionhub.example/schemas/devpost-submission-manifest-v2.json",
   "title": "Immutable Devpost submission preflight manifest",
   "type": "object",
   "additionalProperties": false,
@@ -9,6 +9,7 @@
     "milestone",
     "outcome",
     "generatedAt",
+    "officialSubmissionEndsAt",
     "officialJudgingEndsAt",
     "run",
     "evidence",
@@ -20,44 +21,75 @@
     "readinessEvent"
   ],
   "properties": {
-    "schemaVersion": { "const": 1 },
+    "schemaVersion": { "const": 2 },
     "milestone": { "const": "devpost_submission_preflight" },
     "outcome": { "enum": ["blocked", "ready"] },
-    "generatedAt": { "type": "string", "format": "date-time" },
+    "generatedAt": { "$ref": "#/$defs/timestamp" },
+    "officialSubmissionEndsAt": { "const": "2026-07-22T00:00:00.000Z" },
     "officialJudgingEndsAt": { "const": "2026-08-06T00:00:00.000Z" },
-    "run": { "type": ["object", "null"] },
-    "evidence": { "type": "array" },
-    "requirements": { "type": "array", "minItems": 11, "maxItems": 11 },
-    "skippedChecks": { "type": "array" },
-    "blockers": { "type": "array", "items": { "type": "string" } },
-    "validationErrors": { "type": "array", "items": { "type": "string" } },
-    "integrity": {
-      "type": "object",
-      "required": ["algorithm", "canonicalPayloadSha256"],
-      "properties": {
-        "algorithm": { "const": "sha256" },
-        "canonicalPayloadSha256": {
-          "type": "string",
-          "pattern": "^[a-f0-9]{64}$"
-        }
-      }
-    },
-    "readinessEvent": {
+    "run": {
       "oneOf": [
         { "type": "null" },
         {
-          "type": "object",
-          "required": ["eventType", "occurredAt", "manifestPayloadSha256"],
-          "properties": {
-            "eventType": { "const": "devpost_submission.preflight.ready" },
-            "occurredAt": { "type": "string", "format": "date-time" },
-            "manifestPayloadSha256": {
-              "type": "string",
-              "pattern": "^[a-f0-9]{64}$"
-            }
-          }
+          "$ref": "https://inspectionhub.example/schemas/devpost-submission-evidence-v1.json#/$defs/run"
         }
       ]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "https://inspectionhub.example/schemas/devpost-submission-evidence-v1.json#/$defs/evidence"
+      }
+    },
+    "requirements": {
+      "type": "array",
+      "minItems": 11,
+      "maxItems": 11,
+      "items": {
+        "$ref": "https://inspectionhub.example/schemas/devpost-submission-evidence-v1.json#/$defs/requirement"
+      }
+    },
+    "skippedChecks": {
+      "type": "array",
+      "items": {
+        "$ref": "https://inspectionhub.example/schemas/devpost-submission-evidence-v1.json#/$defs/skippedCheck"
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 3 },
+      "uniqueItems": true
+    },
+    "validationErrors": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 3 }
+    },
+    "integrity": { "$ref": "#/$defs/integrity" },
+    "readinessEvent": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/readinessEvent" }]
+    }
+  },
+  "$defs": {
+    "timestamp": { "type": "string", "format": "date-time" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "canonicalPayloadSha256"],
+      "properties": {
+        "algorithm": { "const": "sha256" },
+        "canonicalPayloadSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "readinessEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eventType", "occurredAt", "manifestPayloadSha256"],
+      "properties": {
+        "eventType": { "const": "devpost_submission.preflight.ready" },
+        "occurredAt": { "$ref": "#/$defs/timestamp" },
+        "manifestPayloadSha256": { "$ref": "#/$defs/sha256" }
+      }
     }
   }
 }

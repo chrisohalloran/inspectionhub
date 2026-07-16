@@ -28,7 +28,9 @@
     "test:soak": "node scripts/verification/run-gate.mjs soak",
     "test:pdf": "node scripts/verification/run-gate.mjs pdf",
     "test:security": "node scripts/verification/run-gate.mjs security",
+    "test:submission-readiness": "node --test scripts/submission-readiness/validation.test.mjs",
     "milestone:submission": "node scripts/submission-readiness/run.mjs",
+    "submission:evidence:observe": "node scripts/submission-readiness/observe.mjs",
     "milestone:build-week": "node scripts/verification/run-milestone.mjs build-week",
     "release:validate": "node scripts/verification/run-milestone.mjs revenue-activation"
   },

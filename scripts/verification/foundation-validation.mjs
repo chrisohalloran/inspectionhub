@@ -34,7 +34,32 @@ export function validateLaunchProfile(profile) {
     }
   }
 
-  if (profile?.profile_lock?.results_started === true) {
+  const resultsStarted = profile?.profile_lock?.results_started === true;
+  if (!resultsStarted) {
+    const allowedPendingStatuses =
+      profile?.validation_contract?.allowed_pending_statuses_before_results;
+    if (
+      !Array.isArray(allowedPendingStatuses) ||
+      allowedPendingStatuses.length === 0
+    ) {
+      errors.push(
+        "validation_contract.allowed_pending_statuses_before_results must be declared before results start.",
+      );
+    } else {
+      for (const [deviceId, device] of Object.entries(profile?.devices ?? {})) {
+        if (
+          !isDeclared(device?.status) ||
+          !allowedPendingStatuses.includes(device.status)
+        ) {
+          errors.push(
+            `devices.${deviceId}.status must be one of validation_contract.allowed_pending_statuses_before_results before results start.`,
+          );
+        }
+      }
+    }
+  }
+
+  if (resultsStarted) {
     if (!isDeclared(profile.profile_lock.locked_profile_sha256)) {
       errors.push(
         "profile_lock.locked_profile_sha256 is required once results start.",
