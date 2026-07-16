@@ -240,6 +240,38 @@ $$;
 grant usage on schema auth to anon, authenticated, service_role;
 `;
 
+function resetExternalTestDatabase(databaseUrl, environment) {
+  let databaseName;
+  try {
+    databaseName = decodeURIComponent(new URL(databaseUrl).pathname.slice(1));
+  } catch {
+    throw new Error("TEST_DATABASE_URL must be a valid Postgres URL");
+  }
+  if (!/(?:^|[_-])test(?:$|[_-])/u.test(databaseName)) {
+    throw new Error(
+      `Refusing to reset external database ${databaseName || "<missing>"}; its name must contain a distinct test segment`,
+    );
+  }
+  run(
+    "psql",
+    [
+      "--dbname",
+      databaseUrl,
+      "--no-psqlrc",
+      "--set",
+      "ON_ERROR_STOP=1",
+      "--command",
+      String.raw`
+        drop schema if exists public cascade;
+        create schema public;
+        grant all on schema public to current_user;
+        grant usage on schema public to public;
+      `,
+    ],
+    { env: environment },
+  );
+}
+
 async function main() {
   const externalDatabaseUrl = process.env.TEST_DATABASE_URL;
   let temporaryRoot;
@@ -251,6 +283,7 @@ async function main() {
     if (externalDatabaseUrl) {
       connectionArguments = ["--dbname", externalDatabaseUrl];
       localEnvironment = process.env;
+      resetExternalTestDatabase(externalDatabaseUrl, localEnvironment);
     } else {
       temporaryRoot = await mkdtemp(
         path.join(os.tmpdir(), "inspection-postgres-"),
