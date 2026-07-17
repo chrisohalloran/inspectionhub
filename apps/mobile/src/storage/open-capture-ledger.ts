@@ -32,6 +32,7 @@ export async function openFieldPersistence() {
   const database = await openDatabaseAsync("inspection-field-v1.db");
   const captureLedger = await createSQLiteCaptureLedger(
     adaptDatabase(database),
+    (payload) => expoInspectionDigest.sha256(payload),
   );
   const inspectionStorage = new SqliteInspectionSnapshotPort(database);
   await inspectionStorage.initialise();

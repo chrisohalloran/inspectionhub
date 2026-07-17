@@ -1,11 +1,13 @@
 import {
   attachInvestigationEvidence,
   finishInvestigation,
+  recordInvestigationObservation,
   startInvestigation,
 } from "@inspection/domain";
 
 export const mixedModuleFixtureOracle = {
   sharedOriginalId: "fixture-photo-timber-member",
+  sharedObservationId: "fixture-observation-timber-member",
   building: {
     schema: "building",
     question:
@@ -49,6 +51,16 @@ export function buildMixedModuleInvestigationFixture() {
     inspectorId: "fixture-inspector-building-pest",
     source: "captured_during_investigation",
   });
+  investigation = recordInvestigationObservation(investigation, {
+    expectedRevision: investigation.revision,
+    observation: {
+      areaId: "fixture-area-subfloor",
+      observationId: mixedModuleFixtureOracle.sharedObservationId,
+      recordedAt: "2026-07-14T10:00:30.000+10:00",
+      recordedByInspectorId: "fixture-inspector-building-pest",
+      text: "Visible timber damage was observed on the accessible member.",
+    },
+  });
   investigation = finishInvestigation(investigation, {
     expectedRevision: investigation.revision,
     completedAt: "2026-07-14T10:03:00.000+10:00",
@@ -61,12 +73,14 @@ export function buildMixedModuleInvestigationFixture() {
         module: "building",
         moduleId: "fixture-module-mixed-building",
         sourceArtifactIds: [mixedModuleFixtureOracle.sharedOriginalId],
+        sourceObservationIds: [mixedModuleFixtureOracle.sharedObservationId],
       },
       {
         findingCandidateId: "fixture-candidate-pest-visible-evidence",
         module: "timber_pest",
         moduleId: "fixture-module-mixed-timber-pest",
         sourceArtifactIds: [mixedModuleFixtureOracle.sharedOriginalId],
+        sourceObservationIds: [mixedModuleFixtureOracle.sharedObservationId],
       },
     ],
   });

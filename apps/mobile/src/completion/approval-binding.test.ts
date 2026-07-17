@@ -19,6 +19,14 @@ import {
   verifyApprovalBinding,
 } from "./approval-binding";
 
+const approvingInspector = {
+  inspectorId: domainFixtureIds.inspectorId,
+  displayName: "Synthetic Build Week building inspector",
+  credential: "Synthetic fixture credential",
+  confirmedAt: "2026-07-17T09:00:00.000+10:00",
+  authority: "synthetic_fixture" as const,
+};
+
 describe("exact module approval binding", () => {
   it("invalidates approval when coverage or an accepted review version changes", () => {
     const accepted = createSyntheticReviewItems().map((item) => ({
@@ -27,6 +35,7 @@ describe("exact module approval binding", () => {
     }));
     const reviewVersions = approvalReviewVersions(accepted, "building");
     const binding = {
+      approvingInspector,
       coverageRevision: 9,
       module: "building" as const,
       reviewVersions,
@@ -88,6 +97,7 @@ describe("exact module approval binding", () => {
     }));
     const coverage = inspectedCoverage();
     const payload = approvalSnapshotPayload({
+      approvingInspector,
       coverage,
       jobId: domainFixtureIds.jobId,
       module: "building",
@@ -97,6 +107,7 @@ describe("exact module approval binding", () => {
     expect(payload).toContain("Shower floor inspected visually.");
     expect(payload).toBe(
       approvalSnapshotPayload({
+        approvingInspector,
         coverage,
         jobId: domainFixtureIds.jobId,
         module: "building",
@@ -105,6 +116,7 @@ describe("exact module approval binding", () => {
     );
 
     const binding = {
+      approvingInspector,
       coverageRevision: 1,
       module: "building" as const,
       reviewVersions: approvalReviewVersions(accepted, "building"),
@@ -122,6 +134,22 @@ describe("exact module approval binding", () => {
     ).resolves.toBe(true);
     await expect(
       verifyApprovalBinding({
+        binding: {
+          ...binding,
+          approvingInspector: {
+            ...approvingInspector,
+            credential: "Substituted credential",
+          },
+        },
+        coverage,
+        digest,
+        jobId: domainFixtureIds.jobId,
+        module: "building",
+        reviewItems: accepted,
+      }),
+    ).resolves.toBe(false);
+    await expect(
+      verifyApprovalBinding({
         binding: { ...binding, snapshotSha256: "c".repeat(64) },
         coverage,
         digest,
@@ -136,12 +164,14 @@ describe("exact module approval binding", () => {
     const accepted = createSyntheticReviewItems().map(acceptReviewItem);
     const coverage = inspectedCoverage();
     const baselinePayload = approvalSnapshotPayload({
+      approvingInspector,
       coverage,
       jobId: domainFixtureIds.jobId,
       module: "building",
       reviewItems: accepted,
     });
     const binding = {
+      approvingInspector,
       coverageRevision: 1,
       module: "building" as const,
       reviewVersions: approvalReviewVersions(accepted, "building"),
@@ -277,6 +307,7 @@ describe("exact module approval binding", () => {
     const coverage = inspectedCoverage();
     const accepted = createSyntheticReviewItems().map(acceptReviewItem);
     const binding = {
+      approvingInspector,
       coverageRevision: 1,
       module: "building" as const,
       reviewVersions: approvalReviewVersions(accepted, "building"),

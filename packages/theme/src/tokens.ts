@@ -22,4 +22,22 @@ export const theme = {
   radius: { small: 4, medium: 8, large: 12 },
   space: { 1: 4, 2: 8, 3: 12, 4: 16, 5: 24, 6: 32, 7: 48 },
   target: { minimum: 48, primary: 48 },
+  typography: {
+    display: { fontSize: 32, fontWeight: "700", lineHeight: 37 },
+    headlineLg: { fontSize: 24, fontWeight: "700", lineHeight: 30 },
+    headlineMd: { fontSize: 20, fontWeight: "600", lineHeight: 26 },
+    bodyLg: { fontSize: 18, fontWeight: "400", lineHeight: 28 },
+    bodyMd: { fontSize: 16, fontWeight: "400", lineHeight: 25 },
+    bodySm: { fontSize: 14, fontWeight: "400", lineHeight: 21 },
+    labelLg: { fontSize: 16, fontWeight: "600", lineHeight: 20 },
+    labelSm: { fontSize: 13, fontWeight: "600", lineHeight: 17 },
+  },
+  component: {
+    fieldControlMinimumWidth: 132,
+    noteInputMinimumHeight: 88,
+    detailInputMinimumHeight: 112,
+    evidencePreviewHeight: 144,
+    cameraHeight: 220,
+    cameraPlaceholderMinimumHeight: 180,
+  },
 } as const;

@@ -8,17 +8,24 @@ import {
   createInvestigationReviewItem,
   type InvestigationReviewItem,
 } from "./investigation-review";
+import {
+  sealSyntheticFixtureSourcePacket,
+  type SyntheticFixtureSourcePacket,
+} from "./source-packet";
 
 const verifiedAt = "2026-07-15T02:00:00.000Z";
 
-export function createSyntheticReviewItems(): readonly InvestigationReviewItem[] {
+export function createSyntheticReviewItems(input?: {
+  readonly buildingPacketHash?: string;
+  readonly timberPestPacketHash?: string;
+}): readonly InvestigationReviewItem[] {
   return [
     reviewItem({
       base: confirmedBuildingFinding,
       contentHash:
         "0ddaaf2ea77adc9d1b48fe9e9117d9c0ce8c5a59ad4db5b6d01857c35e793d02",
       investigationId: "51000000-0000-4000-8000-000000000001",
-      packetHash: "d".repeat(64),
+      packetHash: input?.buildingPacketHash ?? "d".repeat(64),
       packetId: "51000000-0000-4000-8000-000000000002",
       reviewId: "51000000-0000-4000-8000-000000000003",
       safeArtifactId: "51000000-0000-4000-8000-000000000004",
@@ -46,13 +53,71 @@ export function createSyntheticReviewItems(): readonly InvestigationReviewItem[]
       contentHash:
         "48629839b0ac762e17aa548c1c3b7d99eab443becb6bfd37f1d2ea0803a160e4",
       investigationId: "52000000-0000-4000-8000-000000000001",
-      packetHash: "f".repeat(64),
+      packetHash: input?.timberPestPacketHash ?? "f".repeat(64),
       packetId: "52000000-0000-4000-8000-000000000002",
       reviewId: "52000000-0000-4000-8000-000000000003",
       safeArtifactId: "52000000-0000-4000-8000-000000000004",
       safeHash: "1".repeat(64),
     }),
   ];
+}
+
+export async function createSyntheticReviewFixture(
+  digest: (payload: string) => Promise<string>,
+): Promise<
+  Readonly<{
+    reviewItems: readonly InvestigationReviewItem[];
+    sourcePackets: readonly SyntheticFixtureSourcePacket[];
+  }>
+> {
+  const provisionalItems = createSyntheticReviewItems();
+  const packets = await Promise.all(
+    provisionalItems.map((item) =>
+      sealSyntheticFixtureSourcePacket(
+        {
+          schemaVersion: "synthetic-fixture-source-packet-v1",
+          fixtureId:
+            item.module === "building"
+              ? "inspectionhub.synthetic.building-review.v1"
+              : "inspectionhub.synthetic.timber-pest-review.v1",
+          packetId: item.provenance.packetId,
+          packetRevision: 1,
+          organizationId: item.finding.organizationId,
+          jobId: item.finding.jobId,
+          investigationId: item.investigationId,
+          createdAt: verifiedAt,
+          model: "gpt-5.6-synthetic-build-week",
+          promptVersion: "inspection-draft-v1",
+          skillVersions: ["report-language-v1"],
+          sources: item.finding.authorship.sourceArtifactReferences.map(
+            ({ artifactId, contentHash }) => ({ artifactId, contentHash }),
+          ),
+          assumptions: item.provenance.assumptions,
+        },
+        digest,
+      ),
+    ),
+  );
+  const buildingPacket = packets.find(
+    (packet) =>
+      packet.fixtureId === "inspectionhub.synthetic.building-review.v1",
+  );
+  const timberPestPacket = packets.find(
+    (packet) =>
+      packet.fixtureId === "inspectionhub.synthetic.timber-pest-review.v1",
+  );
+  if (buildingPacket === undefined || timberPestPacket === undefined) {
+    throw new Error("Synthetic review fixture is incomplete");
+  }
+  return Object.freeze({
+    reviewItems: Object.freeze(
+      createSyntheticReviewItems({
+        buildingPacketHash: buildingPacket.canonicalHash,
+        timberPestPacketHash: timberPestPacket.canonicalHash,
+      }),
+    ),
+    sourcePackets: Object.freeze(packets),
+  });
 }
 
 function reviewItem(input: {

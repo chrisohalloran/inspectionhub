@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import type { InvestigationEvidence } from "@inspection/domain/inspection/mobile";
 
-import { visibleEvidencePage } from "./evidence-area-list.js";
+import {
+  activeVoicePreviewAfterStatus,
+  visibleEvidencePage,
+} from "./evidence-area-list.js";
 
 describe("evidence area correction list", () => {
   it("keeps older evidence reachable in stable newest-first pages", () => {
@@ -17,6 +20,18 @@ describe("evidence area correction list", () => {
     expect(
       visibleEvidencePage(evidence, 15).map((entry) => entry.captureSequence),
     ).toEqual([12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]);
+  });
+
+  it("returns a completed voice preview to its play state", () => {
+    expect(
+      activeVoicePreviewAfterStatus("voice-1", "voice-1", true),
+    ).toBeUndefined();
+    expect(activeVoicePreviewAfterStatus("voice-2", "voice-1", true)).toBe(
+      "voice-2",
+    );
+    expect(activeVoicePreviewAfterStatus("voice-1", "voice-1", false)).toBe(
+      "voice-1",
+    );
   });
 });
 

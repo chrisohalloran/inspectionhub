@@ -20,12 +20,17 @@ Validated on 2026-07-17 against the U5 contract in the implementation plan.
 - Candidate completion commits the aggregate first, then reconciles the session pointer and selectively invalidates only the affected professional modules. A pure startup reconciliation covers process loss between those writes without reviving stale approval or package state.
 - The field session now persists the exact organisation and commissioned module references. Session, workflow, and investigation reconciliation rejects a foreign job, tenant, module type, or module ID before any cached state can regain authority. Snapshot restoration also requires the complete contiguous local event chain from revision zero through the current head, with the event head bound to the current snapshot hash.
 - Finding-candidate reconciliation persists processed candidate IDs. A completed investigation invalidates affected professional state once, but later asynchronous drafts for that same completed investigation survive restart instead of being mistaken for newly discovered stale work.
+- Finishing a candidate now requires an explicit, revision-bound source confirmation per selected professional module. The saved module selection freezes the exact evidence and inspector-observation IDs; any later investigation revision clears the confirmation instead of silently drafting from changed context.
+- Every generated review is paired with a canonical exact-source packet. Synthetic fixture packets and seeded field packets bind organisation, job, investigation revision, module instances, model/prompt/skill pins and exact artifact/observation content hashes. Startup recomputes packet hashes and rejects review authority when packet identity, sources or version pins diverge.
+- A field manual note commits canonical text and SHA-256 to the durable ledger, attaches the same note identity as investigation evidence and records the same identity as the inspector observation used by the candidate packet. Restart reconciliation preserves the two crash boundaries without substituting a latest or similarly worded observation.
+- Candidate completion first persists the completed aggregate and invalidated professional state, then persists the exact packet/review and only afterwards marks the candidate processed. Startup regenerates the deterministic fixture draft for a completed unprocessed candidate and invalidates stale review/package authority for evidence-at-risk recovery rather than reviving partial work.
+- Recipient preview is derived from a protected, canonically hashed package snapshot that binds exact accepted reviews, finding/content versions, packet identities, module approvals, inspector authority and source counts. Creation rejects duplicate/cross-job review authority and recomputes finding content hashes. The recipient projection exposes plain-language condition content and aggregate source counts without private evidence identities or internal hashes.
 - Approval binding recomputes every accepted finding's canonical content hash and hashes the complete accepted authority: finding content, authorship, source references, provenance, verifier result, checks, exact coverage, job, organisation, and module. Mutating content, provenance, verifier version, evidence hash, checks, or the packet hash invalidates approval and package restoration.
 - The stable capture dock visibly retains the full area path and a typed local-durability/action status at accessibility-large text, including the explicit `Not saved — retry` state after a rejected local write. Completion blockers are rendered in a scrollable per-module checklist with a reachable `Continue field work` action, and coverage/measurement forms keep dismissal disabled while a protected write is in flight and surface rejected writes locally after durable state reload.
 - iOS announces saved, not-saved, and needs-review durability changes without repeating identical announcements. Evidence-area correction includes local photo previews, original voice playback, transcript-unavailable context, and manual-note excerpts so inspectors do not identify hundreds of artifacts from sequence numbers alone.
 - The fake server-durability and delivery-provider controls are absent until their exact lifecycle states exist. Evidence advances through valid queue transitions before a package becomes queued; provider proof then records sending, provider-accepted, and sent separately. Review, approval, package, and provider mutations use the same field-action fence, and a confirmed package is visibly disabled so it cannot be recreated or silently requeued.
 - React Native package exports resolve current workspace source through a scoped Metro fallback for TypeScript sources that retain emitted `.js` specifiers. The real simulator therefore exercises the same current domain validator proved by the focused tests instead of a potentially stale `dist` build.
-- `pnpm test:contract:mobile` is the explicitly named deterministic contract gate used in CI. `pnpm test:e2e:mobile` fails closed unless it executes the five Maestro journeys against a selected runtime, so contract checks can no longer be reported as UI E2E proof.
+- `pnpm test:contract:mobile` is the explicitly named deterministic contract gate used in CI. `pnpm test:e2e:mobile` fails closed unless it executes the six Maestro journeys against a selected runtime, so contract checks can no longer be reported as UI E2E proof.
 - Synthetic cracked-tile and shared Building/Timber Pest fixtures use independently written language and retain the inspector's classifications, uncertainty, source selection, and material inaccessible-roof limitations.
 
 The mobile field shell imports only the platform-safe `InvestigationStatus` type from `@inspection/domain/inspection/types`; it does not transitively import the Node SHA-256 implementation. The full mobile investigation repository continues to consume the platform-safe `@inspection/domain/inspection/mobile` surface.
@@ -37,8 +42,8 @@ Focused suite:
 ```text
 pnpm exec vitest run packages/domain/src/inspection packages/test-fixtures/src/investigations apps/mobile/src/areas apps/mobile/src/investigations apps/mobile/src/measurements apps/mobile/src/storage/field-workflow.test.ts apps/mobile/src/completion apps/mobile/src/review/demo-review-items.test.ts --config vitest.config.ts
 
-Test Files  19 passed
-Tests       75 passed
+Test Files  23 passed
+Tests       102 passed
 ```
 
 The focused cases prove:
@@ -72,12 +77,12 @@ MAESTRO_DEVICE_ID=DF3F2D11-DD01-4F8F-8567-14E559B3747A \
 MAESTRO_DRIVER_STARTUP_TIMEOUT=120000 \
 pnpm test:e2e:mobile
 
-Deterministic mobile tests: 35 files, 134 tests passed
+Deterministic mobile tests: 44 files, 180 tests passed
 Maestro runtime: InspectionHub E2E, iOS 26.3, accessibility-large text
-Maestro journeys: 5 passed sequentially
+Maestro journeys: 6 passed sequentially
 ```
 
-The U5 journey captured three private photos, started one investigation, attached the newest three in original order, changed to the roof void, stored a structured measurement, reassigned evidence while retaining the original capture area, recorded Building coverage as inaccessible with a limitation, and saved the same selected evidence as distinct Building and Timber Pest finding candidates. The surrounding suite also exercised termination recovery, photo-plus-voice capture, offline queueing, exact review and independent module approval, persisted delivery state, session-expiry capture, and area-change restoration.
+The U5 journey captured three private photos, started one investigation, linked a hashed manual observation and voice note, attached the newest three in original order, changed to the roof void, stored a structured measurement, reassigned evidence while retaining the original capture area, recorded Building coverage as inaccessible with a limitation, and explicitly confirmed two evidence IDs plus one observation ID before saving the exact source packet as a Building candidate. The fresh-lineage journey then retained that freshly generated Building review alongside an independently persisted synthetic Timber Pest fixture, changed Timber Pest coverage, accepted and approved both modules separately, confirmed a package waiting for evidence durability, and rendered recipient-safe condition content with two Building source references and one Timber Pest source reference. The surrounding suite also exercised termination recovery, photo-plus-voice capture, offline queueing, persisted approval and delivery state, session-expiry capture, area-change restoration, exact completion blockers, and valid synthetic evidence/provider transitions. None of those synthetic transitions is represented as live-server or live-provider proof.
 
 Static and build proof:
 
@@ -89,7 +94,7 @@ pnpm lint
 # 22 package lint tasks, formatting, repository quality and foundation validation passed
 
 pnpm test
-# 87 test files, 436 tests passed
+# 102 test files, 518 tests passed
 
 pnpm typecheck
 # 22 package typecheck tasks passed
@@ -101,10 +106,10 @@ pnpm test:submission-readiness
 # 66 tests passed
 
 pnpm test:eval
-# 3 test files, 36 tests passed
+# 5 test files, 51 tests passed plus ten-case prepared-request preflight
 
 pnpm test:security
-# static and dependency audit passed; 7 test files / 63 tests and Postgres 9 migrations / 6 SQL tests passed
+# static and dependency audit passed; 65 deterministic tests and Postgres 10 migrations / 6 SQL tests passed
 
 pnpm test:soak
 # 1 test file, 1 test passed

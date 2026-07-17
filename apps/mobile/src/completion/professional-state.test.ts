@@ -71,6 +71,10 @@ describe("professional module invalidation", () => {
     const generatedForCandidate = {
       ...building!,
       investigationId: "investigation-new-building",
+      finding: {
+        ...building!.finding,
+        findingId: "53000000-0000-4000-8000-000000000001",
+      },
       status: "awaiting_decision" as const,
       decisionMode: null,
     };
@@ -92,10 +96,53 @@ describe("professional module invalidation", () => {
       }),
     ).toBeUndefined();
   });
+
+  it("does not mark a durable candidate processed before its review authority exists", () => {
+    const workflow = initialFieldWorkflow(createSyntheticReviewItems());
+    const candidates = [
+      {
+        findingCandidateId: "53000000-0000-4000-8000-000000000099",
+        module: "building" as const,
+      },
+    ];
+
+    const reconciled = reconcileProfessionalModulesForCandidates({
+      candidates,
+      investigationId: "investigation-crash-window",
+      recordedAt: "2026-07-17T03:00:00.000Z",
+      workflow,
+    });
+    expect(reconciled).toMatchObject({
+      deliveryState: "waiting_for_approval",
+      packageManifestSha256: null,
+      processedFindingCandidateIds: [],
+      recipientPackage: null,
+    });
+    expect(
+      reconciled?.reviewItems.find((item) => item.module === "building")
+        ?.status,
+    ).toBe("stale");
+    expect(
+      invalidateProfessionalModulesForCandidates({
+        candidates,
+        investigationId: "investigation-crash-window",
+        markProcessed: false,
+        recordedAt: "2026-07-17T03:00:00.000Z",
+        workflow,
+      }).processedFindingCandidateIds,
+    ).toEqual([]);
+  });
 });
 
 function binding(module: "building" | "timber_pest", reviewId: string) {
   return {
+    approvingInspector: {
+      inspectorId: `inspector-${module}`,
+      displayName: "Synthetic inspector",
+      credential: "Synthetic fixture credential",
+      confirmedAt: "2026-07-17T02:00:00.000Z",
+      authority: "synthetic_fixture" as const,
+    },
     coverageRevision: 4,
     module,
     reviewVersions: [

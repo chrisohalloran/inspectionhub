@@ -8,11 +8,7 @@ import {
   useAudioRecorder,
 } from "expo-audio";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import {
-  CryptoDigestAlgorithm,
-  digestStringAsync,
-  randomUUID,
-} from "expo-crypto";
+import { randomUUID } from "expo-crypto";
 import { File, Paths } from "expo-file-system";
 import * as Haptics from "expo-haptics";
 import { useNetworkState } from "expo-network";
@@ -48,16 +44,25 @@ import type {
 } from "./src/capture/types";
 import { authoriseFieldOperation } from "./src/jobs/field-access";
 import { deviceCredentialStore } from "./src/jobs/expo-device-credential-store";
+import { fieldJobContext } from "./src/jobs/field-job-context";
+import { describeFieldActionFailure } from "./src/investigations/field-action-recovery";
 import { InvestigationControlDock } from "./src/investigations/investigation-controls";
 import {
   durabilityAnnouncement,
+  investigationCompletionVoiceBlock,
   type DockOperationState,
+  type VoiceControlState,
 } from "./src/investigations/field-shell-contract";
+import { deriveInvestigationFinishActionView } from "./src/investigations/finish-options";
 import { EvidenceAreaCard } from "./src/investigations/evidence-area-card";
 import {
+  confirmFindingCandidateSourceSelection,
   createFindingCandidateLinks,
+  type FindingCandidateModuleSelection,
+  type RevisionBoundFindingCandidateModuleSelection,
   isAttachableCaptureState,
   selectAttachableRecentCaptures,
+  toggleFindingCandidateSource,
 } from "./src/investigations/field-actions";
 import {
   MeasurementEntryCard,
@@ -76,6 +81,11 @@ import {
   verifyApprovalBinding,
 } from "./src/completion/approval-binding";
 import { invalidateProfessionalModulesForCandidates } from "./src/completion/professional-state";
+import { resolveApprovingInspectorAuthority } from "./src/completion/approving-inspector-authority";
+import {
+  findingCandidateAtRiskSourceIds,
+  invalidateProfessionalStateForEvidenceRisk,
+} from "./src/completion/evidence-risk";
 import { DeliveryStatusCard } from "./src/delivery/delivery-status-card";
 import {
   fieldDeliveryStatus,
@@ -83,7 +93,13 @@ import {
   type FieldDeliveryState,
 } from "./src/delivery/delivery-status";
 import { InvestigationReviewCard } from "./src/review/investigation-review-card";
-import { createSyntheticReviewItems } from "./src/review/demo-review-items";
+import { createSyntheticReviewFixture } from "./src/review/demo-review-items";
+import {
+  createSeededInvestigationReview,
+  SEEDED_CRACKED_TILE_OBSERVATION_TEXT,
+  SEEDED_CRACKED_TILE_SCENARIO_ID,
+} from "./src/review/seeded-vertical-slice";
+import { verifyExactSourcePacket } from "./src/review/source-packet";
 import {
   acceptReviewItem,
   editReviewItem,
@@ -130,9 +146,19 @@ import {
   reconcileDurableProfessionalState,
   reconcileFieldSessionInvestigation,
 } from "./src/storage/field-workflow";
+import {
+  SerializedFieldSessionWriter,
+  type FieldSessionMutation,
+} from "./src/storage/field-session-writer";
 import type { LocalInspectionRepository } from "./src/investigations/local-inspection-repository";
+import { expoInspectionDigest } from "./src/investigations/expo-inspection-digest";
+import {
+  createRecipientPackageSnapshot,
+  projectRecipientOverview,
+  verifyRecipientPackageSnapshot,
+} from "./src/recipient/recipient-overview";
 
-type VoiceState = "idle" | "recording" | "saving" | "unavailable";
+type VoiceState = VoiceControlState;
 type InvestigationShellStatus = InvestigationStatus | "none";
 type DebugFailurePoint = NonNullable<CaptureRequest["debugFailurePoint"]>;
 
@@ -149,7 +175,24 @@ const demoMode =
 // artifacts and require an explicit E2E flag.
 const e2eMode = __DEV__ && process.env.EXPO_PUBLIC_MOBILE_E2E_MODE === "1";
 
-function initialDemoSession(deviceId: string): FieldSessionSnapshot {
+const digestFieldPayload = (value: string) =>
+  expoInspectionDigest.sha256(value);
+
+async function createInitialDemoWorkflow(
+  updatedAt: string = new Date().toISOString(),
+): Promise<FieldWorkflowSnapshot> {
+  if (!demoMode) return initialFieldWorkflow([], updatedAt);
+  const fixture = await createSyntheticReviewFixture(digestFieldPayload);
+  return initialFieldWorkflow(
+    fixture.reviewItems,
+    updatedAt,
+    fixture.sourcePackets,
+  );
+}
+
+async function initialDemoSession(
+  deviceId: string,
+): Promise<FieldSessionSnapshot> {
   const updatedAt = new Date().toISOString();
   return {
     areaId: areas[0].id,
@@ -169,12 +212,10 @@ function initialDemoSession(deviceId: string): FieldSessionSnapshot {
     jobId: domainFixtureIds.jobId,
     nextSequence: 1,
     organizationId: domainFixtureIds.organizationId,
+    propertyLabel: demoJob.propertyLabel,
     session: "valid",
     updatedAt,
-    workflow: initialFieldWorkflow(
-      demoMode ? createSyntheticReviewItems() : [],
-      updatedAt,
-    ),
+    workflow: await createInitialDemoWorkflow(updatedAt),
   };
 }
 
@@ -233,13 +274,16 @@ export default function App() {
   const inspectionRepositoryRef = useRef<LocalInspectionRepository | undefined>(
     undefined,
   );
+  const investigationCompletionInFlight = useRef(false);
   const fieldActionInFlight = useRef(false);
   const lastDurabilityAnnouncement = useRef<string | undefined>(undefined);
-  const nextSequence = useRef(1);
   const sessionRef = useRef<FieldSessionSnapshot | undefined>(undefined);
-  const sessionWrites = useRef<Promise<void>>(Promise.resolve());
+  const sessionWriterRef = useRef<SerializedFieldSessionWriter | undefined>(
+    undefined,
+  );
   const workflowRef = useRef<FieldWorkflowSnapshot | undefined>(undefined);
   const voiceStartLatency = useRef<number | undefined>(undefined);
+  const voiceStateRef = useRef<VoiceState>("idle");
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const network = useNetworkState();
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -281,6 +325,12 @@ export default function App() {
   const [findingModules, setFindingModules] = useState<
     readonly ("building" | "timber_pest")[]
   >([]);
+  const [findingEvidenceSelections, setFindingEvidenceSelections] = useState<
+    readonly RevisionBoundFindingCandidateModuleSelection[]
+  >([]);
+  const [findingSourceDrafts, setFindingSourceDrafts] = useState<
+    readonly FindingCandidateModuleSelection[]
+  >([]);
   const [networkOverride, setNetworkOverride] = useState<
     "available" | "unavailable"
   >();
@@ -294,7 +344,7 @@ export default function App() {
   );
   const [reviewItems, setReviewItems] = useState<
     readonly InvestigationReviewItem[]
-  >(() => (demoMode ? createSyntheticReviewItems() : []));
+  >([]);
   const [approvedModules, setApprovedModules] = useState<
     readonly ("building" | "timber_pest")[]
   >([]);
@@ -339,12 +389,12 @@ export default function App() {
         const storedSession = openedLedger.getFieldSession();
         let restored: FieldSessionSnapshot;
         if (storedSession === undefined) {
-          if (!demoMode && credential === undefined) {
+          if (!demoMode) {
             throw new Error(
-              "No enrolled device credential or cached assigned job is available.",
+              "No cached assigned job is available for this enrolled device.",
             );
           }
-          restored = initialDemoSession(
+          restored = await initialDemoSession(
             credential?.deviceId ?? "device-synthetic-build-week",
           );
           await openedLedger.saveFieldSession(restored);
@@ -353,11 +403,51 @@ export default function App() {
         }
         let restoredWorkflow = restored.workflow;
         if (restoredWorkflow === undefined) {
-          restoredWorkflow = initialFieldWorkflow(
-            demoMode ? createSyntheticReviewItems() : [],
-          );
+          restoredWorkflow = await createInitialDemoWorkflow();
           restored = {
             ...restored,
+            workflow: restoredWorkflow,
+          };
+          await openedLedger.saveFieldSession(restored);
+        } else if (
+          demoMode &&
+          restoredWorkflow.reviewItems.length === 0 &&
+          restoredWorkflow.sourcePackets.length === 0
+        ) {
+          const fixture =
+            await createSyntheticReviewFixture(digestFieldPayload);
+          restoredWorkflow = cloneFieldWorkflow({
+            ...restoredWorkflow,
+            lastTransition: "review_changed",
+            reviewItems: fixture.reviewItems,
+            sourcePackets: fixture.sourcePackets,
+            revision: restoredWorkflow.revision + 1,
+            updatedAt: new Date().toISOString(),
+          });
+          restored = {
+            ...restored,
+            updatedAt: restoredWorkflow.updatedAt,
+            workflow: restoredWorkflow,
+          };
+          await openedLedger.saveFieldSession(restored);
+        }
+        const evidenceRiskInvalidation =
+          invalidateProfessionalStateForEvidenceRisk({
+            captureIds: recovery.evidenceAtRisk,
+            recordedAt: new Date().toISOString(),
+            workflow: restoredWorkflow,
+          });
+        if (evidenceRiskInvalidation !== undefined) {
+          restoredWorkflow = cloneFieldWorkflow({
+            ...restoredWorkflow,
+            ...evidenceRiskInvalidation,
+            lastTransition: "professional_state_changed",
+            revision: restoredWorkflow.revision + 1,
+            updatedAt: new Date().toISOString(),
+          });
+          restored = {
+            ...restored,
+            updatedAt: restoredWorkflow.updatedAt,
             workflow: restoredWorkflow,
           };
           await openedLedger.saveFieldSession(restored);
@@ -399,27 +489,19 @@ export default function App() {
             await openedLedger.saveFieldSession(restored);
           }
         }
+        const restoredJob = fieldJobContext(restored);
         let durableCoverage =
           await persistence.inspectionRepository.loadCoverage(restored.jobId);
         if (durableCoverage === null) {
           durableCoverage = createCoverageLedger({
             areas: areas.map((area) => ({
-              applicableModules: ["building", "timber_pest"] as const,
+              applicableModules: restoredJob.commissionedModuleTypes,
               areaId: area.id,
               label: area.label,
             })),
-            commissionedModules: [
-              {
-                module: "building",
-                moduleId: domainFixtureIds.buildingModuleId,
-              },
-              {
-                module: "timber_pest",
-                moduleId: domainFixtureIds.timberPestModuleId,
-              },
-            ],
-            jobId: restored.jobId,
-            organizationId: domainFixtureIds.organizationId,
+            commissionedModules: restoredJob.commissionedModules,
+            jobId: restoredJob.jobId,
+            organizationId: restoredJob.organizationId,
           });
           const initialisedAt = new Date().toISOString();
           await persistence.inspectionRepository.saveCoverage({
@@ -434,14 +516,101 @@ export default function App() {
             updatedAt: initialisedAt,
           });
         }
+        const completedCandidateLink =
+          durableInvestigation?.status === "completed_findings" &&
+          durableInvestigation.completion?.outcome === "finding_candidates" &&
+          durableInvestigation.completion.moduleLinks.length === 1
+            ? durableInvestigation.completion.moduleLinks[0]
+            : undefined;
+        const completedCandidateObservation =
+          completedCandidateLink === undefined
+            ? undefined
+            : durableInvestigation?.observations.find(({ observationId }) =>
+                completedCandidateLink.sourceObservationIds.includes(
+                  observationId,
+                ),
+              );
+        const recoveryBlockedCandidateSourceIds =
+          findingCandidateAtRiskSourceIds({
+            captureIds: recovery.evidenceAtRisk,
+            moduleLinks:
+              completedCandidateLink === undefined
+                ? []
+                : [completedCandidateLink],
+          });
+        if (
+          demoMode &&
+          durableInvestigation?.status === "completed_findings" &&
+          completedCandidateLink?.module === "building" &&
+          completedCandidateLink.sourceObservationIds.length === 1 &&
+          recoveryBlockedCandidateSourceIds.length === 0 &&
+          completedCandidateObservation?.text ===
+            SEEDED_CRACKED_TILE_OBSERVATION_TEXT &&
+          !restoredWorkflow.processedFindingCandidateIds.includes(
+            completedCandidateLink.findingCandidateId,
+          )
+        ) {
+          const regenerated = await createSeededInvestigationReview({
+            scenarioId: SEEDED_CRACKED_TILE_SCENARIO_ID,
+            investigation: durableInvestigation,
+            coverage: durableCoverage,
+            artifactHash: (artifactId) =>
+              openedLedger.getArtifact(artifactId)?.sha256 ??
+              openedLedger.getManualNote(artifactId)?.contentHash,
+            areaLabel: currentAreaLabel,
+            createdAt: new Date().toISOString(),
+            digest: digestFieldPayload,
+            idFactory: randomUUID,
+          });
+          const processed = invalidateProfessionalModulesForCandidates({
+            candidates: [completedCandidateLink],
+            investigationId: durableInvestigation.investigationId,
+            recordedAt:
+              durableInvestigation.completion?.completedAt ??
+              new Date().toISOString(),
+            workflow: restoredWorkflow,
+          });
+          restoredWorkflow = cloneFieldWorkflow({
+            ...restoredWorkflow,
+            ...processed,
+            lastTransition: "review_changed",
+            reviewItems: [
+              ...processed.reviewItems.filter(
+                (item) => item.module !== completedCandidateLink.module,
+              ),
+              ...regenerated.reviewItems,
+            ],
+            sourcePackets: [
+              ...restoredWorkflow.sourcePackets,
+              regenerated.packet,
+            ],
+            revision: restoredWorkflow.revision + 1,
+            updatedAt: new Date().toISOString(),
+          });
+          restored = {
+            ...restored,
+            updatedAt: restoredWorkflow.updatedAt,
+            workflow: restoredWorkflow,
+          };
+          await openedLedger.saveFieldSession(restored);
+        }
+        const sourcePacketValidity = await Promise.all(
+          restoredWorkflow.sourcePackets.map((packet) =>
+            verifyExactSourcePacket(packet, digestFieldPayload),
+          ),
+        );
+        if (!sourcePacketValidity.every(Boolean)) {
+          throw new Error(
+            "Stored AI source packet identity failed integrity verification.",
+          );
+        }
         const restoredReviewItems = restoredWorkflow.reviewItems;
         const bindingValidity = await Promise.all(
           restoredWorkflow.moduleApprovalBindings.map((binding) =>
             verifyApprovalBinding({
               binding,
               coverage: durableCoverage,
-              digest: (payload) =>
-                digestStringAsync(CryptoDigestAlgorithm.SHA256, payload),
+              digest: digestFieldPayload,
               jobId: restored.jobId,
               module: binding.module,
               reviewItems: restoredReviewItems,
@@ -459,23 +628,45 @@ export default function App() {
           restoredWorkflow.packageManifestSha256 === null;
         if (
           restoredWorkflow.packageManifestSha256 !== null &&
-          demoJob.commissionedModules.every(
+          restoredJob.commissionedModuleTypes.every(
             (module) =>
               validApprovedModules.includes(module) &&
               validBindings.some((binding) => binding.module === module),
           )
         ) {
-          const expectedPackageSha256 = await digestStringAsync(
-            CryptoDigestAlgorithm.SHA256,
-            deliveryPackageManifestPayload({
-              approvalBindings: validBindings,
-              commissionedModules: demoJob.commissionedModules,
-              jobId: restored.jobId,
-              reviewItems: restoredReviewItems,
-            }),
-          );
-          packageManifestValid =
-            expectedPackageSha256 === restoredWorkflow.packageManifestSha256;
+          const recipientPackage = restoredWorkflow.recipientPackage;
+          if (recipientPackage !== null) {
+            packageManifestValid = await verifyRecipientPackageSnapshot(
+              recipientPackage,
+              digestFieldPayload,
+            );
+            if (packageManifestValid) {
+              try {
+                projectRecipientOverview({
+                  packageSnapshot: recipientPackage,
+                  reviewItems: restoredReviewItems,
+                });
+              } catch {
+                packageManifestValid = false;
+              }
+            }
+            if (packageManifestValid) {
+              const expectedPackageSha256 = await digestFieldPayload(
+                deliveryPackageManifestPayload({
+                  approvalBindings: validBindings,
+                  commissionedModules: restoredJob.commissionedModuleTypes,
+                  jobId: restoredJob.jobId,
+                  recipientPackageHash: recipientPackage.canonicalHash,
+                  reviewItems: restoredReviewItems,
+                }),
+              );
+              packageManifestValid =
+                expectedPackageSha256 ===
+                restoredWorkflow.packageManifestSha256;
+            }
+          } else {
+            packageManifestValid = false;
+          }
         }
         if (
           validBindings.length !==
@@ -491,6 +682,7 @@ export default function App() {
             lastTransition: "professional_state_changed",
             moduleApprovalBindings: validBindings,
             packageManifestSha256: null,
+            recipientPackage: null,
             revision: restoredWorkflow.revision + 1,
             updatedAt: new Date().toISOString(),
           });
@@ -507,8 +699,29 @@ export default function App() {
         if (!mounted) return;
         setLedger(openedLedger);
         inspectionRepositoryRef.current = persistence.inspectionRepository;
-        nextSequence.current = restored.nextSequence;
         sessionRef.current = restored;
+        sessionWriterRef.current = new SerializedFieldSessionWriter({
+          initial: restored,
+          persist: (snapshot) => openedLedger.saveFieldSession(snapshot),
+          onCommitted: (snapshot) => {
+            sessionRef.current = cloneFieldSession(snapshot);
+            setSession(cloneFieldSession(snapshot));
+            const committedWorkflow = snapshot.workflow;
+            if (
+              committedWorkflow !== undefined &&
+              workflowRef.current?.revision !== committedWorkflow.revision
+            ) {
+              workflowRef.current = cloneFieldWorkflow(committedWorkflow);
+              setInvestigationStatus(committedWorkflow.investigationStatus);
+              setReviewItems(committedWorkflow.reviewItems);
+              setApprovedModules(committedWorkflow.approvedModules);
+              setModuleApprovalBindings(
+                committedWorkflow.moduleApprovalBindings,
+              );
+              setDeliveryState(committedWorkflow.deliveryState);
+            }
+          },
+        });
         workflowRef.current = cloneFieldWorkflow(restoredWorkflow);
         setSession(restored);
         setInvestigation(durableInvestigation);
@@ -523,9 +736,11 @@ export default function App() {
         setStartupState("ready");
         setDockOperationState("ready");
         setLastAction(
-          recovery.actions.length === 0
-            ? "Protected local storage ready."
-            : `Recovery checked ${recovery.actions.length} interrupted capture ${recovery.actions.length === 1 ? "boundary" : "boundaries"}.`,
+          recoveryBlockedCandidateSourceIds.length > 0
+            ? `Recovery blocked draft regeneration because ${recoveryBlockedCandidateSourceIds.length} selected evidence ${recoveryBlockedCandidateSourceIds.length === 1 ? "source is" : "sources are"} missing or corrupt. The candidate remains saved and unprocessed; no draft was created. Manual inspection follow-up is required.`
+            : recovery.actions.length === 0
+              ? "Protected local storage ready."
+              : `Recovery checked ${recovery.actions.length} interrupted capture ${recovery.actions.length === 1 ? "boundary" : "boundaries"}.`,
         );
       } catch (error) {
         if (!mounted) return;
@@ -546,31 +761,32 @@ export default function App() {
 
   function refreshQueue(activeLedger: CaptureLedger = ledger as CaptureLedger) {
     if (activeLedger === undefined) return;
-    const pendingCount = (lane: Parameters<CaptureLedger["listQueue"]>[0]) =>
-      activeLedger
-        .listQueue(lane)
-        .filter((item) => item.state !== "server_durable").length;
-    setQueueCounts({
-      manualNotes: pendingCount("manual_note_sync"),
-      photos: pendingCount("photo_upload"),
-      voiceNotes: pendingCount("voice_upload"),
-    });
+    let manualNotes = 0;
+    let photos = 0;
+    let voiceNotes = 0;
+    for (const item of activeLedger.listQueue()) {
+      if (item.state === "server_durable") continue;
+      if (item.lane === "manual_note_sync") manualNotes += 1;
+      if (item.lane === "photo_upload") photos += 1;
+      if (item.lane === "voice_upload") voiceNotes += 1;
+    }
+    setQueueCounts((current) =>
+      current.manualNotes === manualNotes &&
+      current.photos === photos &&
+      current.voiceNotes === voiceNotes
+        ? current
+        : { manualNotes, photos, voiceNotes },
+    );
   }
 
-  async function saveSession(next: FieldSessionSnapshot): Promise<void> {
-    if (ledger === undefined) return;
-    const normalised = {
-      ...next,
-      nextSequence: Math.max(next.nextSequence, nextSequence.current),
-    };
-    const write = sessionWrites.current.then(() =>
-      ledger.saveFieldSession(normalised),
-    );
-    sessionWrites.current = write.catch(() => undefined);
-    await write;
-    nextSequence.current = normalised.nextSequence;
-    sessionRef.current = normalised;
-    setSession(normalised);
+  async function saveSession(
+    mutate: FieldSessionMutation,
+  ): Promise<FieldSessionSnapshot> {
+    const writer = sessionWriterRef.current;
+    if (writer === undefined) {
+      throw new Error("The durable field session writer is not ready.");
+    }
+    return writer.update(mutate);
   }
 
   async function saveWorkflow(
@@ -583,38 +799,40 @@ export default function App() {
         | "moduleApprovalBindings"
         | "packageManifestSha256"
         | "processedFindingCandidateIds"
+        | "recipientPackage"
         | "reviewItems"
+        | "sourcePackets"
       >
     >,
     lastTransition: FieldWorkflowSnapshot["lastTransition"],
   ): Promise<FieldWorkflowSnapshot> {
-    const currentSession = sessionRef.current;
-    const currentWorkflow = workflowRef.current;
-    if (
-      ledger === undefined ||
-      currentSession === undefined ||
-      currentWorkflow === undefined
-    ) {
-      throw new Error("The field workflow is not ready.");
-    }
-    const nextWorkflow: FieldWorkflowSnapshot = {
-      ...currentWorkflow,
-      ...patch,
-      lastTransition,
-      revision: currentWorkflow.revision + 1,
-      updatedAt: new Date().toISOString(),
-    };
-    await saveSession({
-      ...currentSession,
-      updatedAt: nextWorkflow.updatedAt,
-      workflow: nextWorkflow,
+    const committed = await saveSession((currentSession) => {
+      const currentWorkflow = currentSession.workflow;
+      if (currentWorkflow === undefined) {
+        throw new Error("The field workflow is not ready.");
+      }
+      const nextWorkflow: FieldWorkflowSnapshot = {
+        ...currentWorkflow,
+        ...patch,
+        ...((patch.packageManifestSha256 === null ||
+          (patch.packageManifestSha256 === undefined &&
+            currentWorkflow.packageManifestSha256 === null)) && {
+          recipientPackage: null,
+        }),
+        lastTransition,
+        revision: currentWorkflow.revision + 1,
+        updatedAt: new Date().toISOString(),
+      };
+      return {
+        ...currentSession,
+        updatedAt: nextWorkflow.updatedAt,
+        workflow: nextWorkflow,
+      };
     });
-    workflowRef.current = cloneFieldWorkflow(nextWorkflow);
-    setInvestigationStatus(nextWorkflow.investigationStatus);
-    setReviewItems(nextWorkflow.reviewItems);
-    setApprovedModules(nextWorkflow.approvedModules);
-    setModuleApprovalBindings(nextWorkflow.moduleApprovalBindings);
-    setDeliveryState(nextWorkflow.deliveryState);
+    const nextWorkflow = committed.workflow;
+    if (nextWorkflow === undefined) {
+      throw new Error("The committed field workflow is unavailable.");
+    }
     return nextWorkflow;
   }
 
@@ -647,7 +865,7 @@ export default function App() {
       durableSession === undefined ||
       durableSession.workflow === undefined
     ) {
-      return;
+      throw new Error("protected professional state is unavailable");
     }
     let durableInvestigation: Investigation | null = null;
     if (durableSession.activeInvestigationId !== undefined) {
@@ -679,11 +897,11 @@ export default function App() {
       reconciledSession !== durableSession ||
       reconciledWorkflow !== durableSession.workflow
     ) {
-      await saveSession({
+      await saveSession(() => ({
         ...reconciledSession,
         updatedAt: reconciledWorkflow.updatedAt,
         workflow: reconciledWorkflow,
-      });
+      }));
     } else {
       sessionRef.current = cloneFieldSession(reconciledSession);
       setSession(cloneFieldSession(reconciledSession));
@@ -703,24 +921,39 @@ export default function App() {
     action: () => Promise<void>,
     options: { readonly propagateFailure?: boolean } = {},
   ): Promise<void> {
+    if (startupState !== "ready") {
+      setLastAction(
+        "Professional actions are blocked until protected local state is ready. Restart the app if recovery was blocked.",
+      );
+      setDockOperationState("needs_review");
+      return;
+    }
     if (fieldActionInFlight.current) return;
     fieldActionInFlight.current = true;
     setFieldActionBusy(true);
     try {
       await action();
     } catch (cause) {
+      let reloadFailure: unknown;
       try {
         await reloadProfessionalState();
-      } catch {
-        // Preserve the original action failure as the inspector-facing state.
+      } catch (reloadCause) {
+        reloadFailure = reloadCause;
       }
-      setLastAction(
-        cause instanceof Error
-          ? `Field action not completed — ${cause.message}. Durable state reloaded; review and retry.`
-          : "Field action not completed. Durable state reloaded; review and retry.",
-      );
+      const failure = describeFieldActionFailure(cause, reloadFailure);
+      if (failure.recoveryBlocked) setStartupState("terminal");
+      setLastAction(failure.message);
       setDockOperationState("needs_review");
-      if (options.propagateFailure === true) throw cause;
+      if (options.propagateFailure === true) {
+        if (reloadFailure !== undefined) {
+          throw new AggregateError(
+            [cause, reloadFailure],
+            "Field action and durable recovery both failed",
+            { cause },
+          );
+        }
+        throw cause;
+      }
     } finally {
       fieldActionInFlight.current = false;
       setFieldActionBusy(false);
@@ -762,6 +995,8 @@ export default function App() {
     setMeasurementOpen(false);
     setEvidenceAreasOpen(false);
     setFinishChoiceOpen(false);
+    setFindingEvidenceSelections([]);
+    setFindingSourceDrafts([]);
   }
 
   async function saveInvestigationTransition(
@@ -1062,18 +1297,18 @@ export default function App() {
   }
 
   async function reserveSequence(): Promise<number> {
-    const currentSession = sessionRef.current;
-    if (ledger === undefined || currentSession === undefined) {
+    let sequence: number | undefined;
+    await saveSession((currentSession) => {
+      sequence = currentSession.nextSequence;
+      return {
+        ...currentSession,
+        nextSequence: currentSession.nextSequence + 1,
+        updatedAt: new Date().toISOString(),
+      };
+    });
+    if (sequence === undefined) {
       throw new Error("The open assigned job is not ready.");
     }
-    const sequence = nextSequence.current;
-    nextSequence.current += 1;
-    const snapshot = {
-      ...currentSession,
-      nextSequence: nextSequence.current,
-      updatedAt: new Date().toISOString(),
-    };
-    await saveSession(snapshot);
     return sequence;
   }
 
@@ -1252,10 +1487,15 @@ export default function App() {
     }
   }
 
+  function updateVoiceState(nextState: VoiceState): void {
+    voiceStateRef.current = nextState;
+    setVoiceState(nextState);
+  }
+
   async function toggleVoice(): Promise<void> {
-    if (voiceState === "saving" || voiceState === "unavailable") return;
-    if (voiceState === "recording") {
-      setVoiceState("saving");
+    const currentVoiceState = voiceStateRef.current;
+    if (currentVoiceState === "recording") {
+      updateVoiceState("saving");
       setDockOperationState("saving");
       try {
         const captureId = randomUUID();
@@ -1279,54 +1519,87 @@ export default function App() {
           sequence,
           sourceUri,
         });
-        voiceStartLatency.current = undefined;
-        setVoiceState("idle");
       } catch (error) {
         setDockOperationState("not_saved");
-        voiceStartLatency.current = undefined;
-        setVoiceState("idle");
         setLastAction(
           error instanceof Error
             ? `Voice note not acknowledged — ${error.message}`
             : "Voice note not acknowledged — local capture failed.",
         );
         setManualNoteOpen(true);
+      } finally {
+        voiceStartLatency.current = undefined;
+        updateVoiceState("idle");
       }
+      return;
+    }
+    if (
+      currentVoiceState === "starting" ||
+      currentVoiceState === "saving" ||
+      currentVoiceState === "unavailable"
+    ) {
+      return;
+    }
+    if (investigationCompletionInFlight.current) {
+      setLastAction(
+        "Voice capture waits until investigation completion is saved locally.",
+      );
       return;
     }
 
     const interactionStartedAt = globalThis.performance.now();
-    if (!(await checkCaptureAllowed())) return;
-    if (e2eMode) {
-      setVoiceState("recording");
+    updateVoiceState("starting");
+    try {
+      if (!(await checkCaptureAllowed())) {
+        updateVoiceState("idle");
+        return;
+      }
+      if (e2eMode) {
+        updateVoiceState("recording");
+        setDockOperationState("recording");
+        voiceStartLatency.current = Math.max(
+          0,
+          globalThis.performance.now() - interactionStartedAt,
+        );
+        setLastAction(
+          "Voice note recording — photo capture remains available.",
+        );
+        return;
+      }
+      const permission = await requestRecordingPermissionsAsync();
+      if (!permission.granted) {
+        updateVoiceState("unavailable");
+        setDockOperationState("needs_review");
+        setLastAction(
+          "Microphone permission denied — voice capture unavailable; add a manual note.",
+        );
+        setManualNoteOpen(true);
+        return;
+      }
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
+      });
+      await recorder.prepareToRecordAsync();
+      recorder.record();
+      updateVoiceState("recording");
       setDockOperationState("recording");
       voiceStartLatency.current = Math.max(
         0,
         globalThis.performance.now() - interactionStartedAt,
       );
       setLastAction("Voice note recording — photo capture remains available.");
-      return;
-    }
-    const permission = await requestRecordingPermissionsAsync();
-    if (!permission.granted) {
-      setVoiceState("unavailable");
-      setDockOperationState("needs_review");
+    } catch (error) {
+      voiceStartLatency.current = undefined;
+      updateVoiceState("idle");
+      setDockOperationState("not_saved");
       setLastAction(
-        "Microphone permission denied — voice capture unavailable; add a manual note.",
+        error instanceof Error
+          ? `Voice note could not start — ${error.message}`
+          : "Voice note could not start — microphone preparation failed.",
       );
       setManualNoteOpen(true);
-      return;
     }
-    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-    await recorder.prepareToRecordAsync();
-    recorder.record();
-    setVoiceState("recording");
-    setDockOperationState("recording");
-    voiceStartLatency.current = Math.max(
-      0,
-      globalThis.performance.now() - interactionStartedAt,
-    );
-    setLastAction("Voice note recording — photo capture remains available.");
   }
 
   async function saveManualNote(): Promise<void> {
@@ -1339,34 +1612,70 @@ export default function App() {
       return;
     }
     const observationText = manualNote.trim();
+    const recordedAt = new Date().toISOString();
     setDockOperationState("saving");
     let noteDurable = false;
     let linkedToInvestigation = false;
     try {
-      await recordManualFallback({
+      const recorded = await recordManualFallback({
         areaId: session.areaId,
+        digest: digestFieldPayload,
         idFactory: randomUUID,
         jobId: session.jobId,
         ledger,
-        recordedAt: new Date().toISOString(),
+        recordedAt,
         text: observationText,
       });
       noteDurable = true;
+      if (
+        ledger.getManualNote(recorded.noteId)?.contentHash !==
+        recorded.contentHash
+      ) {
+        throw new Error("Durable manual-note identity could not be verified");
+      }
       const active = await loadActiveInvestigation();
       if (active?.status === "active") {
-        const next = recordInvestigationObservation(active, {
+        const attached = attachInvestigationEvidence(active, {
+          artifacts: [
+            {
+              artifactId: recorded.noteId,
+              artifactKind: "manual_note",
+              captureAreaId: session.areaId,
+              capturedAt: recordedAt,
+              captureSequence:
+                Math.max(
+                  0,
+                  ...active.evidence.map(
+                    ({ captureSequence }) => captureSequence,
+                  ),
+                ) + 1,
+              jobId: session.jobId,
+            },
+          ],
+          attachedAt: recordedAt,
           expectedRevision: active.revision,
+          inspectorId: "actor_inspector_demo",
+          source: "captured_during_investigation",
+        });
+        await saveInvestigationTransition(
+          attached,
+          active.revision,
+          "investigation.evidence_attached",
+          { artifactCount: 1, source: "captured_during_investigation" },
+        );
+        const observed = recordInvestigationObservation(attached, {
+          expectedRevision: attached.revision,
           observation: {
             areaId: session.areaId,
-            observationId: randomUUID(),
-            recordedAt: new Date().toISOString(),
+            observationId: recorded.noteId,
+            recordedAt,
             recordedByInspectorId: "actor_inspector_demo",
             text: observationText,
           },
         });
         await saveInvestigationTransition(
-          next,
-          active.revision,
+          observed,
+          attached.revision,
           "investigation.observation_recorded",
           { areaId: session.areaId },
         );
@@ -1427,11 +1736,11 @@ export default function App() {
         { areaId: nextArea.id },
       );
     }
-    await saveSession({
-      ...session,
+    await saveSession((currentSession) => ({
+      ...currentSession,
       areaId: nextArea.id,
       updatedAt: new Date().toISOString(),
-    });
+    }));
     setAreaPickerOpen(false);
     setCoverageCloseoutOpen(false);
     setMeasurementOpen(false);
@@ -1460,11 +1769,11 @@ export default function App() {
       throw new Error("Coverage checklist area is not part of this job.");
     }
     if (currentSession.areaId !== areaId) {
-      await saveSession({
-        ...currentSession,
+      await saveSession((latestSession) => ({
+        ...latestSession,
         areaId,
         updatedAt: new Date().toISOString(),
-      });
+      }));
     }
     setCoverageCloseoutModule(module);
     setCoverageCloseoutOpen(true);
@@ -1487,22 +1796,14 @@ export default function App() {
     ) {
       const activeInvestigationId = randomUUID();
       const startedAt = new Date().toISOString();
+      const job = fieldJobContext(session);
       const started = startInvestigation({
         areaId: session.areaId,
-        commissionedModules: [
-          {
-            module: "building",
-            moduleId: domainFixtureIds.buildingModuleId,
-          },
-          {
-            module: "timber_pest",
-            moduleId: domainFixtureIds.timberPestModuleId,
-          },
-        ],
+        commissionedModules: job.commissionedModules,
         inspectorId: "actor_inspector_demo",
         investigationId: activeInvestigationId,
-        jobId: session.jobId,
-        organizationId: domainFixtureIds.organizationId,
+        jobId: job.jobId,
+        organizationId: job.organizationId,
         startedAt,
       });
       await saveInvestigationTransition(
@@ -1511,11 +1812,11 @@ export default function App() {
         "investigation.started",
         { areaId: session.areaId, status: "active" },
       );
-      await saveSession({
-        ...session,
+      await saveSession((currentSession) => ({
+        ...currentSession,
         activeInvestigationId,
         updatedAt: startedAt,
-      });
+      }));
       await saveWorkflow(
         {
           deliveryState: "waiting_for_approval",
@@ -1525,6 +1826,7 @@ export default function App() {
         "investigation_started",
       );
       setFindingModules([]);
+      setFindingSourceDrafts([]);
       closeInvestigationPanels();
       setLastAction(
         "Investigation started — capture remains private until inspector review.",
@@ -1572,14 +1874,94 @@ export default function App() {
   }
 
   function toggleFindingModule(module: "building" | "timber_pest"): void {
+    setFindingEvidenceSelections((current) =>
+      current.filter((selection) => selection.module !== module),
+    );
     setFindingModules((current) =>
       current.includes(module)
         ? current.filter((candidate) => candidate !== module)
         : [...current, module],
     );
+    setFindingSourceDrafts((current) =>
+      current.filter((draft) => draft.module !== module),
+    );
+  }
+
+  function toggleFindingSource(
+    module: "building" | "timber_pest",
+    sourceType: "artifact" | "observation",
+    sourceId: string,
+  ): void {
+    setFindingEvidenceSelections((current) =>
+      current.filter((selection) => selection.module !== module),
+    );
+    setFindingSourceDrafts((current) =>
+      toggleFindingCandidateSource(current, {
+        module,
+        sourceId,
+        sourceType,
+      }),
+    );
+  }
+
+  async function confirmFindingEvidence(
+    module: "building" | "timber_pest",
+  ): Promise<void> {
+    const active = await loadActiveInvestigation();
+    if (
+      active === null ||
+      active.status !== "active" ||
+      !findingModules.includes(module)
+    ) {
+      throw new Error(
+        "Select the module and keep the investigation active before confirming its sources.",
+      );
+    }
+    const selection = confirmFindingCandidateSourceSelection({
+      drafts: findingSourceDrafts,
+      investigation: active,
+      module,
+    });
+    setFindingEvidenceSelections((current) => [
+      ...current.filter((candidate) => candidate.module !== module),
+      selection,
+    ]);
+    setLastAction(
+      `${module === "building" ? "Building" : "Timber Pest"} candidate sources confirmed: ${selection.sourceArtifactIds.length} evidence ${selection.sourceArtifactIds.length === 1 ? "item" : "items"} and ${selection.sourceObservationIds.length} inspector ${selection.sourceObservationIds.length === 1 ? "observation" : "observations"}.`,
+    );
+  }
+
+  function openFinishInvestigation(): void {
+    const voiceBlock = investigationCompletionVoiceBlock(voiceStateRef.current);
+    if (voiceBlock !== null) {
+      setLastAction(voiceBlock);
+      return;
+    }
+    setFinishChoiceOpen(true);
+    setAreaPickerOpen(false);
+    setCoverageCloseoutOpen(false);
+    setMeasurementOpen(false);
+    setEvidenceAreasOpen(false);
   }
 
   async function finishInvestigation(
+    result: "candidate" | "no_finding",
+  ): Promise<void> {
+    const voiceBlock = investigationCompletionVoiceBlock(voiceStateRef.current);
+    if (voiceBlock !== null) {
+      setLastAction(voiceBlock);
+      return;
+    }
+    if (investigationCompletionInFlight.current) return;
+    investigationCompletionInFlight.current = true;
+    try {
+      await finishInvestigationAfterVoiceSettled(result);
+    } finally {
+      investigationCompletionInFlight.current = false;
+    }
+  }
+
+  async function finishInvestigationAfterVoiceSettled(
     result: "candidate" | "no_finding",
   ): Promise<void> {
     if (session === undefined) return;
@@ -1591,13 +1973,40 @@ export default function App() {
       );
       return;
     }
+    const confirmedSelections = findingModules.map((module) =>
+      findingEvidenceSelections.find(
+        (selection) => selection.module === module,
+      ),
+    );
+    if (
+      result === "candidate" &&
+      confirmedSelections.some(
+        (selection) =>
+          selection === undefined ||
+          selection.investigationRevision !== active.revision,
+      )
+    ) {
+      setLastAction(
+        "Confirm the exact evidence and observation sources for every selected module after the latest investigation change.",
+      );
+      return;
+    }
     const completedAt = new Date().toISOString();
     const moduleLinks =
       result === "candidate"
         ? createFindingCandidateLinks({
             idFactory: randomUUID,
             investigation: active,
-            modules: findingModules,
+            moduleSelections: confirmedSelections.map((selection) => {
+              if (selection === undefined) {
+                throw new Error("A selected module has no confirmed sources");
+              }
+              return {
+                module: selection.module,
+                sourceArtifactIds: selection.sourceArtifactIds,
+                sourceObservationIds: selection.sourceObservationIds,
+              };
+            }),
           })
         : [];
     const completed = completeInvestigation(active, {
@@ -1619,29 +2028,83 @@ export default function App() {
         outcome: completed.completion?.outcome ?? null,
       },
     );
+    let draftPersisted = false;
     if (result === "candidate") {
       const current = workflowRef.current;
       if (current === undefined)
         throw new Error("Review workflow is not ready.");
-      await saveWorkflow(
-        invalidateProfessionalModulesForCandidates({
+      const invalidation = invalidateProfessionalModulesForCandidates({
+        candidates: moduleLinks,
+        investigationId: completed.investigationId,
+        markProcessed: false,
+        recordedAt: completedAt,
+        workflow: current,
+      });
+      const invalidatedWorkflow = await saveWorkflow(
+        invalidation,
+        "professional_state_changed",
+      );
+      const selectedObservation = completed.observations.find(
+        ({ observationId }) =>
+          moduleLinks[0]?.sourceObservationIds.includes(observationId),
+      );
+      const seededScenarioSelected =
+        moduleLinks.length === 1 &&
+        moduleLinks[0]?.module === "building" &&
+        moduleLinks[0].sourceObservationIds.length === 1 &&
+        selectedObservation?.text === SEEDED_CRACKED_TILE_OBSERVATION_TEXT;
+      const seeded =
+        demoMode &&
+        seededScenarioSelected &&
+        coverageLedger !== undefined &&
+        ledger !== undefined
+          ? await createSeededInvestigationReview({
+              scenarioId: SEEDED_CRACKED_TILE_SCENARIO_ID,
+              investigation: completed,
+              coverage: coverageLedger,
+              artifactHash: (artifactId) =>
+                ledger.getArtifact(artifactId)?.sha256 ??
+                ledger.getManualNote(artifactId)?.contentHash,
+              areaLabel: currentAreaLabel,
+              createdAt: completedAt,
+              digest: digestFieldPayload,
+              idFactory: randomUUID,
+            })
+          : null;
+      const affectedModules = new Set(moduleLinks.map(({ module }) => module));
+      if (seeded !== null) {
+        const processed = invalidateProfessionalModulesForCandidates({
           candidates: moduleLinks,
           investigationId: completed.investigationId,
           recordedAt: completedAt,
-          workflow: current,
-        }),
-        "professional_state_changed",
-      );
+          workflow: invalidatedWorkflow,
+        });
+        await saveWorkflow(
+          {
+            ...processed,
+            reviewItems: [
+              ...processed.reviewItems.filter(
+                (item) => !affectedModules.has(item.module),
+              ),
+              ...seeded.reviewItems,
+            ],
+            sourcePackets: [
+              ...invalidatedWorkflow.sourcePackets,
+              seeded.packet,
+            ],
+          },
+          "review_changed",
+        );
+        draftPersisted = true;
+      }
     }
     setFinishChoiceOpen(false);
     setMeasurementOpen(false);
     setEvidenceAreasOpen(false);
     setFindingModules([]);
-    const currentSession = sessionRef.current;
-    if (currentSession === undefined) {
-      throw new Error("The durable field session is unavailable.");
-    }
-    await saveSession(
+    setFindingEvidenceSelections([]);
+    setFindingSourceDrafts([]);
+    await saveSession((currentSession) =>
       reconcileFieldSessionInvestigation(
         currentSession,
         completed,
@@ -1659,7 +2122,9 @@ export default function App() {
     );
     setLastAction(
       result === "candidate"
-        ? "Investigation candidate saved locally — drafting waits for evidence sync and an exact source packet."
+        ? draftPersisted
+          ? "Investigation candidate saved locally — deterministic synthetic draft ready from the exact source packet."
+          : "Investigation candidate saved locally — drafting waits for evidence sync and an exact source packet."
         : "Investigation closed with no reportable finding; evidence remains private.",
     );
   }
@@ -1709,8 +2174,7 @@ export default function App() {
       setLastAction("Observation and qualified opinion are required.");
       return;
     }
-    const newContentHash = await digestStringAsync(
-      CryptoDigestAlgorithm.SHA256,
+    const newContentHash = await digestFieldPayload(
       findingContentPayload(content),
     );
     await replaceReviewItem(
@@ -1778,8 +2242,7 @@ export default function App() {
     setEditObservation(item.finding.content.observation);
     setEditOpinion(item.finding.content.qualifiedOpinion);
     const content = item.finding.content;
-    const newContentHash = await digestStringAsync(
-      CryptoDigestAlgorithm.SHA256,
+    const newContentHash = await digestFieldPayload(
       findingContentPayload(content),
     );
     await replaceReviewItem(
@@ -1840,8 +2303,7 @@ export default function App() {
     const currentCoverage = coverageLedger;
     if (current === undefined || currentCoverage === undefined) return;
     const contentHashesValid = await verifyAcceptedReviewContentHashes({
-      digest: (payload) =>
-        digestStringAsync(CryptoDigestAlgorithm.SHA256, payload),
+      digest: digestFieldPayload,
       module,
       reviewItems,
     });
@@ -1853,9 +2315,21 @@ export default function App() {
     }
     const reviewVersions = approvalReviewVersions(reviewItems, module);
     const coverageRevision = moduleCoverageRevision(currentCoverage, module);
-    const snapshotSha256 = await digestStringAsync(
-      CryptoDigestAlgorithm.SHA256,
+    const approvingInspector = resolveApprovingInspectorAuthority({
+      allowSyntheticFixture: demoMode,
+      confirmedAt: new Date().toISOString(),
+      module,
+      syntheticInspectorId: domainFixtureIds.inspectorId,
+    });
+    if (approvingInspector === undefined) {
+      setLastAction(
+        "Approval blocked — a verified inspector profile is required outside the synthetic demo.",
+      );
+      return;
+    }
+    const snapshotSha256 = await digestFieldPayload(
       approvalSnapshotPayload({
+        approvingInspector,
         coverage: currentCoverage,
         jobId: session.jobId,
         module,
@@ -1863,6 +2337,7 @@ export default function App() {
       }),
     );
     const binding: ModuleApprovalBinding = {
+      approvingInspector,
       coverageRevision,
       module,
       reviewVersions,
@@ -1891,6 +2366,7 @@ export default function App() {
 
   async function confirmDeliveryPackage(): Promise<void> {
     if (session === undefined) return;
+    const job = fieldJobContext(session);
     const authorization = authoriseFieldOperation(
       {
         cachedAssignedJobIds: session.cachedAssignedJobIds,
@@ -1929,15 +2405,14 @@ export default function App() {
       currentCoverage !== undefined &&
       (
         await Promise.all(
-          demoJob.commissionedModules.map((module) =>
+          job.commissionedModuleTypes.map((module) =>
             verifyApprovalBinding({
               binding: current.moduleApprovalBindings.find(
                 (candidate) => candidate.module === module,
               ),
               coverage: currentCoverage,
-              digest: (payload) =>
-                digestStringAsync(CryptoDigestAlgorithm.SHA256, payload),
-              jobId: session.jobId,
+              digest: digestFieldPayload,
+              jobId: job.jobId,
               module,
               reviewItems: current.reviewItems,
             }),
@@ -1946,8 +2421,9 @@ export default function App() {
       ).every(Boolean);
     if (
       current === undefined ||
+      currentCoverage === undefined ||
       !allApprovalsCurrent ||
-      demoJob.commissionedModules.some(
+      job.commissionedModuleTypes.some(
         (module) => !current.approvedModules.includes(module),
       )
     ) {
@@ -1956,21 +2432,39 @@ export default function App() {
       );
       return;
     }
-    const packageManifestSha256 = await digestStringAsync(
-      CryptoDigestAlgorithm.SHA256,
+    const evidencePending =
+      queueCounts.photos + queueCounts.voiceNotes + queueCounts.manualNotes > 0;
+    const issuedAt = new Date().toISOString();
+    const recipientPackage = await createRecipientPackageSnapshot({
+      approvalBindings: current.moduleApprovalBindings,
+      commissionedModules: job.commissionedModuleTypes,
+      coverage: currentCoverage,
+      digest: digestFieldPayload,
+      issuedAt,
+      jobId: job.jobId,
+      organizationId: job.organizationId,
+      propertyLabel: job.propertyLabel,
+      reportVersionId: randomUUID(),
+      reviewItems: current.reviewItems,
+    });
+    projectRecipientOverview({
+      packageSnapshot: recipientPackage,
+      reviewItems: current.reviewItems,
+    });
+    const packageManifestSha256 = await digestFieldPayload(
       deliveryPackageManifestPayload({
         approvalBindings: current.moduleApprovalBindings,
-        commissionedModules: demoJob.commissionedModules,
-        jobId: session.jobId,
+        commissionedModules: job.commissionedModuleTypes,
+        jobId: job.jobId,
+        recipientPackageHash: recipientPackage.canonicalHash,
         reviewItems: current.reviewItems,
       }),
     );
-    const evidencePending =
-      queueCounts.photos + queueCounts.voiceNotes + queueCounts.manualNotes > 0;
     await saveWorkflow(
       {
         deliveryState: evidencePending ? "waiting_for_evidence" : "queued",
         packageManifestSha256,
+        recipientPackage,
       },
       "package_confirmed",
     );
@@ -2007,27 +2501,49 @@ export default function App() {
 
   const currentArea =
     areas.find((area) => area.id === session?.areaId) ?? areas[0];
+  const recipientOverview =
+    workflowView === "review"
+      ? (() => {
+          const packageSnapshot = workflowRef.current?.recipientPackage;
+          if (packageSnapshot === null || packageSnapshot === undefined) {
+            return null;
+          }
+          try {
+            return projectRecipientOverview({ packageSnapshot, reviewItems });
+          } catch {
+            return null;
+          }
+        })()
+      : null;
   const currentCoverageSummaries =
     coverageLedger === undefined
       ? []
       : areaCoverageSummary(coverageLedger, currentArea.id);
-  const recentCaptures = attachableRecentCaptures();
+  const recentCaptures =
+    workflowView === "capture" ? attachableRecentCaptures() : [];
   const networkAvailable =
     networkOverride === undefined
       ? network.isConnected !== false
       : networkOverride === "available";
   const captureEnabled = startupState === "ready" && session !== undefined;
+  const finishActionView = deriveInvestigationFinishActionView({
+    busy: fieldActionBusy,
+    voiceState,
+  });
   const coverageIssues =
     coverageLedger === undefined
       ? []
       : coverageCompletionIssues(coverageLedger);
   const professionalWorkOpen =
     investigationStatus === "active" || investigationStatus === "paused";
+  const activeJob =
+    session === undefined ? undefined : fieldJobContext(session);
+  const commissionedModuleTypes = activeJob?.commissionedModuleTypes ?? [];
   const completionProjection = projectCompletion({
-    commissionedModules: demoJob.commissionedModules,
+    commissionedModules: commissionedModuleTypes,
     aiAvailable: demoMode,
     professionalWorkOpen,
-    modules: demoJob.commissionedModules.map((module) => {
+    modules: commissionedModuleTypes.map((module) => {
       const moduleItems = reviewItems.filter((item) => item.module === module);
       const reviewComplete =
         moduleItems.length > 0 &&
@@ -2087,6 +2603,7 @@ export default function App() {
         <View style={styles.shell}>
           <ScrollView
             contentContainerStyle={styles.scrollContent}
+            keyboardDismissMode="on-drag"
             keyboardShouldPersistTaps="handled"
             style={styles.scroll}
           >
@@ -2094,7 +2611,7 @@ export default function App() {
               {demoMode ? "Synthetic assigned inspection" : "Open inspection"}
             </Text>
             <Text accessibilityRole="header" style={styles.heading}>
-              {demoJob.propertyLabel}
+              {activeJob?.propertyLabel ?? "Loading inspection"}
             </Text>
 
             <View
@@ -2147,11 +2664,11 @@ export default function App() {
                         label="Test: expire session"
                         onPress={() => {
                           if (session !== undefined) {
-                            void saveSession({
-                              ...session,
+                            void saveSession((currentSession) => ({
+                              ...currentSession,
                               session: "expired",
                               updatedAt: new Date().toISOString(),
-                            });
+                            }));
                           }
                           setLastAction(
                             "Session expired — the open cached job can still capture; sync and approval require sign-in.",
@@ -2335,14 +2852,10 @@ export default function App() {
                           }}
                         />
                         <SmallControl
+                          disabled={finishActionView.finishDisabled}
                           label="Finish investigation"
-                          onPress={() => {
-                            setFinishChoiceOpen(true);
-                            setAreaPickerOpen(false);
-                            setCoverageCloseoutOpen(false);
-                            setMeasurementOpen(false);
-                            setEvidenceAreasOpen(false);
-                          }}
+                          onPress={openFinishInvestigation}
+                          testID="finish-investigation-control"
                         />
                       </>
                     ) : null}
@@ -2440,9 +2953,8 @@ export default function App() {
                       asynchronous and evidence stays available either way.
                     </Text>
                     <Text style={styles.body}>
-                      Every selected module candidate uses the evidence attached
-                      to this issue thread. Use a separate investigation when
-                      the source evidence differs by module.
+                      Select a module, then confirm the exact evidence and
+                      inspector observations that support that candidate.
                     </Text>
                     <Text style={styles.metadataLabel}>
                       Finding candidate modules
@@ -2457,24 +2969,118 @@ export default function App() {
                         onPress={() => toggleFindingModule("timber_pest")}
                       />
                     </View>
+                    {findingModules.map((module) => {
+                      const selection = findingEvidenceSelections.find(
+                        (candidate) => candidate.module === module,
+                      );
+                      const draft = findingSourceDrafts.find(
+                        (candidate) => candidate.module === module,
+                      );
+                      const currentRevision = investigation?.revision;
+                      const confirmed =
+                        selection !== undefined &&
+                        selection.investigationRevision === currentRevision;
+                      const moduleLabel =
+                        module === "building" ? "Building" : "Timber Pest";
+                      return (
+                        <View
+                          key={`candidate-sources-${module}`}
+                          style={styles.candidateSourceGroup}
+                        >
+                          <Text style={styles.moduleChecklistLabel}>
+                            {moduleLabel} candidate sources
+                          </Text>
+                          <Text style={styles.metadataLabel}>
+                            Select supporting evidence
+                          </Text>
+                          {investigation?.evidence.map((source, index) => (
+                            <CandidateSourceControl
+                              key={`${module}-artifact-${source.artifactId}`}
+                              label={`Evidence ${index + 1}: ${source.artifactKind.replaceAll("_", " ")} · ${currentAreaLabel(source.currentAreaId)}`}
+                              onPress={() =>
+                                toggleFindingSource(
+                                  module,
+                                  "artifact",
+                                  source.artifactId,
+                                )
+                              }
+                              selected={
+                                draft?.sourceArtifactIds.includes(
+                                  source.artifactId,
+                                ) ?? false
+                              }
+                              testID={`candidate-${module}-evidence-${index}`}
+                            />
+                          ))}
+                          <Text style={styles.metadataLabel}>
+                            Select supporting inspector observations
+                          </Text>
+                          {investigation?.observations.map(
+                            (observation, index) => (
+                              <CandidateSourceControl
+                                key={`${module}-observation-${observation.observationId}`}
+                                label={`Observation ${index + 1}: ${observation.text} · ${currentAreaLabel(observation.areaId)}`}
+                                onPress={() =>
+                                  toggleFindingSource(
+                                    module,
+                                    "observation",
+                                    observation.observationId,
+                                  )
+                                }
+                                selected={
+                                  draft?.sourceObservationIds.includes(
+                                    observation.observationId,
+                                  ) ?? false
+                                }
+                                testID={`candidate-${module}-observation-${index}`}
+                              />
+                            ),
+                          )}
+                          <SmallControl
+                            label={
+                              confirmed
+                                ? `${moduleLabel} sources confirmed — ${selection.sourceArtifactIds.length} evidence ${selection.sourceArtifactIds.length === 1 ? "item" : "items"}, ${selection.sourceObservationIds.length} ${selection.sourceObservationIds.length === 1 ? "observation" : "observations"}`
+                                : `Confirm ${moduleLabel} candidate sources`
+                            }
+                            onPress={() => {
+                              void runFieldAction(() =>
+                                confirmFindingEvidence(module),
+                              );
+                            }}
+                          />
+                        </View>
+                      );
+                    })}
+                    {finishActionView.blockedReason !== null ? (
+                      <Text
+                        accessibilityLiveRegion="assertive"
+                        style={styles.body}
+                      >
+                        {finishActionView.blockedReason}
+                      </Text>
+                    ) : null}
                     <View style={styles.wrapRow}>
                       <SmallControl
                         busy={fieldActionBusy}
+                        disabled={finishActionView.saveFindingCandidateDisabled}
                         label="Save finding candidate"
                         onPress={() =>
                           void runFieldAction(() =>
                             finishInvestigation("candidate"),
                           )
                         }
+                        testID="save-finding-candidate-control"
                       />
                       <SmallControl
                         busy={fieldActionBusy}
+                        disabled={finishActionView.noReportableFindingDisabled}
                         label="No reportable finding"
                         onPress={() =>
                           void runFieldAction(() =>
                             finishInvestigation("no_finding"),
                           )
                         }
+                        testID="no-reportable-finding-control"
                       />
                       <SmallControl
                         label="Cancel finish"
@@ -2567,12 +3173,13 @@ export default function App() {
                       Manual observation
                     </Text>
                     <TextInput
-                      accessibilityLabel="Manual observation"
+                      accessibilityLabel="Manual observation input"
                       multiline
                       onChangeText={setManualNote}
                       placeholder="Record what you observed and where."
                       placeholderTextColor={theme.color.inkMuted}
                       style={styles.noteInput}
+                      testID="manual-observation-input"
                       value={manualNote}
                     />
                     <SmallControl
@@ -2587,6 +3194,99 @@ export default function App() {
             ) : (
               <View style={styles.reviewStack}>
                 <StatusCard detail={lastAction} label="Review status" />
+                {recipientOverview !== null ? (
+                  <View
+                    accessibilityLabel="Recipient overview preview"
+                    style={styles.reviewNotice}
+                    testID="recipient-overview-preview"
+                  >
+                    <Text style={styles.metadataLabel}>Recipient preview</Text>
+                    <Text
+                      accessibilityRole="header"
+                      style={styles.sectionTitle}
+                    >
+                      Condition overview
+                    </Text>
+                    {recipientOverview.modules.map((module) => {
+                      const sourceCount = module.findings.reduce(
+                        (count, finding) => count + finding.evidenceSourceCount,
+                        0,
+                      );
+                      return (
+                        <View key={module.module} style={styles.checklistCard}>
+                          <Text style={styles.moduleChecklistLabel}>
+                            {module.module === "building"
+                              ? "Building report"
+                              : "Timber Pest report"}
+                          </Text>
+                          <View
+                            accessibilityLabel={`${module.module === "building" ? "Building" : "Timber Pest"} inspector authority`}
+                            style={styles.recipientInspectorCard}
+                            testID={`recipient-${module.module}-inspector-authority`}
+                          >
+                            <Text style={styles.metadataLabel}>
+                              Inspector authority
+                            </Text>
+                            <Text style={styles.moduleChecklistLabel}>
+                              {module.inspector.displayName}
+                            </Text>
+                            <Text style={styles.body}>
+                              {module.inspector.credential}
+                            </Text>
+                            <Text style={styles.metadataLabel}>
+                              {module.inspector.authority === "verified_profile"
+                                ? "Verified inspector profile"
+                                : "Synthetic fixture authority"}
+                            </Text>
+                          </View>
+                          {module.materialLimitations.length > 0 ? (
+                            <View
+                              accessibilityLabel={`${module.module === "building" ? "Building" : "Timber Pest"} material limitations`}
+                              style={styles.recipientLimitationCard}
+                              testID={`recipient-${module.module}-material-limitations`}
+                            >
+                              <Text style={styles.recipientLimitationTitle}>
+                                Active material limitations
+                              </Text>
+                              {module.materialLimitations.map(
+                                (limitation, limitationIndex) => (
+                                  <Text
+                                    key={`${module.module}-limitation-${limitationIndex}`}
+                                    style={styles.recipientLimitationText}
+                                  >
+                                    {limitation.areaLabel}:{" "}
+                                    {limitation.description}
+                                  </Text>
+                                ),
+                              )}
+                            </View>
+                          ) : null}
+                          {module.findings.map((finding, findingIndex) => (
+                            <View
+                              key={`${module.module}-finding-${findingIndex}`}
+                              style={styles.recipientFinding}
+                            >
+                              <Text style={styles.body}>
+                                {finding.location} ·{" "}
+                                {finding.classification.replaceAll("_", " ")}
+                              </Text>
+                              <Text style={styles.body}>
+                                {finding.observation}
+                              </Text>
+                            </View>
+                          ))}
+                          <Text style={styles.metadataLabel}>
+                            {sourceCount} inspector-selected evidence{" "}
+                            {sourceCount === 1
+                              ? "source reference"
+                              : "source references"}
+                            ; private evidence identities are not shown.
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                ) : null}
                 <View accessible style={styles.reviewNotice}>
                   <Text style={styles.sectionTitle}>Inspector review</Text>
                   <Text style={styles.body}>
@@ -2595,9 +3295,9 @@ export default function App() {
                   </Text>
                   {demoMode ? (
                     <Text style={styles.body}>
-                      This is a seeded synthetic packet from a previously
-                      completed investigation. New field captures do not enter
-                      it until evidence sync and packet construction complete.
+                      Demo review can include a current field-linked Building
+                      packet and separately seeded synthetic fixture packets.
+                      Check each module's source disclosure before acceptance.
                     </Text>
                   ) : null}
                 </View>
@@ -2850,7 +3550,7 @@ export default function App() {
             />
           ) : (
             <ModuleCompletionDock
-              busy={fieldActionBusy}
+              busy={fieldActionBusy || startupState !== "ready"}
               onApproveModule={(module) => {
                 void runFieldAction(() => approveModule(module));
               }}
@@ -2874,6 +3574,7 @@ function SmallControl(props: {
   disabled?: boolean;
   label: string;
   onPress: () => void;
+  testID?: string;
 }) {
   const disabled = props.busy === true || props.disabled === true;
   return (
@@ -2882,6 +3583,7 @@ function SmallControl(props: {
       accessibilityState={{ busy: props.busy, disabled }}
       disabled={disabled}
       onPress={props.onPress}
+      testID={props.testID}
       style={({ pressed }) => [
         styles.smallControl,
         disabled && styles.disabled,
@@ -2889,6 +3591,34 @@ function SmallControl(props: {
       ]}
     >
       <Text style={styles.smallControlLabel}>{props.label}</Text>
+    </Pressable>
+  );
+}
+
+function CandidateSourceControl(props: {
+  label: string;
+  onPress: () => void;
+  selected: boolean;
+  testID: string;
+}) {
+  const selectionLabel = props.selected ? "selected" : "not selected";
+  return (
+    <Pressable
+      accessibilityHint="Toggles whether this exact source supports the selected professional module"
+      accessibilityLabel={`${props.label}, ${selectionLabel}`}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: props.selected }}
+      onPress={props.onPress}
+      style={({ pressed }) => [
+        styles.checklistAction,
+        props.selected && styles.candidateSourceSelected,
+        pressed && styles.pressed,
+      ]}
+      testID={props.testID}
+    >
+      <Text style={styles.checklistItem}>
+        {props.label} — {selectionLabel}
+      </Text>
     </Pressable>
   );
 }
@@ -2917,12 +3647,10 @@ const styles = StyleSheet.create({
     padding: theme.space[4],
   },
   areaName: {
+    ...theme.typography.headlineMd,
     color: theme.color.ink,
-    fontSize: 20,
-    fontWeight: "700",
-    lineHeight: 26,
   },
-  body: { color: theme.color.inkMuted, fontSize: 16, lineHeight: 25 },
+  body: { ...theme.typography.bodyMd, color: theme.color.inkMuted },
   checklistCard: {
     backgroundColor: theme.color.surface,
     borderColor: theme.color.outline,
@@ -2941,15 +3669,13 @@ const styles = StyleSheet.create({
     padding: theme.space[3],
   },
   checklistComplete: {
+    ...theme.typography.bodyMd,
     color: theme.color.action,
-    fontSize: 15,
     fontWeight: "600",
-    lineHeight: 22,
   },
   checklistItem: {
+    ...theme.typography.bodyMd,
     color: theme.color.major,
-    fontSize: 15,
-    lineHeight: 22,
   },
   checklistModule: {
     borderTopColor: theme.color.outline,
@@ -2957,9 +3683,16 @@ const styles = StyleSheet.create({
     gap: theme.space[2],
     paddingTop: theme.space[3],
   },
+  candidateSourceGroup: {
+    gap: theme.space[2],
+  },
+  candidateSourceSelected: {
+    borderColor: theme.color.action,
+    borderWidth: 2,
+  },
   camera: {
     borderRadius: theme.radius.medium,
-    height: 220,
+    height: theme.component.cameraHeight,
     marginTop: theme.space[4],
     overflow: "hidden",
   },
@@ -2970,40 +3703,35 @@ const styles = StyleSheet.create({
     gap: theme.space[3],
     justifyContent: "center",
     marginTop: theme.space[4],
-    minHeight: 180,
+    minHeight: theme.component.cameraPlaceholderMinimumHeight,
     padding: theme.space[4],
   },
   cameraPlaceholderText: {
+    ...theme.typography.bodyMd,
     color: theme.color.surface,
-    fontSize: 16,
-    lineHeight: 25,
     textAlign: "center",
   },
   disabled: { opacity: 0.55 },
   eyebrow: {
+    ...theme.typography.labelSm,
     color: theme.color.action,
-    fontSize: 14,
     fontWeight: "700",
     letterSpacing: 0.5,
     marginBottom: theme.space[2],
   },
   heading: {
+    ...theme.typography.display,
     color: theme.color.ink,
-    fontSize: 30,
-    fontWeight: "700",
-    lineHeight: 36,
   },
   metadataLabel: {
+    ...theme.typography.bodySm,
     color: theme.color.inkMuted,
-    fontSize: 14,
     fontWeight: "600",
-    lineHeight: 21,
   },
   moduleChecklistLabel: {
+    ...theme.typography.labelLg,
     color: theme.color.ink,
-    fontSize: 16,
     fontWeight: "700",
-    lineHeight: 24,
   },
   noteCard: {
     backgroundColor: theme.color.surface,
@@ -3015,13 +3743,12 @@ const styles = StyleSheet.create({
     padding: theme.space[4],
   },
   noteInput: {
+    ...theme.typography.bodyMd,
     borderColor: theme.color.outline,
     borderRadius: theme.radius.medium,
     borderWidth: 1,
     color: theme.color.ink,
-    fontSize: 16,
-    lineHeight: 25,
-    minHeight: 112,
+    minHeight: theme.component.detailInputMinimumHeight,
     padding: theme.space[3],
     textAlignVertical: "top",
   },
@@ -3036,12 +3763,42 @@ const styles = StyleSheet.create({
     padding: theme.space[4],
   },
   queueCount: {
+    ...theme.typography.labelLg,
     color: theme.color.ink,
-    fontSize: 16,
     fontWeight: "700",
-    lineHeight: 24,
   },
   reviewItem: { gap: theme.space[3] },
+  recipientFinding: {
+    borderTopColor: theme.color.outline,
+    borderTopWidth: 1,
+    gap: theme.space[1],
+    paddingTop: theme.space[3],
+  },
+  recipientInspectorCard: {
+    backgroundColor: theme.color.canvas,
+    borderColor: theme.color.outline,
+    borderRadius: theme.radius.small,
+    borderWidth: 1,
+    gap: theme.space[1],
+    padding: theme.space[3],
+  },
+  recipientLimitationCard: {
+    backgroundColor: theme.color.limitationContainer,
+    borderColor: theme.color.limitation,
+    borderRadius: theme.radius.small,
+    borderWidth: 1,
+    gap: theme.space[2],
+    padding: theme.space[3],
+  },
+  recipientLimitationText: {
+    ...theme.typography.bodyMd,
+    color: theme.color.limitation,
+  },
+  recipientLimitationTitle: {
+    ...theme.typography.labelLg,
+    color: theme.color.limitation,
+    fontWeight: "700",
+  },
   reviewNotice: {
     backgroundColor: theme.color.limitationContainer,
     borderRadius: theme.radius.medium,
@@ -3064,16 +3821,14 @@ const styles = StyleSheet.create({
     padding: theme.space[3],
   },
   secondaryActionLabel: {
+    ...theme.typography.labelLg,
     color: theme.color.ink,
-    fontSize: 16,
-    fontWeight: "700",
     textAlign: "center",
   },
   sectionTitle: {
+    ...theme.typography.headlineMd,
     color: theme.color.ink,
-    fontSize: 20,
     fontWeight: "700",
-    lineHeight: 26,
   },
   shell: { flex: 1 },
   smallControl: {
@@ -3085,13 +3840,12 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
     minHeight: theme.target.minimum,
-    minWidth: 132,
+    minWidth: theme.component.fieldControlMinimumWidth,
     padding: theme.space[3],
   },
   smallControlLabel: {
+    ...theme.typography.labelLg,
     color: theme.color.ink,
-    fontSize: 16,
-    fontWeight: "700",
     textAlign: "center",
   },
   statusCard: {
@@ -3101,16 +3855,14 @@ const styles = StyleSheet.create({
     padding: theme.space[4],
   },
   statusDetail: {
+    ...theme.typography.bodySm,
     color: theme.color.inkMuted,
-    fontSize: 14,
-    lineHeight: 21,
     marginTop: theme.space[1],
   },
   statusLabel: {
+    ...theme.typography.labelLg,
     color: theme.color.ink,
-    fontSize: 16,
     fontWeight: "700",
-    lineHeight: 24,
   },
   statusList: {
     borderColor: theme.color.outline,

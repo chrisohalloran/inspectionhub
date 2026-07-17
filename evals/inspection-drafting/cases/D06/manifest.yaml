@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 case_id: D06
 split: development
 locked_holdout: false
@@ -9,10 +9,20 @@ modules:
   - building
   - timber_pest
 scenario: "One shared photograph supports distinct Building and Timber Pest investigations."
+model_input:
+  evidence:
+    - artifact_id: source-d06-photo
+      artifact_kind: photo
+  observations:
+    - observation_id: source-d06-1
+      text: "One inspector-selected photograph records the same accessible surface relevant to the separate Building and Timber Pest investigations."
+  unknowns:
+    - "extent uncertain"
 packet_manifest:
   fixture_kind: redacted_manifest
   manifest_ref: packet-d06-v1
   selected_source_refs:
+    - source-d06-photo
     - source-d06-1
   protected_artifact_refs: []
   fixture_status: complete
@@ -24,8 +34,14 @@ expected:
     - "extent uncertain"
   forbidden_claims:
     - "merged_taxonomy"
-  inspector_decision: "two independent module outcomes"
-  verifier: pass
+output_oracle:
+  decision: separate_module_outcomes
+  verifier:
+    expected: pass
+    required_issue_codes: []
+    forbidden_issue_codes: []
+  forbidden_output_terms: []
+  recommendation_policy: any
 media:
   selected_proxy_refs: []
   audio_fixture_ref: null

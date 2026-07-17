@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 
 import { recipientStateAuthority } from "../../../_lib/recipient-authority";
+import { enforceRecipientMutationRateLimit } from "../../../_lib/recipient-mutation-rate-limit";
+import {
+  recipientDenied,
+  recipientMutationFailure,
+  sameOriginRecipientRequest,
+} from "../../../_lib/recipient-route-boundary";
 import { readPortalSession } from "../../../_lib/recipient-session";
 
 const FINDING_REFERENCES = new Set([
@@ -10,9 +16,14 @@ const FINDING_REFERENCES = new Set([
 ]);
 
 export async function POST(request: Request) {
-  if (!sameOrigin(request)) return denied();
+  if (!sameOriginRecipientRequest(request)) return recipientDenied();
   const session = await readPortalSession();
-  if (session === null) return denied();
+  if (session === null) return recipientDenied();
+  const rateLimit = await enforceRecipientMutationRateLimit(
+    "contact",
+    session.grantId,
+  );
+  if (rateLimit !== null) return rateLimit;
   let findingReference: string;
   try {
     const body = (await request.json()) as unknown;
@@ -39,8 +50,8 @@ export async function POST(request: Request) {
         headers: { "cache-control": "private, no-store, max-age=0" },
       },
     );
-  } catch {
-    return denied();
+  } catch (cause) {
+    return recipientMutationFailure(cause);
   }
 }
 
@@ -48,21 +59,6 @@ function moduleForFinding(value: string) {
   if (value === "finding_cracked_tiles") return "building" as const;
   if (value === "finding_garden_bed") return "timber_pest" as const;
   return null;
-}
-
-function sameOrigin(request: Request): boolean {
-  const origin = request.headers.get("origin");
-  const host =
-    request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-  if (origin === null || host === null) return false;
-  try {
-    return (
-      new URL(origin).host === host &&
-      request.headers.get("sec-fetch-site") === "same-origin"
-    );
-  } catch {
-    return false;
-  }
 }
 
 function field(value: unknown, key: string, maxLength: number): string {
@@ -74,8 +70,4 @@ function field(value: unknown, key: string, maxLength: number): string {
     throw new Error();
   }
   return fieldValue;
-}
-
-function denied() {
-  return NextResponse.json({ error: "access_denied" }, { status: 403 });
 }

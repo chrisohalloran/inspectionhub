@@ -4,7 +4,9 @@ import type {
 } from "@inspection/domain/inspection/types";
 
 import type { FieldDeliveryState } from "../delivery/delivery-status";
+import type { RecipientPackageSnapshot } from "../recipient/recipient-overview";
 import type { InvestigationReviewItem } from "../review/investigation-review";
+import type { ExactSourcePacket } from "../review/source-packet";
 
 export type CaptureKind = "photo" | "voice";
 
@@ -12,7 +14,16 @@ export type QueueLane = "manual_note_sync" | "photo_upload" | "voice_upload";
 
 export type DeviceState = "enrolled" | "lost" | "revoked";
 
+export type ModuleApprovalInspectorAuthority = Readonly<{
+  inspectorId: string;
+  displayName: string;
+  credential: string;
+  confirmedAt: string;
+  authority: "synthetic_fixture" | "verified_profile";
+}>;
+
 export type ModuleApprovalBinding = {
+  approvingInspector: ModuleApprovalInspectorAuthority;
   coverageRevision: number;
   module: "building" | "timber_pest";
   reviewVersions: readonly {
@@ -42,8 +53,10 @@ export type FieldWorkflowSnapshot = {
   moduleApprovalBindings: readonly ModuleApprovalBinding[];
   packageManifestSha256: string | null;
   processedFindingCandidateIds: readonly string[];
+  recipientPackage: RecipientPackageSnapshot | null;
   reviewItems: readonly InvestigationReviewItem[];
   revision: number;
+  sourcePackets: readonly ExactSourcePacket[];
   updatedAt: string;
 };
 
@@ -58,6 +71,7 @@ export type FieldSessionSnapshot = {
   lastInvestigationId?: string;
   nextSequence: number;
   organizationId: string;
+  propertyLabel: string;
   session: "expired" | "valid";
   updatedAt: string;
   workflow?: FieldWorkflowSnapshot;
@@ -131,13 +145,22 @@ export type CaptureQueueItem = {
   state: CaptureQueueState;
 };
 
-export type ManualNote = {
+export type ManualNoteDigest = (canonicalContent: string) => Promise<string>;
+
+export type ManualNoteContent = Readonly<{
   areaId: string;
   jobId: string;
-  noteId: string;
   recordedAt: string;
+  schemaVersion: "manual-note-v1";
   text: string;
-};
+}>;
+
+export type ManualNote = Readonly<
+  ManualNoteContent & {
+    contentHash: string;
+    noteId: string;
+  }
+>;
 
 export type LocalCaptureEvent = {
   captureId: string;

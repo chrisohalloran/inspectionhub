@@ -64,6 +64,13 @@ export function runDeterministicDraftGuard(
   const expectedModules = new Map(
     packet.modules.map((module) => [module.module, module.moduleId]),
   );
+  const candidateById = new Map(
+    packet.findingCandidates.map((candidate) => [
+      candidate.findingCandidateId,
+      candidate,
+    ]),
+  );
+  const seenCandidates = new Set<string>();
   const seenModules = new Set<ModuleType>();
   for (const [moduleIndex, moduleDraft] of draft.modules.entries()) {
     const modulePath = `modules[${moduleIndex}]`;
@@ -83,24 +90,52 @@ export function runDeterministicDraftGuard(
     }
     seenModules.add(moduleDraft.module);
 
-    const clauses: DraftClause[] = [
+    const moduleClauses: DraftClause[] = [
       ...moduleDraft.limitations,
       moduleDraft.conclusion,
-      ...moduleDraft.findings.flatMap((finding) => [
-        finding.observation,
-        ...(finding.extent === null ? [] : [finding.extent]),
-        ...finding.reasoning,
-        ...finding.consequences,
-        ...(finding.recommendation === null ? [] : [finding.recommendation]),
-      ]),
     ];
-    clauses.forEach((clause, clauseIndex) => {
+    moduleClauses.forEach((clause, clauseIndex) => {
       const path = `${modulePath}.clauses[${clauseIndex}]`;
       issues.push(...checkClause(packet, moduleDraft.module, clause, path));
     });
 
     for (const [findingIndex, finding] of moduleDraft.findings.entries()) {
       const findingPath = `${modulePath}.findings[${findingIndex}]`;
+      const candidate = candidateById.get(finding.findingCandidateId);
+      if (
+        candidate === undefined ||
+        candidate.module !== moduleDraft.module ||
+        candidate.moduleId !== moduleDraft.moduleId ||
+        seenCandidates.has(finding.findingCandidateId)
+      ) {
+        issues.push(
+          critical(
+            "finding_candidate_identity_mismatch",
+            findingPath,
+            "Every finding must use one exact inspector-created packet candidate in its matching module",
+          ),
+        );
+      } else {
+        seenCandidates.add(finding.findingCandidateId);
+      }
+      const findingClauses: DraftClause[] = [
+        finding.observation,
+        ...(finding.extent === null ? [] : [finding.extent]),
+        ...finding.reasoning,
+        ...finding.consequences,
+        ...(finding.recommendation === null ? [] : [finding.recommendation]),
+      ];
+      findingClauses.forEach((clause, clauseIndex) => {
+        issues.push(
+          ...checkClause(
+            packet,
+            moduleDraft.module,
+            clause,
+            `${findingPath}.clauses[${clauseIndex}]`,
+            candidate,
+          ),
+        );
+      });
       if (finding.recommendation === null) {
         issues.push(
           nonCritical(
@@ -138,6 +173,15 @@ export function runDeterministicDraftGuard(
       ),
     );
   }
+  if (seenCandidates.size !== packet.findingCandidates.length) {
+    issues.push(
+      critical(
+        "finding_candidate_missing",
+        "modules",
+        "Every inspector-created packet candidate must be represented exactly once",
+      ),
+    );
+  }
   return Object.freeze({
     passed: !issues.some((issue) => issue.severity === "critical"),
     issues: Object.freeze(issues),
@@ -149,6 +193,7 @@ function checkClause(
   module: ModuleType,
   clause: DraftClause,
   path: string,
+  candidate?: InvestigationPacket["findingCandidates"][number],
 ): readonly VerifierIssue[] {
   const issues: VerifierIssue[] = [];
   for (const [pattern, code] of PROHIBITED_BOUNDARY_PATTERNS) {
@@ -228,9 +273,89 @@ function checkClause(
           "Clause references evidence outside the frozen packet",
         ),
       );
+    } else if (
+      candidate !== undefined &&
+      !candidateAuthorizesSource(packet, candidate, source)
+    ) {
+      issues.push(
+        critical(
+          "candidate_unauthorized_provenance",
+          `${path}.sourceRefs[${sourceIndex}]`,
+          "Finding clause references a packet source outside its inspector-selected candidate scope",
+        ),
+      );
     }
   }
   return issues;
+}
+
+function candidateAuthorizesSource(
+  packet: InvestigationPacket,
+  candidate: InvestigationPacket["findingCandidates"][number],
+  source: DraftSourceReference,
+): boolean {
+  if (source.kind === "artifact") {
+    return candidate.sourceArtifactIds.includes(source.sourceId);
+  }
+  if (source.kind === "observation") {
+    return candidate.sourceObservationIds.includes(source.sourceId);
+  }
+  if (source.kind === "transcript_span") {
+    return (
+      candidate.sourceArtifactIds.includes(source.voiceArtifactId) &&
+      packet.transcriptSpans.some(
+        (span) =>
+          span.spanId === source.sourceId &&
+          span.voiceArtifactId === source.voiceArtifactId,
+      )
+    );
+  }
+  const candidateAreas = candidateAreaIds(packet, candidate);
+  if (source.kind === "measurement") {
+    return packet.measurements.some(
+      (measurement) =>
+        measurement.measurementId === source.sourceId &&
+        candidateAreas.has(measurement.areaId),
+    );
+  }
+  if (source.kind === "limitation") {
+    return packet.limitations.some(
+      (limitation) =>
+        limitation.limitationId === source.sourceId &&
+        limitation.module === candidate.module &&
+        candidateAreas.has(limitation.areaId),
+    );
+  }
+  return packet.coverage.some(
+    (coverage) =>
+      coverage.coverageEntryId === source.sourceId &&
+      coverage.module === candidate.module &&
+      candidateAreas.has(coverage.areaId),
+  );
+}
+
+function candidateAreaIds(
+  packet: InvestigationPacket,
+  candidate: InvestigationPacket["findingCandidates"][number],
+): ReadonlySet<string> {
+  return new Set([
+    ...packet.evidence
+      .filter((evidence) =>
+        candidate.sourceArtifactIds.includes(evidence.artifactId),
+      )
+      .map((evidence) => evidence.currentAreaId),
+    ...packet.observations
+      .filter((observation) =>
+        candidate.sourceObservationIds.includes(observation.observationId),
+      )
+      .map((observation) => observation.areaId),
+    ...packet.coverage
+      .filter((coverage) => coverage.module === candidate.module)
+      .map((coverage) => coverage.areaId),
+    ...packet.limitations
+      .filter((limitation) => limitation.module === candidate.module)
+      .map((limitation) => limitation.areaId),
+  ]);
 }
 
 function expectedQualificationFor(

@@ -26,12 +26,14 @@ type SupabaseRateLimitOptions = Readonly<{
   supabaseUrl: string;
   serviceRoleKey: string;
   hashSecret: string;
+  timeoutMilliseconds?: number;
   fetcher?: RateLimitFetch;
 }>;
 
 class SupabaseRateLimitStore implements DurableRateLimitStore {
   readonly #endpoint: string;
   readonly #serviceRoleKey: string;
+  readonly #timeoutMilliseconds: number;
   readonly #fetcher: RateLimitFetch;
 
   constructor(input: SupabaseRateLimitOptions) {
@@ -41,8 +43,19 @@ class SupabaseRateLimitStore implements DurableRateLimitStore {
     if (input.serviceRoleKey.length < 16) {
       throw new Error("Durable rate-limit service credential is invalid");
     }
+    const timeoutMilliseconds = input.timeoutMilliseconds ?? 2_000;
+    if (
+      !Number.isSafeInteger(timeoutMilliseconds) ||
+      timeoutMilliseconds < 1 ||
+      timeoutMilliseconds > 10_000
+    ) {
+      throw new Error(
+        "Durable rate-limit HTTP timeout must be between 1 and 10000 milliseconds",
+      );
+    }
     this.#endpoint = `${input.supabaseUrl.replace(/\/+$/u, "")}/rest/v1/rpc/command_consume_rate_limit`;
     this.#serviceRoleKey = input.serviceRoleKey;
+    this.#timeoutMilliseconds = timeoutMilliseconds;
     this.#fetcher = input.fetcher ?? fetch;
   }
 
@@ -62,6 +75,7 @@ class SupabaseRateLimitStore implements DurableRateLimitStore {
         "content-type": "application/json",
       },
       method: "POST",
+      signal: AbortSignal.timeout(this.#timeoutMilliseconds),
     });
     if (!response.ok) {
       throw new Error("Durable rate-limit service is unavailable");
@@ -119,6 +133,10 @@ export function consumeBoundaryRateLimit(
       requiredEnvironment("NEXT_PUBLIC_SUPABASE_URL"),
     serviceRoleKey: requiredEnvironment("SUPABASE_SERVICE_ROLE_KEY"),
     hashSecret: requiredEnvironment("RATE_LIMIT_HASH_SECRET"),
+    timeoutMilliseconds: optionalTimeoutEnvironment(
+      "RATE_LIMIT_HTTP_TIMEOUT_MS",
+      2_000,
+    ),
   });
   return configuredBoundary(policy, boundaryKey);
 }
@@ -128,4 +146,14 @@ function requiredEnvironment(name: string): string {
   if (!value)
     throw new Error(`Missing required rate-limit environment: ${name}`);
   return value;
+}
+
+function optionalTimeoutEnvironment(name: string, fallback: number): number {
+  const value = process.env[name]?.trim();
+  if (!value) return fallback;
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > 10_000) {
+    throw new Error(`${name} must be an integer from 1 to 10000`);
+  }
+  return parsed;
 }

@@ -11,3 +11,13 @@ export function visibleEvidencePage(
     .sort((left, right) => right.linkOrdinal - left.linkOrdinal)
     .slice(0, visibleCount);
 }
+
+export function activeVoicePreviewAfterStatus(
+  activeArtifactId: string | undefined,
+  updatedArtifactId: string,
+  didJustFinish: boolean,
+): string | undefined {
+  return didJustFinish && activeArtifactId === updatedArtifactId
+    ? undefined
+    : activeArtifactId;
+}

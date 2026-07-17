@@ -1,7 +1,11 @@
 appId: co.inspectionhub.field
 name: Area change and cached-job capture after session expiry
 ---
-- launchApp
+- launchApp:
+    clearState: true
+- tapOn:
+    text: "InspectionHub Field, http://.*"
+    optional: true
 - tapOn:
     text: "Continue"
     optional: true
@@ -48,13 +52,13 @@ name: Area change and cached-job capture after session expiry
     direction: UP
     centerElement: false
 - tapOn: "Review & complete"
-- assertVisible: "Finish the open investigation"
 - scrollUntilVisible:
     element:
-      text: "Continue field work"
+      text: "Inspection · Finish the open investigation before approval or packaging."
     direction: DOWN
     centerElement: true
-- tapOn: "Continue field work"
+- assertVisible: "Inspection · Finish the open investigation before approval or packaging."
+- tapOn: "Inspection · Finish the open investigation before approval or packaging."
 - scrollUntilVisible:
     element:
       text: "Review & complete"

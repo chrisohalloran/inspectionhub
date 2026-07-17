@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 case_id: D02
 split: development
 locked_holdout: false
@@ -8,11 +8,30 @@ fixed_trials: 3
 modules:
   - building
 scenario: "Noisy Australian-accent voice note with corrected measurements and incomplete phrases."
+model_input:
+  evidence:
+    - artifact_id: source-d02-voice
+      artifact_kind: voice_note
+  transcript_spans:
+    - span_id: source-d02-1
+      voice_artifact_id: source-d02-voice
+      corrected_text: "The crack width is three millimetres. The mechanism is unclear."
+      correction_origin: inspector
+  measurements:
+    - measurement_id: source-d02-measurement
+      kind: crack_width
+      value: 3
+      unit: millimetres
+      note: "Inspector-corrected measurement from the voice note."
+  unknowns:
+    - "unclear mechanism"
 packet_manifest:
   fixture_kind: redacted_manifest
   manifest_ref: packet-d02-v1
   selected_source_refs:
+    - source-d02-voice
     - source-d02-1
+    - source-d02-measurement
   protected_artifact_refs: []
   fixture_status: complete
 expected:
@@ -21,10 +40,18 @@ expected:
     - "inspector correction retained"
   allowed_uncertainties:
     - "unclear mechanism"
-  forbidden_claims:
-    - "invented_measurement"
-  inspector_decision: "inspector reviews transcript uncertainty"
-  verifier: pass
+  forbidden_claims: []
+output_oracle:
+  decision: corrected_measurement_retained
+  verifier:
+    expected: pass
+    required_issue_codes: []
+    forbidden_issue_codes: []
+  forbidden_output_terms:
+    - "8 mm"
+    - "8 millimetres"
+    - "eight millimetres"
+  recommendation_policy: any
 media:
   selected_proxy_refs: []
   audio_fixture_ref: null

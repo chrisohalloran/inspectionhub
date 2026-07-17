@@ -12,6 +12,7 @@ import {
   LocalInspectionRevisionConflictError,
   createLocalInspectionRepository,
   type LocalInspectionSnapshotPort,
+  type LocalInspectionSnapshotRecord,
 } from "./local-inspection-repository.js";
 
 const digest = {
@@ -107,6 +108,42 @@ describe("durable local investigation repository", () => {
     });
   });
 
+  it("does not let an unrelated corrupt job block current-job recovery", async () => {
+    const storage = new InMemorySnapshotPort();
+    const repository = createLocalInspectionRepository({ digest, storage });
+    const started = startInvestigation({
+      areaId: "main-bathroom",
+      commissionedModules: [
+        { module: "building", moduleId: "module-building" },
+      ],
+      inspectorId: "inspector-1",
+      investigationId: "investigation-current-job",
+      jobId: "job-1",
+      organizationId: "organization-1",
+      startedAt: "2026-07-14T08:00:00.000+10:00",
+    });
+    await repository.saveInvestigation({
+      event: event("event-current-job", "investigation.started"),
+      expectedStoredRevision: null,
+      investigation: started,
+      updatedAt: "2026-07-14T08:00:00.000+10:00",
+    });
+    storage.additionalSnapshots.push({
+      aggregateId: "investigation-other-corrupt",
+      aggregateKind: "investigation",
+      aggregateRevision: 0,
+      jobId: "job-2",
+      schemaVersion: 1,
+      snapshotJson: "not-json",
+      snapshotSha256: "f".repeat(64),
+      updatedAt: "2026-07-14T08:00:00.000+10:00",
+    });
+
+    await expect(
+      repository.findOpenInvestigationForJob("job-1"),
+    ).resolves.toMatchObject({ investigationId: "investigation-current-job" });
+  });
+
   it("rejects a stale compare-and-set without replacing the durable current thread", async () => {
     const storage = new InMemorySnapshotPort();
     const repository = createLocalInspectionRepository({ digest, storage });
@@ -145,6 +182,7 @@ describe("durable local investigation repository", () => {
       aggregateId: "investigation-corrupt",
       aggregateKind: "investigation",
       aggregateRevision: 0,
+      jobId: "job-corrupt",
       schemaVersion: 1,
       snapshotJson: '{"investigationId":"investigation-corrupt","revision":0}',
       snapshotSha256: "f".repeat(64),
@@ -205,6 +243,7 @@ describe("durable local investigation repository", () => {
       aggregateId: "job-shape-bypass",
       aggregateKind: "coverage",
       aggregateRevision: 0,
+      jobId: "job-shape-bypass",
       schemaVersion: 1,
       snapshotJson,
       snapshotSha256: await digest.sha256(snapshotJson),
@@ -364,13 +403,23 @@ function event(
 class InMemorySnapshotPort implements LocalInspectionSnapshotPort {
   snapshot: Awaited<ReturnType<LocalInspectionSnapshotPort["readSnapshot"]>> =
     null;
+  readonly additionalSnapshots: LocalInspectionSnapshotRecord[] = [];
   readonly events: Parameters<
     LocalInspectionSnapshotPort["compareAndSet"]
   >[0]["event"][] = [];
 
-  listSnapshots(aggregateKind: "coverage" | "investigation") {
+  listSnapshotsForJob(
+    aggregateKind: "coverage" | "investigation",
+    jobId: string,
+  ) {
     return Promise.resolve(
-      this.snapshot?.aggregateKind === aggregateKind ? [this.snapshot] : [],
+      [
+        ...(this.snapshot === null ? [] : [this.snapshot]),
+        ...this.additionalSnapshots,
+      ].filter(
+        (snapshot) =>
+          snapshot.aggregateKind === aggregateKind && snapshot.jobId === jobId,
+      ),
     );
   }
 

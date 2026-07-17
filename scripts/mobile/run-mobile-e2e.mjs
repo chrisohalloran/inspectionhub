@@ -10,6 +10,7 @@ const flows = [
   "apps/mobile/e2e/capture-voice-offline.yaml",
   "apps/mobile/e2e/review-complete-delivery.yaml",
   "apps/mobile/e2e/investigation-coverage.yaml",
+  "apps/mobile/e2e/fresh-capture-recipient-overview.yaml",
   "apps/mobile/e2e/area-session-expiry.yaml",
 ];
 
@@ -48,8 +49,7 @@ const requiredText = new Map([
     [
       "Start investigation",
       "Change area",
-      "Continue field work",
-      "Finish the open investigation",
+      "Inspection · Finish the open investigation before approval or packaging.",
       "Test: expire session",
     ],
   ],
@@ -60,7 +60,39 @@ const requiredText = new Map([
       "Add measurement",
       "Review evidence areas",
       "Inaccessible",
-      "Timber Pest candidate — not selected",
+      "Voice note saved locally and linked",
+      "Manual observation saved and linked",
+      "candidate-building-evidence-0",
+      "candidate-building-evidence-4",
+      "candidate-building-observation-0",
+      "Confirm Building candidate sources",
+      "2 evidence items and 1 inspector observation",
+      "Building sources confirmed — 2 evidence items, 1 observation",
+      "deterministic synthetic draft ready",
+    ],
+  ],
+  [
+    "apps/mobile/e2e/fresh-capture-recipient-overview.yaml",
+    [
+      "Fresh Building lineage with persisted synthetic Timber Pest package completion",
+      "Cracking was observed through several tiles",
+      "No visible evidence of timber pest activity",
+      "Accept finding",
+      "Approve Building",
+      "Approve Timber Pest",
+      "Timber Pest coverage recorded as inspected",
+      "Test: complete coverage",
+      "Confirm delivery package",
+      "Approved package manifest saved locally — server delivery waits for evidence durability.",
+      "Test: confirm evidence durable",
+      "Test: provider confirms sent",
+      "Condition overview",
+      "Synthetic Build Week building inspector",
+      "Synthetic Build Week timber pest inspector",
+      "Active material limitations",
+      "Access hatch obstructed at the time of inspection.",
+      "2 inspector-selected evidence source references",
+      "1 inspector-selected evidence source reference",
     ],
   ],
 ]);
@@ -94,12 +126,29 @@ for (const contract of [
   "AreaCloseoutCard",
   "MeasurementEntryCard",
   "EvidenceAreaCard",
+  "CandidateSourceControl",
+  "confirmFindingCandidateSourceSelection",
+  "toggleFindingCandidateSource",
+  "findingCandidateAtRiskSourceIds",
+  "recoveryBlockedCandidateSourceIds.length === 0",
+  "draftPersisted",
   "InvestigationReviewCard",
   "ModuleCompletionDock",
   "DeliveryStatusCard",
 ]) {
   if (!appSource.includes(contract)) {
     throw new Error(`App.tsx is missing the mobile E2E contract: ${contract}`);
+  }
+}
+
+for (const forbidden of [
+  "active.evidence.map(({ artifactId }) => artifactId)",
+  "active.observations.map(({ observationId }) => observationId)",
+]) {
+  if (appSource.includes(forbidden)) {
+    throw new Error(
+      `App.tsx still implicitly promotes every investigation source: ${forbidden}`,
+    );
   }
 }
 

@@ -142,6 +142,41 @@ describe("investigation-scoped review", () => {
     expect(confirmed.inspectorAttribution).toEqual(inspector);
   });
 
+  it("rejects duplicate authorship and provenance source identities", () => {
+    const current = review();
+    const source = current.finding.authorship.sourceArtifactReferences[0]!;
+    const duplicateAuthorship = ProvisionalFindingSchema.parse({
+      ...current.finding,
+      authorship: {
+        ...current.finding.authorship,
+        sourceArtifactReferences: [source, source],
+      },
+    });
+    expect(() =>
+      createInvestigationReviewItem({
+        reviewId: current.reviewId,
+        investigationId: current.investigationId,
+        finding: duplicateAuthorship,
+        provenance: {
+          ...current.provenance,
+          sourceArtifactIds: [ids.artifact, ids.artifact],
+        },
+      }),
+    ).toThrow("exact draft packet and selected sources");
+
+    expect(() =>
+      createInvestigationReviewItem({
+        reviewId: current.reviewId,
+        investigationId: current.investigationId,
+        finding: current.finding,
+        provenance: {
+          ...current.provenance,
+          sourceArtifactIds: [ids.artifact, ids.artifact],
+        },
+      }),
+    ).toThrow("exact draft packet and selected sources");
+  });
+
   it("requires blocking investigation checks to be resolved", () => {
     const item = review({ blockingCheck: true });
     expect(() => acceptReviewItem(item)).toThrow(

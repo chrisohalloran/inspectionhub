@@ -29,8 +29,25 @@ select pg_temp.assert_true(
     'service_role',
     'public.command_recipient_demo_record_contact(uuid,bigint,text,text,text,text,text,text,text)',
     'EXECUTE'
+  )
+  and not has_function_privilege(
+    'anon', 'public.recipient_demo_contract_version()', 'EXECUTE'
+  )
+  and has_function_privilege(
+    'service_role', 'public.recipient_demo_contract_version()', 'EXECUTE'
+  )
+  and not has_table_privilege(
+    'anon', 'public.recipient_demo_share_request_quarantines', 'SELECT'
+  )
+  and has_table_privilege(
+    'service_role', 'public.recipient_demo_share_request_quarantines', 'SELECT'
   ),
   'recipient authority tables and commands are service-only'
+);
+
+select pg_temp.assert_true(
+  public.recipient_demo_contract_version() = 'recipient-demo-public-bounds-v2',
+  'recipient authority exposes the database-first deployment contract version'
 );
 
 select
@@ -54,6 +71,21 @@ begin
   end;
 end;
 $test$;
+
+select pg_temp.assert_true(
+  (
+    select constraint_record.convalidated
+    from pg_catalog.pg_constraint constraint_record
+    where constraint_record.conrelid =
+      'public.recipient_demo_share_requests'::regclass
+      and constraint_record.conname =
+        'recipient_demo_share_requests_reserved_email_check'
+  )
+  and not exists (
+    select 1 from public.recipient_demo_share_request_quarantines
+  ),
+  'clean installs validate the reserved-address constraint with no quarantine rows'
+);
 
 select
   result ->> 'grantId' as grant_id,
@@ -109,6 +141,22 @@ select pg_temp.assert_true(
 
 do $test$
 declare
+  decision record;
+begin
+  select * into decision from public.command_consume_rate_limit(
+    'recipient_demo_global', repeat('9', 64)
+  );
+  perform pg_temp.assert_true(
+    decision.allowed is true
+    and decision.remaining = 299
+    and decision.retry_after_seconds = 0,
+    'recipient demo global circuit uses a distinct durable 300-per-minute policy'
+  );
+end;
+$test$;
+
+do $test$
+declare
   context recipient_test_context%rowtype;
 begin
   select * into context from recipient_test_context;
@@ -140,6 +188,41 @@ select pg_temp.assert_true(
   'current grant, module and action are authorised from shared state'
 );
 
+do $test$
+declare
+  context recipient_test_context%rowtype;
+begin
+  select * into context from recipient_test_context;
+  begin
+    perform public.command_recipient_demo_record_share(
+      context.grant_id,
+      context.grant_revision,
+      context.principal_id,
+      context.verified_email,
+      context.organization_id,
+      context.job_id,
+      context.report_version_id,
+      'real-person@outside.test',
+      statement_timestamp() + interval '30 minutes'
+    );
+    raise exception 'assertion failed: a non-reserved recipient email was accepted';
+  exception when insufficient_privilege then
+    raise notice 'ok - share command accepts reserved synthetic addresses only';
+  end;
+  begin
+    insert into public.recipient_demo_share_requests (
+      grant_id, email, permitted_modules, expires_at
+    ) values (
+      context.grant_id, 'constraint-bypass@outside.test',
+      array['building']::text[], statement_timestamp() + interval '30 minutes'
+    );
+    raise exception 'assertion failed: direct non-reserved recipient email was accepted';
+  exception when check_violation then
+    raise notice 'ok - database constraint rejects non-reserved recipient addresses';
+  end;
+end;
+$test$;
+
 select
   result ->> 'invitationId' as share_id
 from public.command_recipient_demo_record_share(
@@ -170,6 +253,23 @@ select pg_temp.assert_true(
 );
 
 select public.command_recipient_demo_set_module_withdrawal('building', true);
+
+select pg_temp.assert_true(
+  (
+    select (state ->> 'buildingWithdrawn')::boolean
+      and not (state ->> 'timberPestWithdrawn')::boolean
+    from public.command_recipient_demo_portal_state(
+      :'recipient_grant_id'::uuid,
+      :'recipient_grant_revision'::bigint,
+      :'recipient_principal_id',
+      :'recipient_verified_email',
+      :'recipient_organization_id',
+      :'recipient_job_id',
+      :'recipient_report_version_id'
+    ) state
+  ),
+  'portal remains available with only Timber Pest active and returns both withdrawal flags'
+);
 
 do $test$
 declare
@@ -236,19 +336,133 @@ begin
 end;
 $test$;
 
+do $test$
+declare
+  context recipient_test_context%rowtype;
+begin
+  select * into context from recipient_test_context;
+  begin
+    perform public.command_recipient_demo_portal_state(
+      context.grant_id,
+      context.grant_revision,
+      context.principal_id,
+      context.verified_email,
+      context.organization_id,
+      context.job_id,
+      context.report_version_id
+    );
+    raise exception 'assertion failed: fully withdrawn portal remained available';
+  exception when insufficient_privilege then
+    raise notice 'ok - portal atomically rejects a fully withdrawn report';
+  end;
+end;
+$test$;
+
 select public.command_recipient_demo_set_module_withdrawal('building', false);
-select public.command_recipient_demo_set_module_withdrawal('timber_pest', false);
 
 select pg_temp.assert_true(
-  (public.command_recipient_demo_portal_state(
-    :'recipient_grant_id'::uuid,
-    :'recipient_grant_revision'::bigint,
-    :'recipient_principal_id',
-    :'recipient_verified_email',
-    :'recipient_organization_id',
-    :'recipient_job_id',
-    :'recipient_report_version_id'
-  ) ->> 'buildingWithdrawn')::boolean = false,
+  (
+    select not (state ->> 'buildingWithdrawn')::boolean
+      and (state ->> 'timberPestWithdrawn')::boolean
+    from public.command_recipient_demo_portal_state(
+      :'recipient_grant_id'::uuid,
+      :'recipient_grant_revision'::bigint,
+      :'recipient_principal_id',
+      :'recipient_verified_email',
+      :'recipient_organization_id',
+      :'recipient_job_id',
+      :'recipient_report_version_id'
+    ) state
+  ),
+  'portal remains available with only Building active and returns inverse withdrawal flags'
+);
+
+select public.command_recipient_demo_set_module_withdrawal('timber_pest', false);
+
+do $test$
+declare
+  context recipient_test_context%rowtype;
+  item integer;
+begin
+  select * into context from recipient_test_context;
+  for item in 2..5 loop
+    perform public.command_recipient_demo_record_share(
+      context.grant_id,
+      context.grant_revision,
+      context.principal_id,
+      context.verified_email,
+      context.organization_id,
+      context.job_id,
+      context.report_version_id,
+      format('buyer%s@example.com', item),
+      statement_timestamp() + interval '30 minutes'
+    );
+  end loop;
+  begin
+    perform public.command_recipient_demo_record_share(
+      context.grant_id,
+      context.grant_revision,
+      context.principal_id,
+      context.verified_email,
+      context.organization_id,
+      context.job_id,
+      context.report_version_id,
+      'over-limit@example.com',
+      statement_timestamp() + interval '30 minutes'
+    );
+    raise exception 'assertion failed: sixth share request was recorded';
+  exception when raise_exception then
+    if sqlerrm <> 'grant_mutation_limit_reached' then raise; end if;
+    raise notice 'ok - share quota is enforced for the lifetime of the grant';
+  end;
+
+  for item in 2..5 loop
+    perform public.command_recipient_demo_record_contact(
+      context.grant_id,
+      context.grant_revision,
+      context.principal_id,
+      context.verified_email,
+      context.organization_id,
+      context.job_id,
+      context.report_version_id,
+      'finding_garden_bed',
+      'timber_pest'
+    );
+  end loop;
+  begin
+    perform public.command_recipient_demo_record_contact(
+      context.grant_id,
+      context.grant_revision,
+      context.principal_id,
+      context.verified_email,
+      context.organization_id,
+      context.job_id,
+      context.report_version_id,
+      'finding_garden_bed',
+      'timber_pest'
+    );
+    raise exception 'assertion failed: sixth contact request was recorded';
+  exception when raise_exception then
+    if sqlerrm <> 'grant_mutation_limit_reached' then raise; end if;
+    raise notice 'ok - contact quota is enforced for the lifetime of the grant';
+  end;
+end;
+$test$;
+
+select pg_temp.assert_true(
+  (
+    select not (state ->> 'buildingWithdrawn')::boolean
+      and not (state ->> 'timberPestWithdrawn')::boolean
+    from public.command_recipient_demo_portal_state(
+      :'recipient_grant_id'::uuid,
+      :'recipient_grant_revision'::bigint,
+      :'recipient_principal_id',
+      :'recipient_verified_email',
+      :'recipient_organization_id',
+      :'recipient_job_id',
+      :'recipient_report_version_id'
+    ) state
+  ),
   'portal state is projected from the same locked grant and module authority'
 );
 
@@ -291,10 +505,96 @@ select pg_temp.assert_true(
   and (select count(*) = 1 from public.recipient_demo_challenge_completions)
   and (select count(*) = 1 from public.recipient_demo_grants)
   and (select count(*) = 1 from public.recipient_demo_grant_revocations)
-  and (select count(*) = 1 from public.recipient_demo_share_requests)
+  and (select count(*) = 5 from public.recipient_demo_share_requests)
   and (select count(*) = 1 from public.recipient_demo_share_revocations)
-  and (select count(*) = 1 from public.recipient_demo_contact_requests),
+  and (select count(*) = 5 from public.recipient_demo_contact_requests),
   'recipient continuity records are append-only and independently auditable'
 );
+
+do $test$
+declare
+  claim jsonb;
+  grant_result jsonb;
+  grant_index integer;
+  item integer;
+begin
+  -- The original grant has already consumed five shares and five contacts.
+  -- Four more grants may consume the remaining report-window capacity; a
+  -- newly minted fifth grant must not multiply either allowance.
+  for grant_index in 1..5 loop
+    claim := public.command_recipient_demo_claim_invitation(
+      lpad((9000 + grant_index)::text, 43, 'g'),
+      'recipient@example.com'
+    );
+    grant_result := public.command_recipient_demo_issue_grant(
+      (claim ->> 'challengeId')::uuid,
+      claim ->> 'invitationDigest',
+      claim ->> 'intendedEmail'
+    );
+
+    if grant_index <= 4 then
+      for item in 1..5 loop
+        perform public.command_recipient_demo_record_share(
+          (grant_result ->> 'grantId')::uuid,
+          (grant_result ->> 'revision')::bigint,
+          grant_result ->> 'principalId',
+          grant_result ->> 'verifiedEmail',
+          grant_result ->> 'organizationId',
+          grant_result ->> 'jobId',
+          grant_result ->> 'reportVersionId',
+          format('report-window-%s-%s@example.com', grant_index, item),
+          statement_timestamp() + interval '30 minutes'
+        );
+        perform public.command_recipient_demo_record_contact(
+          (grant_result ->> 'grantId')::uuid,
+          (grant_result ->> 'revision')::bigint,
+          grant_result ->> 'principalId',
+          grant_result ->> 'verifiedEmail',
+          grant_result ->> 'organizationId',
+          grant_result ->> 'jobId',
+          grant_result ->> 'reportVersionId',
+          'finding_garden_bed',
+          'timber_pest'
+        );
+      end loop;
+    else
+      begin
+        perform public.command_recipient_demo_record_share(
+          (grant_result ->> 'grantId')::uuid,
+          (grant_result ->> 'revision')::bigint,
+          grant_result ->> 'principalId',
+          grant_result ->> 'verifiedEmail',
+          grant_result ->> 'organizationId',
+          grant_result ->> 'jobId',
+          grant_result ->> 'reportVersionId',
+          'fresh-grant-bypass@example.com',
+          statement_timestamp() + interval '30 minutes'
+        );
+        raise exception 'assertion failed: fresh grant bypassed report share window';
+      exception when raise_exception then
+        if sqlerrm <> 'report_mutation_window_reached' then raise; end if;
+        raise notice 'ok - report share window survives newly minted grants';
+      end;
+      begin
+        perform public.command_recipient_demo_record_contact(
+          (grant_result ->> 'grantId')::uuid,
+          (grant_result ->> 'revision')::bigint,
+          grant_result ->> 'principalId',
+          grant_result ->> 'verifiedEmail',
+          grant_result ->> 'organizationId',
+          grant_result ->> 'jobId',
+          grant_result ->> 'reportVersionId',
+          'finding_garden_bed',
+          'timber_pest'
+        );
+        raise exception 'assertion failed: fresh grant bypassed report contact window';
+      exception when raise_exception then
+        if sqlerrm <> 'report_mutation_window_reached' then raise; end if;
+        raise notice 'ok - report contact window survives newly minted grants';
+      end;
+    end if;
+  end loop;
+end;
+$test$;
 
 rollback;

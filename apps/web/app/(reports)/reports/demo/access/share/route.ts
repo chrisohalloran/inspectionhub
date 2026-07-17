@@ -1,17 +1,29 @@
 import { NextResponse } from "next/server";
 
 import { recipientStateAuthority } from "../../../_lib/recipient-authority";
+import { canonicalReservedDemoEmail } from "../../../_lib/recipient-demo-policy";
+import { enforceRecipientMutationRateLimit } from "../../../_lib/recipient-mutation-rate-limit";
+import {
+  recipientDenied,
+  recipientMutationFailure,
+  sameOriginRecipientRequest,
+} from "../../../_lib/recipient-route-boundary";
 import { readPortalSession } from "../../../_lib/recipient-session";
 
 export async function POST(request: Request) {
-  if (!sameOrigin(request)) return denied();
+  if (!sameOriginRecipientRequest(request)) return recipientDenied();
   const session = await readPortalSession();
-  if (session === null) return denied();
+  if (session === null) return recipientDenied();
+  const rateLimit = await enforceRecipientMutationRateLimit(
+    "share",
+    session.grantId,
+  );
+  if (rateLimit !== null) return rateLimit;
   let email: string;
   let expiresAt: number;
   try {
     const body = (await request.json()) as unknown;
-    email = canonicalEmail(field(body, "email"));
+    email = canonicalReservedDemoEmail(field(body, "email"));
     expiresAt = numberField(body, "expiresAt");
     const now = Date.now();
     if (expiresAt <= now || expiresAt > now + 7 * 24 * 60 * 60_000) {
@@ -27,15 +39,20 @@ export async function POST(request: Request) {
       expiresAt,
     });
     return noStore({ invitation }, 201);
-  } catch {
-    return denied();
+  } catch (cause) {
+    return recipientMutationFailure(cause);
   }
 }
 
 export async function DELETE(request: Request) {
-  if (!sameOrigin(request)) return denied();
+  if (!sameOriginRecipientRequest(request)) return recipientDenied();
   const session = await readPortalSession();
-  if (session === null) return denied();
+  if (session === null) return recipientDenied();
+  const rateLimit = await enforceRecipientMutationRateLimit(
+    "share",
+    session.grantId,
+  );
+  if (rateLimit !== null) return rateLimit;
   let invitationId: string;
   try {
     const body = (await request.json()) as unknown;
@@ -49,30 +66,9 @@ export async function DELETE(request: Request) {
       invitationId,
     });
     return noStore({ invitation });
-  } catch {
-    return denied();
+  } catch (cause) {
+    return recipientMutationFailure(cause);
   }
-}
-
-function sameOrigin(request: Request): boolean {
-  const origin = request.headers.get("origin");
-  const host =
-    request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-  if (origin === null || host === null) return false;
-  try {
-    return (
-      new URL(origin).host === host &&
-      request.headers.get("sec-fetch-site") === "same-origin"
-    );
-  } catch {
-    return false;
-  }
-}
-
-function canonicalEmail(value: string): string {
-  const email = value.trim().toLocaleLowerCase("en-AU");
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/u.test(email)) throw new Error();
-  return email;
 }
 
 function field(value: unknown, key: string): string {
@@ -95,10 +91,6 @@ function numberField(value: unknown, key: string): number {
     throw new Error();
   }
   return fieldValue;
-}
-
-function denied() {
-  return NextResponse.json({ error: "access_denied" }, { status: 403 });
 }
 
 function noStore(body: unknown, status = 200) {

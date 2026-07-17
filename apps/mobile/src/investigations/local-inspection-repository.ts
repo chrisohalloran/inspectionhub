@@ -12,6 +12,7 @@ export type LocalInspectionSnapshotRecord = {
   readonly aggregateId: string;
   readonly aggregateKind: LocalInspectionAggregateKind;
   readonly aggregateRevision: number;
+  readonly jobId: string | null;
   readonly schemaVersion: 1;
   readonly snapshotJson: string;
   readonly snapshotSha256: string;
@@ -41,8 +42,9 @@ export type LocalInspectionEventRecord = {
 };
 
 export interface LocalInspectionSnapshotPort {
-  listSnapshots(
+  listSnapshotsForJob(
     aggregateKind: LocalInspectionAggregateKind,
+    jobId: string,
   ): Promise<readonly LocalInspectionSnapshotRecord[]>;
   readSnapshot(
     aggregateKind: LocalInspectionAggregateKind,
@@ -94,7 +96,10 @@ export function createLocalInspectionRepository(dependencies: {
     async findOpenInvestigationForJob(
       jobId: string,
     ): Promise<Investigation | null> {
-      const records = await dependencies.storage.listSnapshots("investigation");
+      const records = await dependencies.storage.listSnapshotsForJob(
+        "investigation",
+        jobId,
+      );
       const open: Investigation[] = [];
       for (const record of records) {
         const investigation = await loadCheckedSnapshot<Investigation>(
@@ -218,6 +223,7 @@ async function saveAggregate(
     aggregateId: input.aggregateId,
     aggregateKind: input.aggregateKind,
     aggregateRevision: input.aggregate.revision,
+    jobId: input.aggregate.jobId,
     schemaVersion: 1,
     snapshotJson,
     snapshotSha256,
@@ -251,7 +257,8 @@ async function loadCheckedSnapshot<T extends LocalInspectionAggregate>(
   if (
     record.schemaVersion !== 1 ||
     record.aggregateId !== expected.aggregateId ||
-    record.aggregateKind !== expected.kind
+    record.aggregateKind !== expected.kind ||
+    record.jobId === null
   ) {
     throw new LocalInspectionCorruptionError(
       "Local inspection snapshot identity or schema is invalid",
@@ -308,7 +315,10 @@ async function loadCheckedSnapshot<T extends LocalInspectionAggregate>(
   const identityKey =
     expected.kind === "investigation" ? "investigationId" : "jobId";
   const parsedRecord = parsed as Record<string, unknown>;
-  if (parsedRecord[identityKey] !== expected.aggregateId) {
+  if (
+    parsedRecord[identityKey] !== expected.aggregateId ||
+    parsedRecord.jobId !== record.jobId
+  ) {
     throw new LocalInspectionCorruptionError(
       "Local inspection snapshot payload identity does not match its ledger record",
     );

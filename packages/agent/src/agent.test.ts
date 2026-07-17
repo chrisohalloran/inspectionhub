@@ -87,6 +87,49 @@ describe("inspection drafting authority and grounding", () => {
     );
   });
 
+  it("rejects an invented candidate identity even when its sources are packet-authorised", () => {
+    const draft = cleanCrackedTileDraft();
+    draft.modules[0]!.findings[0]!.findingCandidateId = "invented-candidate";
+
+    const result = runDeterministicDraftGuard(crackedTilePacket(), draft);
+
+    expect(result.passed).toBe(false);
+    expect(result.issues.map((issue) => issue.code)).toEqual(
+      expect.arrayContaining([
+        "finding_candidate_identity_mismatch",
+        "finding_candidate_missing",
+      ]),
+    );
+  });
+
+  it("rejects a globally packet-authorised observation outside the candidate scope", () => {
+    const base = crackedTilePacket();
+    const packet: InvestigationPacket = {
+      ...base,
+      observations: [
+        ...base.observations,
+        {
+          areaId: "roof-void",
+          observationId: "observation-other-candidate",
+          recordedAt: "2026-07-14T08:02:20.000+10:00",
+          recordedByInspectorId: "inspector-1",
+          text: "A separate roof-void observation.",
+        },
+      ],
+    };
+    const draft = cleanCrackedTileDraft();
+    draft.modules[0]!.findings[0]!.observation.sourceRefs = [
+      { kind: "observation", sourceId: "observation-other-candidate" },
+    ];
+
+    const result = runDeterministicDraftGuard(packet, draft);
+
+    expect(result.passed).toBe(false);
+    expect(result.issues.map((issue) => issue.code)).toContain(
+      "candidate_unauthorized_provenance",
+    );
+  });
+
   it("blocks absolute and unbounded Timber Pest absence claims", () => {
     const { packet, draft } = pestNoEvidenceFixture(
       "No termites were found and no visible evidence was observed.",
@@ -533,6 +576,7 @@ function pestNoEvidenceFixture(text: string): {
   const packet: InvestigationPacket = {
     ...buildingPacket,
     modules: [{ module: "timber_pest", moduleId: "module-pest" }],
+    findingCandidates: [],
     moduleSchemas: [
       {
         module: "timber_pest",

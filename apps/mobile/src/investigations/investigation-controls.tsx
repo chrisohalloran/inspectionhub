@@ -67,6 +67,7 @@ export function InvestigationControlDock(props: InvestigationControlDockProps) {
         <Control
           disabled={
             !props.captureEnabled ||
+            props.voiceState === "starting" ||
             props.voiceState === "saving" ||
             props.voiceState === "unavailable"
           }

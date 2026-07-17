@@ -1,7 +1,11 @@
 appId: co.inspectionhub.field
 name: Atomic-rename termination and startup recovery
 ---
-- launchApp
+- launchApp:
+    clearState: true
+- tapOn:
+    text: "InspectionHub Field, http://.*"
+    optional: true
 - tapOn:
     text: "Continue"
     optional: true

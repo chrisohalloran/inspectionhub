@@ -261,6 +261,18 @@ describe("browser, content and abuse controls", () => {
     });
     expect(seen).toEqual([{ policy: "recipient_access", opaqueKey: key }]);
     await expect(
+      new DurableRateLimiter({
+        consume: async () => {
+          await Promise.resolve();
+          return { allowed: true, remaining: 299, retryAfterSeconds: 0 };
+        },
+      }).consume({ policy: "recipient_demo_global", opaqueKey: key }),
+    ).resolves.toEqual({
+      allowed: true,
+      remaining: 299,
+      retryAfterSeconds: 0,
+    });
+    await expect(
       limiter.consume({
         policy: "provider_callback",
         opaqueKey: "raw-ip-address",

@@ -186,6 +186,10 @@ export function buildCrackedTileInvestigationFixture() {
           ids.floorContextId,
           ids.exteriorContextId,
         ],
+        sourceObservationIds: [
+          "fixture-observation-cracked-tiles",
+          "fixture-observation-exterior-check",
+        ],
       },
     ],
   });
@@ -266,11 +270,20 @@ export function buildCrackedTileInvestigationFixture() {
         moduleId: ids.buildingModuleId,
         schemaVersion: "building-finding-v1",
       },
+      {
+        module: "timber_pest",
+        moduleId: ids.timberPestModuleId,
+        schemaVersion: "timber-pest-finding-v1",
+      },
     ],
     versionPins: {
       model: "synthetic-drafting-model-v1",
       promptVersion: "inspection-draft-v1",
-      skillVersions: ["building-inspection-v1", "report-language-v1"],
+      skillVersions: [
+        "building-inspection-v1",
+        "report-language-v1",
+        "timber-pest-inspection-v1",
+      ],
     },
     unknowns: [
       "The supporting floor construction was not visually confirmed.",

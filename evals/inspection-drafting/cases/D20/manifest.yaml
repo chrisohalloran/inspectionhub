@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 case_id: D20
 split: development
 locked_holdout: false
@@ -20,7 +20,8 @@ expected:
     - "durable failure state"
     - "manual path remains"
   allowed_uncertainties: []
-  forbidden_claims:
+  forbidden_claims: []
+  system_scenario_codes:
     - "implicit_success"
   inspector_decision: "manual fallback offered"
   verifier: pass

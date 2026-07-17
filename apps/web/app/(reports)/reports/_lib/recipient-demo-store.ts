@@ -19,6 +19,15 @@ import type {
   PortalState,
   RecipientStateAuthority,
 } from "./recipient-authority";
+import {
+  canonicalReservedDemoEmail,
+  DEMO_CONTACT_REQUEST_LIMIT,
+  DEMO_REPORT_CONTACT_WINDOW_LIMIT,
+  DEMO_REPORT_MUTATION_WINDOW_MS,
+  DEMO_REPORT_SHARE_WINDOW_LIMIT,
+  DEMO_SHARE_REQUEST_LIMIT,
+} from "./recipient-demo-policy";
+import { RecipientMutationLimitError } from "./recipient-mutation-error";
 
 export type {
   DemoContactRequest,
@@ -236,19 +245,17 @@ export class DemoRecipientStateStore implements RecipientStateAuthority {
     await Promise.resolve();
     const projection = this.#project();
     const grant = grantForSession(projection, session, now);
-    if (
-      !grant.actions.includes("read_report") ||
-      !grant.modules.includes("timber_pest") ||
-      projection.withdrawnModules.has("timber_pest")
-    ) {
-      throw new DemoRecipientStateError();
-    }
     const buildingWithdrawn = projection.withdrawnModules.has("building");
-    if (!buildingWithdrawn && !grant.modules.includes("building")) {
+    const timberPestWithdrawn = projection.withdrawnModules.has("timber_pest");
+    const activeModule = grant.modules.some(
+      (module) => !projection.withdrawnModules.has(module),
+    );
+    if (!grant.actions.includes("read_report") || !activeModule) {
       throw new DemoRecipientStateError();
     }
     return {
       buildingWithdrawn,
+      timberPestWithdrawn,
       shareInvitations: invitationsFor(projection, grant.grantId, now),
       contactRequests: contactsFor(projection, grant.grantId),
     };
@@ -278,6 +285,30 @@ export class DemoRecipientStateStore implements RecipientStateAuthority {
     return this.#mutate((projection) => {
       const now = Date.now();
       const grant = grantForSession(projection, input.session, now);
+      let email: string;
+      try {
+        email = canonicalReservedDemoEmail(input.email);
+      } catch {
+        throw new DemoRecipientStateError();
+      }
+      let grantShareCount = 0;
+      let reportShareWindowCount = 0;
+      for (const invitation of projection.invitations.values()) {
+        if (invitation.grantId === grant.grantId) grantShareCount += 1;
+        if (
+          invitation.recordedAt >= now - DEMO_REPORT_MUTATION_WINDOW_MS &&
+          projection.grants.get(invitation.grantId)?.reportVersionId ===
+            grant.reportVersionId
+        ) {
+          reportShareWindowCount += 1;
+        }
+        if (
+          grantShareCount >= DEMO_SHARE_REQUEST_LIMIT &&
+          reportShareWindowCount >= DEMO_REPORT_SHARE_WINDOW_LIMIT
+        ) {
+          break;
+        }
+      }
       if (
         !grant.actions.includes("invite_recipient") ||
         input.expiresAt <= now ||
@@ -288,10 +319,16 @@ export class DemoRecipientStateStore implements RecipientStateAuthority {
       ) {
         throw new DemoRecipientStateError();
       }
+      if (grantShareCount >= DEMO_SHARE_REQUEST_LIMIT) {
+        throw new RecipientMutationLimitError("grant_mutation_limit_reached");
+      }
+      if (reportShareWindowCount >= DEMO_REPORT_SHARE_WINDOW_LIMIT) {
+        throw new RecipientMutationLimitError("report_mutation_window_reached");
+      }
       const invitation: DemoShareInvitation = Object.freeze({
         invitationId: `demo_share_${randomUUID()}`,
         grantId: grant.grantId,
-        email: input.email,
+        email,
         recordedAt: now,
         expiresAt: input.expiresAt,
         state: "recorded",
@@ -351,8 +388,32 @@ export class DemoRecipientStateStore implements RecipientStateAuthority {
             )
           : grant.modules.includes(input.module) &&
             !projection.withdrawnModules.has(input.module);
+      let grantContactCount = 0;
+      let reportContactWindowCount = 0;
+      for (const request of projection.contactRequests) {
+        if (request.grantId === grant.grantId) grantContactCount += 1;
+        if (
+          request.recordedAt >= now - DEMO_REPORT_MUTATION_WINDOW_MS &&
+          projection.grants.get(request.grantId)?.reportVersionId ===
+            grant.reportVersionId
+        ) {
+          reportContactWindowCount += 1;
+        }
+        if (
+          grantContactCount >= DEMO_CONTACT_REQUEST_LIMIT &&
+          reportContactWindowCount >= DEMO_REPORT_CONTACT_WINDOW_LIMIT
+        ) {
+          break;
+        }
+      }
       if (!grant.actions.includes("contact_inspector") || !activeModule) {
         throw new DemoRecipientStateError();
+      }
+      if (grantContactCount >= DEMO_CONTACT_REQUEST_LIMIT) {
+        throw new RecipientMutationLimitError("grant_mutation_limit_reached");
+      }
+      if (reportContactWindowCount >= DEMO_REPORT_CONTACT_WINDOW_LIMIT) {
+        throw new RecipientMutationLimitError("report_mutation_window_reached");
       }
       const request: DemoContactRequest = Object.freeze({
         contactRequestId: `demo_contact_${randomUUID()}`,

@@ -141,25 +141,29 @@ export function parseCoverageLedgerSnapshot(value: unknown): CoverageLedger {
       throw new TypeError("Stored coverage revisit area is invalid");
     }
   }
+  const activeLimitationCounts = new Map<string, number>();
+  for (const limitation of ledger.limitations) {
+    if (limitation.status !== "active") continue;
+    const key = coverageKey(limitation.areaId, limitation.moduleId);
+    activeLimitationCounts.set(key, (activeLimitationCounts.get(key) ?? 0) + 1);
+  }
+  const openRevisitCounts = new Map<string, number>();
+  for (const item of ledger.revisitItems) {
+    if (item.status !== "open") continue;
+    const key = coverageKey(item.areaId, item.moduleId);
+    openRevisitCounts.set(key, (openRevisitCounts.get(key) ?? 0) + 1);
+  }
   for (const [key, history] of entryHistory) {
     const current = history.at(-1)!;
-    const activeLimitations = ledger.limitations.filter(
-      (item) =>
-        coverageKey(item.areaId, item.moduleId) === key &&
-        item.status === "active",
-    );
-    const openRevisits = ledger.revisitItems.filter(
-      (item) =>
-        coverageKey(item.areaId, item.moduleId) === key &&
-        item.status === "open",
-    );
+    const activeLimitations = activeLimitationCounts.get(key) ?? 0;
+    const openRevisits = openRevisitCounts.get(key) ?? 0;
     const limited =
       current.state === "access_limited" || current.state === "inaccessible";
     if (
-      (limited && activeLimitations.length !== 1) ||
-      (!limited && activeLimitations.length !== 0) ||
-      (current.state === "revisit" && openRevisits.length !== 1) ||
-      (current.state !== "revisit" && openRevisits.length !== 0)
+      (limited && activeLimitations !== 1) ||
+      (!limited && activeLimitations !== 0) ||
+      (current.state === "revisit" && openRevisits !== 1) ||
+      (current.state !== "revisit" && openRevisits !== 0)
     ) {
       throw new TypeError("Stored coverage limitation state is invalid");
     }
@@ -288,6 +292,9 @@ function assertCompletion(
   investigation: Investigation,
   evidenceIds: ReadonlySet<string>,
 ): void {
+  const observationIds = new Set(
+    investigation.observations.map(({ observationId }) => observationId),
+  );
   const open =
     investigation.status === "active" || investigation.status === "paused";
   if (open && investigation.completion !== null) {
@@ -322,8 +329,17 @@ function assertCompletion(
     );
     if (
       reference?.moduleId !== link.moduleId ||
+      link.sourceArtifactIds.length === 0 ||
       new Set(link.sourceArtifactIds).size !== link.sourceArtifactIds.length ||
-      link.sourceArtifactIds.some((artifactId) => !evidenceIds.has(artifactId))
+      link.sourceArtifactIds.some(
+        (artifactId) => !evidenceIds.has(artifactId),
+      ) ||
+      link.sourceObservationIds.length === 0 ||
+      new Set(link.sourceObservationIds).size !==
+        link.sourceObservationIds.length ||
+      link.sourceObservationIds.some(
+        (observationId) => !observationIds.has(observationId),
+      )
     ) {
       throw new TypeError("Stored investigation module link is invalid");
     }
@@ -343,6 +359,24 @@ function assertTimelineProjection(investigation: Investigation): void {
   const observationEntries = investigation.timeline.filter(
     (item) => item.type === "observation_recorded",
   );
+  const evidenceProjection = new Set(
+    evidenceEntries.map(
+      (entry) =>
+        `${entry.artifactId}\u0000${entry.areaId}\u0000${entry.occurredAt}`,
+    ),
+  );
+  const measurementProjection = new Set(
+    measurementEntries.map(
+      (entry) =>
+        `${entry.measurementId}\u0000${entry.areaId}\u0000${entry.occurredAt}`,
+    ),
+  );
+  const observationProjection = new Set(
+    observationEntries.map(
+      (entry) =>
+        `${entry.observationId}\u0000${entry.areaId}\u0000${entry.occurredAt}`,
+    ),
+  );
   if (
     areaEntries.length !== investigation.areaVisits.length ||
     evidenceEntries.length !== investigation.evidence.length ||
@@ -354,29 +388,23 @@ function assertTimelineProjection(investigation: Investigation): void {
         entry?.areaId !== visit.areaId || entry.occurredAt !== visit.enteredAt
       );
     }) ||
-    investigation.evidence.some((evidence) =>
-      evidenceEntries.every(
-        (entry) =>
-          entry.artifactId !== evidence.artifactId ||
-          entry.areaId !== evidence.captureAreaId ||
-          entry.occurredAt !== evidence.attachedAt,
-      ),
+    investigation.evidence.some(
+      (evidence) =>
+        !evidenceProjection.has(
+          `${evidence.artifactId}\u0000${evidence.captureAreaId}\u0000${evidence.attachedAt}`,
+        ),
     ) ||
-    investigation.measurements.some((measurement) =>
-      measurementEntries.every(
-        (entry) =>
-          entry.measurementId !== measurement.measurementId ||
-          entry.areaId !== measurement.areaId ||
-          entry.occurredAt !== measurement.measuredAt,
-      ),
+    investigation.measurements.some(
+      (measurement) =>
+        !measurementProjection.has(
+          `${measurement.measurementId}\u0000${measurement.areaId}\u0000${measurement.measuredAt}`,
+        ),
     ) ||
-    investigation.observations.some((observation) =>
-      observationEntries.every(
-        (entry) =>
-          entry.observationId !== observation.observationId ||
-          entry.areaId !== observation.areaId ||
-          entry.occurredAt !== observation.recordedAt,
-      ),
+    investigation.observations.some(
+      (observation) =>
+        !observationProjection.has(
+          `${observation.observationId}\u0000${observation.areaId}\u0000${observation.recordedAt}`,
+        ),
     )
   ) {
     throw new TypeError("Stored investigation timeline projection is invalid");
@@ -626,13 +654,16 @@ function isInvestigationCompletion(
     moduleLinks.every((link) => {
       const item = asRecord(link);
       const sourceArtifactIds = asArray(item?.sourceArtifactIds);
+      const sourceObservationIds = asArray(item?.sourceObservationIds);
       return (
         item !== null &&
         isText(item.findingCandidateId) &&
         modules.has(String(item.module)) &&
         isText(item.moduleId) &&
         sourceArtifactIds !== null &&
-        sourceArtifactIds.every(isText)
+        sourceArtifactIds.every(isText) &&
+        sourceObservationIds !== null &&
+        sourceObservationIds.every(isText)
       );
     }) &&
     ["finding_candidates", "no_reportable_finding"].includes(

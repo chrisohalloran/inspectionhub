@@ -60,4 +60,44 @@ describe("durable webhook rate-limit adapter", () => {
       consume("provider_callback", "booking-webhook"),
     ).rejects.toThrow("unavailable");
   });
+
+  it("aborts a stalled shared-store request at the configured HTTP boundary", async () => {
+    const fetcher = vi.fn(
+      (_input: string, init: RequestInit) =>
+        new Promise<never>((_resolve, reject) => {
+          init.signal?.addEventListener(
+            "abort",
+            () => {
+              reject(
+                new DOMException("Rate-limit request aborted", "TimeoutError"),
+              );
+            },
+            { once: true },
+          );
+        }),
+    );
+    const consume = createSupabaseBoundaryRateLimit({
+      supabaseUrl: "https://project.supabase.co",
+      serviceRoleKey: "synthetic-service-credential",
+      hashSecret: "rate-limit-hash-secret-with-at-least-32-characters",
+      timeoutMilliseconds: 5,
+      fetcher,
+    });
+
+    await expect(
+      consume("recipient_access", "recipient-demo-share-grant-01j000"),
+    ).rejects.toMatchObject({ name: "TimeoutError" });
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+
+  it("rejects an unsafe HTTP timeout before constructing the boundary", () => {
+    expect(() =>
+      createSupabaseBoundaryRateLimit({
+        supabaseUrl: "https://project.supabase.co",
+        serviceRoleKey: "synthetic-service-credential",
+        hashSecret: "rate-limit-hash-secret-with-at-least-32-characters",
+        timeoutMilliseconds: 30_001,
+      }),
+    ).toThrow("between 1 and 10000 milliseconds");
+  });
 });

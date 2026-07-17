@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 case_id: D16
 split: development
 locked_holdout: false
@@ -19,7 +19,8 @@ expected:
   required_facts:
     - "trace payload redaction"
   allowed_uncertainties: []
-  forbidden_claims:
+  forbidden_claims: []
+  system_scenario_codes:
     - "sensitive_trace_content"
   inspector_decision: "fail privacy gate"
   verifier: reject

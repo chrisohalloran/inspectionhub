@@ -360,24 +360,26 @@ function assertProvenanceMatches(
   finding: ProvisionalFinding,
   provenance: ReviewProvenance,
 ): void {
-  const authoredArtifactIds = new Set(
-    finding.authorship.sourceArtifactReferences.map(
-      ({ artifactId }) => artifactId,
-    ),
+  const authoredArtifactReferences =
+    finding.authorship.sourceArtifactReferences;
+  const authoredArtifactIds = authoredArtifactReferences.map(
+    ({ artifactId }) => artifactId,
   );
-  const provenanceArtifactIds = new Set(provenance.sourceArtifactIds);
-  const authoredTranscriptIds = new Set(
-    finding.authorship.transcriptSpanReferences,
-  );
-  const provenanceTranscriptIds = new Set(provenance.transcriptSpanIds);
   if (
     !/^[a-f0-9]{64}$/u.test(provenance.packetHash) ||
     !Number.isSafeInteger(provenance.packetRevision) ||
     provenance.packetRevision < 1 ||
     !Number.isSafeInteger(provenance.sourceRevision) ||
     provenance.sourceRevision < 1 ||
-    !sameStringSet(authoredArtifactIds, provenanceArtifactIds) ||
-    !sameStringSet(authoredTranscriptIds, provenanceTranscriptIds) ||
+    !uniqueArtifactReferences(authoredArtifactReferences) ||
+    !sameUniqueStringValues(
+      authoredArtifactIds,
+      provenance.sourceArtifactIds,
+    ) ||
+    !sameUniqueStringValues(
+      finding.authorship.transcriptSpanReferences,
+      provenance.transcriptSpanIds,
+    ) ||
     (finding.authorship.origin === "ai" &&
       finding.authorship.packetRevision !== provenance.packetRevision)
   ) {
@@ -388,12 +390,34 @@ function assertProvenanceMatches(
   }
 }
 
-function sameStringSet(
-  left: ReadonlySet<string>,
-  right: ReadonlySet<string>,
+function uniqueArtifactReferences(
+  references: ProvisionalFinding["authorship"]["sourceArtifactReferences"],
 ): boolean {
+  const artifactIds = references.map(({ artifactId }) => artifactId);
+  const identities = references.map(({ artifactId, contentHash }) =>
+    JSON.stringify([artifactId, contentHash]),
+  );
   return (
-    left.size === right.size && [...left].every((value) => right.has(value))
+    new Set(artifactIds).size === artifactIds.length &&
+    new Set(identities).size === identities.length
+  );
+}
+
+function sameUniqueStringValues(
+  left: readonly string[],
+  right: readonly string[],
+): boolean {
+  if (
+    new Set(left).size !== left.length ||
+    new Set(right).size !== right.length
+  ) {
+    return false;
+  }
+  const sortedLeft = [...left].sort();
+  const sortedRight = [...right].sort();
+  return (
+    sortedLeft.length === sortedRight.length &&
+    sortedLeft.every((value, index) => value === sortedRight[index])
   );
 }
 

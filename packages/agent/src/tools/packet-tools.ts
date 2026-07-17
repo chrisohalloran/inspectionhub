@@ -46,6 +46,7 @@ export class PacketBoundEvidenceTool {
     packetHash: string;
     packetRevision: number;
     modules: InvestigationPacket["modules"];
+    findingCandidates: InvestigationPacket["findingCandidates"];
     sourceCounts: Readonly<Record<PacketSourceKind, number>>;
   }> {
     return Object.freeze({
@@ -53,6 +54,7 @@ export class PacketBoundEvidenceTool {
       packetHash: this.#packet.canonicalHash,
       packetRevision: this.#packet.packetRevision,
       modules: this.#packet.modules,
+      findingCandidates: this.#packet.findingCandidates,
       sourceCounts: {
         artifact: this.#packet.evidence.length,
         transcript_span: this.#packet.transcriptSpans.length,
@@ -94,7 +96,13 @@ export class PacketBoundEvidenceTool {
         sourceId: source.artifactId,
         safeSummary: {
           artifactKind: source.artifactKind,
-          areaId: source.currentAreaId,
+          captureAreaId: source.captureAreaId,
+          currentAreaId: source.currentAreaId,
+          areaAssignmentCount: source.areaAssignmentHistory.length,
+          lastAreaAssignmentReason:
+            source.areaAssignmentHistory.at(-1)?.reason ?? null,
+          lastAreaAssignedAt:
+            source.areaAssignmentHistory.at(-1)?.assignedAt ?? null,
           capturedAt: source.capturedAt,
           sequence: source.captureSequence,
         },
@@ -163,6 +171,7 @@ export class PreparedPacketEvidenceTool {
     packetHash: string;
     packetRevision: number;
     modules: PreparedAiRequest["input"]["modules"];
+    findingCandidates: PreparedAiRequest["input"]["findingCandidates"];
     sourceCount: number;
     imageCount: number;
   }> {
@@ -171,6 +180,7 @@ export class PreparedPacketEvidenceTool {
       packetHash: this.#request.input.packetHash,
       packetRevision: this.#request.input.packetRevision,
       modules: this.#request.input.modules,
+      findingCandidates: this.#request.input.findingCandidates,
       sourceCount: this.#request.input.redactedSources.length,
       imageCount: this.#request.input.safeProxyImages.length,
     });

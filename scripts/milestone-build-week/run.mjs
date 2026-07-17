@@ -33,15 +33,22 @@ function parseArguments(argv) {
   return parsed;
 }
 
-async function gitCommitSha() {
+async function gitRuntimeSource() {
   try {
-    const { stdout } = await execFileAsync("git", ["rev-parse", "HEAD"], {
-      cwd: repositoryRoot,
-      encoding: "utf8",
-    });
-    return stdout.trim();
+    const [{ stdout: commit }, { stdout: status }] = await Promise.all([
+      execFileAsync("git", ["rev-parse", "HEAD"], {
+        cwd: repositoryRoot,
+        encoding: "utf8",
+      }),
+      execFileAsync(
+        "git",
+        ["status", "--porcelain=v1", "--untracked-files=normal"],
+        { cwd: repositoryRoot, encoding: "utf8" },
+      ),
+    ]);
+    return { commitSha: commit.trim(), worktreeClean: status.trim() === "" };
   } catch {
-    return "uncommitted";
+    return { commitSha: "uncommitted", worktreeClean: false };
   }
 }
 
@@ -61,11 +68,12 @@ async function main() {
   const seed = seedDocument();
   const now = new Date().toISOString();
   const contracts = await loadContracts();
+  const runtimeSource = await gitRuntimeSource();
   const input = args.evidence
     ? JSON.parse(await readFile(resolve(args.evidence), "utf8"))
     : defaultEvidenceInput({
         now,
-        commitSha: await gitCommitSha(),
+        commitSha: runtimeSource.commitSha,
         seedSha256: seed.integrity.canonicalPayloadSha256,
       });
   const { manifest, valid, complete } = await validateAndBuildManifest(
@@ -74,6 +82,8 @@ async function main() {
     {
       expectedSeedSha256: seed.integrity.canonicalPayloadSha256,
       generatedAt: now,
+      runtimeCommitSha: runtimeSource.commitSha,
+      runtimeWorktreeClean: runtimeSource.worktreeClean,
       verifyArtifacts: args.verifyArtifacts,
     },
   );

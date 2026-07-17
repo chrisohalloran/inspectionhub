@@ -10,6 +10,12 @@ import {
   DemoRecipientStateStore,
   type DemoGrant,
 } from "./recipient-demo-store";
+import {
+  DEMO_CONTACT_REQUEST_LIMIT,
+  DEMO_REPORT_CONTACT_WINDOW_LIMIT,
+  DEMO_REPORT_SHARE_WINDOW_LIMIT,
+  DEMO_SHARE_REQUEST_LIMIT,
+} from "./recipient-demo-policy";
 
 const stores: DemoRecipientStateStore[] = [];
 const files: string[] = [];
@@ -87,6 +93,41 @@ describe("test-only recipient state adapter", () => {
         action: "read_report",
       }),
     ).resolves.toMatchObject({ grantId: grant.grantId });
+    await expect(reader.portalState(session)).resolves.toMatchObject({
+      buildingWithdrawn: true,
+      timberPestWithdrawn: false,
+    });
+  });
+
+  it("retains Building when Timber Pest is withdrawn and denies a fully withdrawn portal", async () => {
+    const [writer, reader] = runtimes();
+    const grant = await issueGrant(writer, "inverse-withdrawal");
+    const session = sessionFor(grant);
+
+    await writer.setModuleWithdrawn("timber_pest", true);
+    await expect(reader.portalState(session)).resolves.toMatchObject({
+      buildingWithdrawn: false,
+      timberPestWithdrawn: true,
+    });
+    await expect(
+      reader.authorise(session, {
+        reportVersionId: "report_demo_v2",
+        module: "building",
+        action: "read_report",
+      }),
+    ).resolves.toMatchObject({ grantId: grant.grantId });
+    await expect(
+      reader.authorise(session, {
+        reportVersionId: "report_demo_v2",
+        module: "timber_pest",
+        action: "read_report",
+      }),
+    ).rejects.toThrow(DemoRecipientStateError);
+
+    await writer.setModuleWithdrawn("building", true);
+    await expect(reader.portalState(session)).rejects.toThrow(
+      DemoRecipientStateError,
+    );
   });
 
   it("records share and contact transitions without claiming provider egress", async () => {
@@ -164,6 +205,114 @@ describe("test-only recipient state adapter", () => {
         expiresAt: Date.now() + 60_000,
       }),
     ).rejects.toThrow(DemoRecipientStateError);
+  });
+
+  it("rejects real addresses and enforces lifetime per-grant mutation caps", async () => {
+    const [writer, secondRuntime] = runtimes();
+    const grant = await issueGrant(writer, "public-bounds");
+    const session = sessionFor(grant);
+
+    await expect(
+      writer.recordShareInvitation({
+        session,
+        email: "real-person@outside.test",
+        expiresAt: Date.now() + 60_000,
+      }),
+    ).rejects.toThrow(DemoRecipientStateError);
+
+    for (let index = 0; index < DEMO_SHARE_REQUEST_LIMIT; index += 1) {
+      await writer.recordShareInvitation({
+        session,
+        email: `buyer${String(index)}@example.com`,
+        expiresAt: Date.now() + 60_000,
+      });
+    }
+    await expect(
+      secondRuntime.recordShareInvitation({
+        session,
+        email: "over-limit@example.com",
+        expiresAt: Date.now() + 60_000,
+      }),
+    ).rejects.toMatchObject({
+      name: "RecipientMutationLimitError",
+      reason: "grant_mutation_limit_reached",
+    });
+
+    for (let index = 0; index < DEMO_CONTACT_REQUEST_LIMIT; index += 1) {
+      await writer.recordContactRequest({
+        session,
+        findingReference: "finding_cracked_tiles",
+        module: "building",
+      });
+    }
+    await expect(
+      secondRuntime.recordContactRequest({
+        session,
+        findingReference: "finding_cracked_tiles",
+        module: "building",
+      }),
+    ).rejects.toMatchObject({
+      name: "RecipientMutationLimitError",
+      reason: "grant_mutation_limit_reached",
+    });
+
+    await expect(
+      secondRuntime.listShareInvitations(grant.grantId),
+    ).resolves.toHaveLength(DEMO_SHARE_REQUEST_LIMIT);
+    await expect(
+      secondRuntime.listContactRequests(grant.grantId),
+    ).resolves.toHaveLength(DEMO_CONTACT_REQUEST_LIMIT);
+  });
+
+  it("bounds report mutations across newly minted grants", async () => {
+    const [writer, secondRuntime] = runtimes();
+    const shareGrantCount =
+      DEMO_REPORT_SHARE_WINDOW_LIMIT / DEMO_SHARE_REQUEST_LIMIT;
+    for (let grantIndex = 0; grantIndex < shareGrantCount; grantIndex += 1) {
+      const grant = await issueGrant(writer, `report-share-${grantIndex}`);
+      for (let item = 0; item < DEMO_SHARE_REQUEST_LIMIT; item += 1) {
+        await writer.recordShareInvitation({
+          session: sessionFor(grant),
+          email: `report-share-${grantIndex}-${item}@example.com`,
+          expiresAt: Date.now() + 60_000,
+        });
+      }
+    }
+    const freshShareGrant = await issueGrant(writer, "report-share-fresh");
+    await expect(
+      secondRuntime.recordShareInvitation({
+        session: sessionFor(freshShareGrant),
+        email: "fresh-grant-cannot-bypass@example.com",
+        expiresAt: Date.now() + 60_000,
+      }),
+    ).rejects.toMatchObject({
+      name: "RecipientMutationLimitError",
+      reason: "report_mutation_window_reached",
+    });
+
+    const contactGrantCount =
+      DEMO_REPORT_CONTACT_WINDOW_LIMIT / DEMO_CONTACT_REQUEST_LIMIT;
+    for (let grantIndex = 0; grantIndex < contactGrantCount; grantIndex += 1) {
+      const grant = await issueGrant(writer, `report-contact-${grantIndex}`);
+      for (let item = 0; item < DEMO_CONTACT_REQUEST_LIMIT; item += 1) {
+        await writer.recordContactRequest({
+          session: sessionFor(grant),
+          findingReference: "finding_cracked_tiles",
+          module: "building",
+        });
+      }
+    }
+    const freshContactGrant = await issueGrant(writer, "report-contact-fresh");
+    await expect(
+      secondRuntime.recordContactRequest({
+        session: sessionFor(freshContactGrant),
+        findingReference: "finding_cracked_tiles",
+        module: "building",
+      }),
+    ).rejects.toMatchObject({
+      name: "RecipientMutationLimitError",
+      reason: "report_mutation_window_reached",
+    });
   });
 });
 

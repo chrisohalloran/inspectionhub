@@ -6,14 +6,20 @@ import {
   type CoverageLedger,
 } from "@inspection/domain/inspection/mobile";
 
+import { canonicalJson } from "../integrity/canonical-json";
+
 type Module = ModuleApprovalBinding["module"];
 
 export function deliveryPackageManifestPayload(input: {
   readonly approvalBindings: readonly ModuleApprovalBinding[];
   readonly commissionedModules: readonly Module[];
   readonly jobId: string;
+  readonly recipientPackageHash: string;
   readonly reviewItems: readonly InvestigationReviewItem[];
 }): string {
+  if (!/^[a-f0-9]{64}$/u.test(input.recipientPackageHash)) {
+    throw new Error("Delivery package requires a hash-bound recipient package");
+  }
   const commissioned = [...input.commissionedModules].sort();
   const approvalBindings = input.approvalBindings
     .filter((binding) => commissioned.includes(binding.module))
@@ -34,6 +40,7 @@ export function deliveryPackageManifestPayload(input: {
     approvalBindings,
     jobId: input.jobId,
     modules: commissioned,
+    recipientPackageHash: input.recipientPackageHash,
     reviewVersions: input.reviewItems
       .filter(
         (item) =>
@@ -50,11 +57,15 @@ export function deliveryPackageManifestPayload(input: {
 }
 
 export function approvalSnapshotPayload(input: {
+  readonly approvingInspector: ModuleApprovalBinding["approvingInspector"];
   readonly coverage: CoverageLedger;
   readonly jobId: string;
   readonly module: Module;
   readonly reviewItems: readonly InvestigationReviewItem[];
 }): string {
+  if (!isModuleApprovalInspectorAuthority(input.approvingInspector)) {
+    throw new Error("Approval requires exact inspector authority");
+  }
   if (input.coverage.jobId !== input.jobId) {
     throw new Error("Approval coverage belongs to a different job");
   }
@@ -124,6 +135,7 @@ export function approvalSnapshotPayload(input: {
       }))
       .sort((left, right) => left.areaId.localeCompare(right.areaId)),
     organizationId: input.coverage.organizationId,
+    approvingInspector: input.approvingInspector,
     reviewAuthority: acceptedReviewAuthority(input.reviewItems, input.module),
   });
 }
@@ -184,6 +196,7 @@ export async function verifyApprovalBinding(input: {
     }
     const expectedSha256 = await input.digest(
       approvalSnapshotPayload({
+        approvingInspector: input.binding.approvingInspector,
         coverage: input.coverage,
         jobId: input.jobId,
         module: input.module,
@@ -203,42 +216,6 @@ function acceptedReviewAuthority(
   return reviewItems
     .filter((item) => item.module === module && item.status === "accepted")
     .sort((left, right) => left.reviewId.localeCompare(right.reviewId));
-}
-
-function canonicalJson(value: unknown): string {
-  return JSON.stringify(normalize(value));
-}
-
-function normalize(value: unknown): unknown {
-  if (
-    value === null ||
-    typeof value === "string" ||
-    typeof value === "boolean"
-  ) {
-    return value;
-  }
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) {
-      throw new TypeError("Canonical approval JSON requires finite numbers");
-    }
-    return value;
-  }
-  if (Array.isArray(value)) return value.map(normalize);
-  if (typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    return Object.fromEntries(
-      Object.keys(record)
-        .sort()
-        .map((key) => {
-          const child = record[key];
-          if (child === undefined) {
-            throw new TypeError("Canonical approval JSON rejects undefined");
-          }
-          return [key, normalize(child)];
-        }),
-    );
-  }
-  throw new TypeError(`Canonical approval JSON rejects ${typeof value}`);
 }
 
 export function moduleCoverageRevision(
@@ -271,6 +248,7 @@ export function approvalBindingMatches(input: {
   const { binding } = input;
   if (
     binding === undefined ||
+    !isModuleApprovalInspectorAuthority(binding.approvingInspector) ||
     input.coverageRevision === undefined ||
     binding.module !== input.module ||
     binding.coverageRevision !== input.coverageRevision
@@ -286,4 +264,24 @@ export function approvalBindingMatches(input: {
     moduleItems.every((item) => item.status === "accepted") &&
     JSON.stringify(binding.reviewVersions) === JSON.stringify(current)
   );
+}
+
+export function isModuleApprovalInspectorAuthority(
+  value: unknown,
+): value is ModuleApprovalBinding["approvingInspector"] {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    isNonEmptyString(candidate.inspectorId) &&
+    isNonEmptyString(candidate.displayName) &&
+    isNonEmptyString(candidate.credential) &&
+    typeof candidate.confirmedAt === "string" &&
+    Number.isFinite(Date.parse(candidate.confirmedAt)) &&
+    (candidate.authority === "synthetic_fixture" ||
+      candidate.authority === "verified_profile")
+  );
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
 }

@@ -6,7 +6,11 @@ import {
 } from "@inspection/reporting/web";
 import { redirect } from "next/navigation";
 
-import { demoPortalState, readPortalSession } from "../_lib/recipient-session";
+import {
+  demoPortalState,
+  readPortalSession,
+  type PortalSession,
+} from "../_lib/recipient-session";
 import { ContactInspector } from "./contact-inspector";
 import styles from "./report.module.css";
 import { ShareAccess } from "./share-access";
@@ -26,9 +30,33 @@ export default async function DemoReportPage() {
     redirect("/auth/invitation");
   }
 
+  const hasActiveModule =
+    (session.modules.includes("building") && !portalState.buildingWithdrawn) ||
+    (session.modules.includes("timber_pest") &&
+      !portalState.timberPestWithdrawn);
+  if (!hasActiveModule) redirect("/auth/invitation");
+
+  return <DemoReportContent portalState={portalState} session={session} />;
+}
+
+export function DemoReportContent({
+  portalState,
+  session,
+}: Readonly<{
+  portalState: Awaited<ReturnType<typeof demoPortalState>>;
+  session: PortalSession;
+}>) {
   const snapshot = createSyntheticRecipientReport();
   const overview = buildConditionOverview(snapshot);
-  const withdrawn = portalState.buildingWithdrawn;
+  const buildingGranted = session.modules.includes("building");
+  const timberPestGranted = session.modules.includes("timber_pest");
+  const buildingAvailable = buildingGranted && !portalState.buildingWithdrawn;
+  const timberPestAvailable =
+    timberPestGranted && !portalState.timberPestWithdrawn;
+  const availableModules = [
+    ...(buildingAvailable ? (["building"] as const) : []),
+    ...(timberPestAvailable ? (["timber_pest"] as const) : []),
+  ];
   const building = snapshot.building!;
   const timberPest = snapshot.timberPest!;
 
@@ -59,12 +87,16 @@ export default async function DemoReportPage() {
           <li>
             <a href="#overview">Condition overview</a>
           </li>
-          <li>
-            <a href="#building">Building</a>
-          </li>
-          <li>
-            <a href="#timber-pest">Timber Pest</a>
-          </li>
+          {buildingAvailable ? (
+            <li>
+              <a href="#building">Building</a>
+            </li>
+          ) : null}
+          {timberPestAvailable ? (
+            <li>
+              <a href="#timber-pest">Timber Pest</a>
+            </li>
+          ) : null}
           <li>
             <a href="#records">Records</a>
           </li>
@@ -85,17 +117,34 @@ export default async function DemoReportPage() {
           </aside>
         ) : null}
 
-        {withdrawn ? (
+        {buildingGranted && portalState.buildingWithdrawn ? (
           <aside
             className={styles.withdrawal}
-            aria-labelledby="withdrawal-heading"
+            aria-labelledby="building-withdrawal-heading"
           >
-            <h2 id="withdrawal-heading">Building report withdrawn</h2>
+            <h2 id="building-withdrawal-heading">Building report withdrawn</h2>
             <p>
               The signing inspector withdrew the Building module on 15 July 2026
               for further professional review. No replacement has been issued.
               Downloaded copies cannot be recalled; this notice and the audit
               history remain available.
+            </p>
+          </aside>
+        ) : null}
+
+        {timberPestGranted && portalState.timberPestWithdrawn ? (
+          <aside
+            className={styles.withdrawal}
+            aria-labelledby="timber-pest-withdrawal-heading"
+          >
+            <h2 id="timber-pest-withdrawal-heading">
+              Timber Pest report withdrawn
+            </h2>
+            <p>
+              The signing inspector withdrew the Timber Pest module on 15 July
+              2026 for further professional review. No replacement has been
+              issued. Downloaded copies cannot be recalled; this notice and the
+              audit history remain available.
             </p>
           </aside>
         ) : null}
@@ -108,12 +157,12 @@ export default async function DemoReportPage() {
           <p className={styles.eyebrow}>Start here</p>
           <h2 id="overview-heading">Condition overview</h2>
           <p className={styles.overviewLead}>
-            {withdrawn
-              ? "The Building module has been withdrawn. The delivered Timber Pest module and material limitations remain available below."
-              : overview.majorBuildingSummary}
+            {buildingAvailable
+              ? overview.majorBuildingSummary
+              : "The delivered Timber Pest module and material limitations remain available below."}
           </p>
           <div className={styles.overviewGrid}>
-            {!withdrawn ? (
+            {buildingAvailable ? (
               <article className={styles.overviewCard}>
                 <p className={`${styles.moduleLabel} ${styles.buildingLabel}`}>
                   Building report
@@ -126,30 +175,34 @@ export default async function DemoReportPage() {
                 </a>
               </article>
             ) : null}
-            <article className={styles.overviewCard}>
-              <p className={`${styles.moduleLabel} ${styles.pestLabel}`}>
-                Timber Pest report
-              </p>
-              <h3>Accessible areas and conducive conditions</h3>
-              <p>{overview.timberPestSummary}</p>
-              <a href="#timber-pest">Read the Timber Pest findings</a>
-            </article>
+            {timberPestAvailable ? (
+              <article className={styles.overviewCard}>
+                <p className={`${styles.moduleLabel} ${styles.pestLabel}`}>
+                  Timber Pest report
+                </p>
+                <h3>Accessible areas and conducive conditions</h3>
+                <p>{overview.timberPestSummary}</p>
+                <a href="#timber-pest">Read the Timber Pest findings</a>
+              </article>
+            ) : null}
           </div>
           <div className={styles.limitations}>
             <p className={styles.limitationLabel}>Material limitations</p>
             <h3>What could not be visually assessed</h3>
             <ul>
-              {overview.materialLimitations.map((limitation) => (
-                <li key={limitation.limitationId}>
-                  <strong>{limitation.area}:</strong> {limitation.description}{" "}
-                  {limitation.effectOnConclusion}
-                </li>
-              ))}
+              {overview.materialLimitations
+                .filter(({ module }) => availableModules.includes(module))
+                .map((limitation) => (
+                  <li key={limitation.limitationId}>
+                    <strong>{limitation.area}:</strong> {limitation.description}{" "}
+                    {limitation.effectOnConclusion}
+                  </li>
+                ))}
             </ul>
           </div>
         </section>
 
-        {!withdrawn ? (
+        {buildingAvailable ? (
           <section
             className={styles.moduleSection}
             id="building"
@@ -251,82 +304,75 @@ export default async function DemoReportPage() {
             </div>
             <ReportLimitations limitations={building.limitations} />
           </section>
-        ) : (
-          <section className={styles.moduleSection} id="building">
-            <p className={`${styles.moduleLabel} ${styles.buildingLabel}`}>
-              Building report
-            </p>
-            <h2>Building content unavailable</h2>
-            <p>
-              This module was withdrawn. See the withdrawal notice and report
-              history for the professional status of the earlier record.
-            </p>
-          </section>
-        )}
+        ) : null}
 
-        <section
-          className={styles.moduleSection}
-          id="timber-pest"
-          aria-labelledby="timber-pest-heading"
-        >
-          <p className={`${styles.moduleLabel} ${styles.pestLabel}`}>
-            Timber Pest report
-          </p>
-          <h2 id="timber-pest-heading">Timber Pest condition</h2>
-          <p className={styles.overviewLead}>{timberPest.conclusion}</p>
-          <div className={styles.findings}>
-            {timberPest.findings.map((finding) => (
-              <article className={styles.finding} key={finding.findingId}>
-                <p className={`${styles.moduleLabel} ${styles.pestLabel}`}>
-                  Timber Pest report
-                </p>
-                <h3>{finding.title}</h3>
-                <p>{finding.location}</p>
-                <p className={styles.category}>
-                  Inspector-confirmed category:{" "}
-                  {timberPestCategoryLabel(finding.category)}
-                </p>
-                <dl className={styles.findingGrid}>
-                  <div>
-                    <dt>Observation</dt>
-                    <dd>{finding.observation}</dd>
-                  </div>
-                  <div>
-                    <dt>Apparent extent</dt>
-                    <dd>{finding.apparentExtent}</dd>
-                  </div>
-                  <div>
-                    <dt>Significance</dt>
-                    <dd>{finding.significance}</dd>
-                  </div>
-                  <div>
-                    <dt>Qualified opinion</dt>
-                    <dd>{finding.qualifiedOpinion}</dd>
-                  </div>
-                  <div>
-                    <dt>Uncertainty</dt>
-                    <dd>
-                      <ul>
-                        {finding.uncertainty.map((item) => (
-                          <li key={item}>{item}</li>
-                        ))}
-                      </ul>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Further investigation</dt>
-                    <dd>{finding.furtherInvestigation ?? "Not specified."}</dd>
-                  </div>
-                </dl>
-                <p>
-                  <strong>Inspector:</strong> {finding.inspector.displayName},{" "}
-                  {finding.inspector.credential}
-                </p>
-              </article>
-            ))}
-          </div>
-          <ReportLimitations limitations={timberPest.limitations} />
-        </section>
+        {timberPestAvailable ? (
+          <section
+            className={styles.moduleSection}
+            id="timber-pest"
+            aria-labelledby="timber-pest-heading"
+          >
+            <p className={`${styles.moduleLabel} ${styles.pestLabel}`}>
+              Timber Pest report
+            </p>
+            <h2 id="timber-pest-heading">Timber Pest condition</h2>
+            <p className={styles.overviewLead}>{timberPest.conclusion}</p>
+            <div className={styles.findings}>
+              {timberPest.findings.map((finding) => (
+                <article className={styles.finding} key={finding.findingId}>
+                  <p className={`${styles.moduleLabel} ${styles.pestLabel}`}>
+                    Timber Pest report
+                  </p>
+                  <h3>{finding.title}</h3>
+                  <p>{finding.location}</p>
+                  <p className={styles.category}>
+                    Inspector-confirmed category:{" "}
+                    {timberPestCategoryLabel(finding.category)}
+                  </p>
+                  <dl className={styles.findingGrid}>
+                    <div>
+                      <dt>Observation</dt>
+                      <dd>{finding.observation}</dd>
+                    </div>
+                    <div>
+                      <dt>Apparent extent</dt>
+                      <dd>{finding.apparentExtent}</dd>
+                    </div>
+                    <div>
+                      <dt>Significance</dt>
+                      <dd>{finding.significance}</dd>
+                    </div>
+                    <div>
+                      <dt>Qualified opinion</dt>
+                      <dd>{finding.qualifiedOpinion}</dd>
+                    </div>
+                    <div>
+                      <dt>Uncertainty</dt>
+                      <dd>
+                        <ul>
+                          {finding.uncertainty.map((item) => (
+                            <li key={item}>{item}</li>
+                          ))}
+                        </ul>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Further investigation</dt>
+                      <dd>
+                        {finding.furtherInvestigation ?? "Not specified."}
+                      </dd>
+                    </div>
+                  </dl>
+                  <p>
+                    <strong>Inspector:</strong> {finding.inspector.displayName},{" "}
+                    {finding.inspector.credential}
+                  </p>
+                </article>
+              ))}
+            </div>
+            <ReportLimitations limitations={timberPest.limitations} />
+          </section>
+        ) : null}
 
         <section
           className={styles.records}
@@ -339,18 +385,20 @@ export default async function DemoReportPage() {
             tied to report version 2.
           </p>
           <ul className={styles.recordList}>
-            {!withdrawn ? (
+            {buildingAvailable ? (
               <li>
                 <a href="/reports/demo/download/building">
                   Building report PDF <span>PDF</span>
                 </a>
               </li>
             ) : null}
-            <li>
-              <a href="/reports/demo/download/timber-pest">
-                Timber Pest report PDF <span>PDF</span>
-              </a>
-            </li>
+            {timberPestAvailable ? (
+              <li>
+                <a href="/reports/demo/download/timber-pest">
+                  Timber Pest report PDF <span>PDF</span>
+                </a>
+              </li>
+            ) : null}
             <li>
               <a href="/reports/demo/download/agreement">
                 Signed inspection agreement <span>Record</span>
@@ -412,14 +460,21 @@ export default async function DemoReportPage() {
                 session.expiresAt,
               )}
             />
-            <ContactInspector initialRequests={portalState.contactRequests} />
+            <ContactInspector
+              availableModules={availableModules}
+              initialRequests={portalState.contactRequests}
+            />
           </div>
         </section>
 
         <p className={styles.footerNote}>
           This report records the condition observed during a visual inspection
           of accessible areas at the inspection time. Its scope is limited to
-          the professional Building and Timber Pest inspection modules above.
+          the active professional inspection{" "}
+          {buildingAvailable && timberPestAvailable
+            ? "modules above"
+            : "module above"}
+          .
         </p>
       </div>
     </main>

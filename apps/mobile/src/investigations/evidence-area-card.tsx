@@ -4,7 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { InvestigationEvidence } from "@inspection/domain/inspection/mobile";
-import { visibleEvidencePage } from "./evidence-area-list";
+import {
+  activeVoicePreviewAfterStatus,
+  visibleEvidencePage,
+} from "./evidence-area-list";
 
 export type EvidenceAreaPreview = Readonly<{
   fileUri?: string;
@@ -24,10 +27,14 @@ export function EvidenceAreaCard(props: {
   const [choosingFor, setChoosingFor] = useState<string>();
   const [playingArtifactId, setPlayingArtifactId] = useState<string>();
   const player = useRef<AudioPlayer | undefined>(undefined);
+  const playbackSubscription = useRef<
+    ReturnType<AudioPlayer["addListener"]> | undefined
+  >(undefined);
   const visible = visibleEvidencePage(props.evidence, visibleCount);
   const remaining = Math.max(0, props.evidence.length - visible.length);
   useEffect(
     () => () => {
+      playbackSubscription.current?.remove();
       player.current?.release();
     },
     [],
@@ -35,13 +42,31 @@ export function EvidenceAreaCard(props: {
 
   function toggleVoicePreview(artifactId: string, fileUri: string): void {
     if (playingArtifactId === artifactId) {
-      player.current?.pause();
+      playbackSubscription.current?.remove();
+      playbackSubscription.current = undefined;
+      player.current?.release();
+      player.current = undefined;
       setPlayingArtifactId(undefined);
       return;
     }
+    playbackSubscription.current?.remove();
+    playbackSubscription.current = undefined;
     player.current?.release();
     const next = createAudioPlayer(fileUri);
     player.current = next;
+    playbackSubscription.current = next.addListener(
+      "playbackStatusUpdate",
+      (status) => {
+        if (!status.didJustFinish || player.current !== next) return;
+        playbackSubscription.current?.remove();
+        playbackSubscription.current = undefined;
+        player.current = undefined;
+        next.release();
+        setPlayingArtifactId((current) =>
+          activeVoicePreviewAfterStatus(current, artifactId, true),
+        );
+      },
+    );
     next.play();
     setPlayingArtifactId(artifactId);
   }
@@ -207,13 +232,12 @@ const styles = StyleSheet.create({
     padding: theme.space[3],
   },
   actionLabel: {
+    ...theme.typography.labelLg,
     color: theme.color.ink,
-    fontSize: 16,
-    fontWeight: "700",
     textAlign: "center",
   },
   areaChoices: { gap: theme.space[2] },
-  body: { color: theme.color.inkMuted, fontSize: 16, lineHeight: 25 },
+  body: { ...theme.typography.bodyMd, color: theme.color.inkMuted },
   card: {
     backgroundColor: theme.color.surface,
     borderColor: theme.color.outline,
@@ -231,26 +255,22 @@ const styles = StyleSheet.create({
     padding: theme.space[3],
   },
   itemTitle: {
+    ...theme.typography.labelLg,
     color: theme.color.ink,
-    fontSize: 16,
-    fontWeight: "700",
-    lineHeight: 22,
   },
-  metadata: { color: theme.color.inkMuted, fontSize: 14, lineHeight: 21 },
+  metadata: { ...theme.typography.bodySm, color: theme.color.inkMuted },
   photoPreview: {
     backgroundColor: theme.color.surface,
     borderRadius: theme.radius.medium,
-    height: 144,
+    height: theme.component.evidencePreviewHeight,
     marginTop: theme.space[2],
     width: "100%",
   },
   pressed: { opacity: 0.82 },
   previewPanel: { gap: theme.space[2], marginTop: theme.space[2] },
-  previewText: { color: theme.color.ink, fontSize: 15, lineHeight: 22 },
+  previewText: { ...theme.typography.bodyMd, color: theme.color.ink },
   title: {
+    ...theme.typography.headlineMd,
     color: theme.color.ink,
-    fontSize: 20,
-    fontWeight: "700",
-    lineHeight: 26,
   },
 });

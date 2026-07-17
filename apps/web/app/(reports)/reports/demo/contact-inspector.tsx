@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import styles from "./report.module.css";
+import { recipientMutationFailureMessage } from "./recipient-mutation-feedback";
 
 type ContactRequest = Readonly<{
   contactRequestId: string;
@@ -10,17 +11,23 @@ type ContactRequest = Readonly<{
   recordedAt: number;
   state: "recorded";
 }>;
+const contactFailure =
+  "The question reference could not be recorded. Refresh and try again.";
 
 export function ContactInspector({
+  availableModules,
   initialRequests,
-}: Readonly<{ initialRequests: readonly ContactRequest[] }>) {
+}: Readonly<{
+  availableModules: readonly ("building" | "timber_pest")[];
+  initialRequests: readonly ContactRequest[];
+}>) {
   const [requests, setRequests] = useState(initialRequests);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function recordRequest(form: HTMLFormElement) {
     setBusy(true);
-    setError(false);
+    setError(null);
     try {
       const data = new FormData(form);
       const response = await fetch("/reports/demo/access/contact", {
@@ -31,14 +38,20 @@ export function ContactInspector({
           message: data.get("message"),
         }),
       });
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        setError(
+          (await recipientMutationFailureMessage(response, "question")) ??
+            contactFailure,
+        );
+        return;
+      }
       const result = (await response.json()) as {
         contactRequest: ContactRequest;
       };
       setRequests((current) => [result.contactRequest, ...current]);
       form.reset();
     } catch {
-      setError(true);
+      setError(contactFailure);
     } finally {
       setBusy(false);
     }
@@ -61,12 +74,16 @@ export function ContactInspector({
         <label htmlFor="finding-reference">Finding reference (optional)</label>
         <select id="finding-reference" name="findingReference">
           <option value="">Whole report</option>
-          <option value="finding_cracked_tiles">
-            Cracked shower and bathroom floor tiles
-          </option>
-          <option value="finding_garden_bed">
-            Garden bed against external wall
-          </option>
+          {availableModules.includes("building") ? (
+            <option value="finding_cracked_tiles">
+              Cracked shower and bathroom floor tiles
+            </option>
+          ) : null}
+          {availableModules.includes("timber_pest") ? (
+            <option value="finding_garden_bed">
+              Garden bed against external wall
+            </option>
+          ) : null}
         </select>
         <label htmlFor="contact-message">Your question</label>
         <textarea id="contact-message" name="message" required />
@@ -74,9 +91,9 @@ export function ContactInspector({
           Record question reference
         </button>
       </form>
-      {error ? (
+      {error !== null ? (
         <p className={styles.status} role="alert">
-          The question reference could not be recorded. Refresh and try again.
+          {error}
         </p>
       ) : null}
       {requests.length > 0 ? (

@@ -463,6 +463,9 @@ function validateModuleLinks(
 ): void {
   const seenModules = new Set<ModuleType>();
   const evidenceIds = new Set(state.evidence.map((item) => item.artifactId));
+  const observationIds = new Set(
+    state.observations.map((item) => item.observationId),
+  );
   for (const link of links) {
     if (
       !state.commissionedModules.some(
@@ -484,6 +487,12 @@ function validateModuleLinks(
       );
     }
     seenModules.add(link.module);
+    if (link.sourceArtifactIds.length === 0) {
+      throw new DomainConflictError(
+        "finding_artifact_required",
+        "A finding candidate must select at least one source artifact",
+      );
+    }
     if (
       new Set(link.sourceArtifactIds).size !== link.sourceArtifactIds.length
     ) {
@@ -498,6 +507,30 @@ function validateModuleLinks(
           "finding_source_not_attached",
           "A finding candidate can reference only evidence attached to its investigation",
           { artifactId },
+        );
+      }
+    }
+    if (link.sourceObservationIds.length === 0) {
+      throw new DomainConflictError(
+        "finding_observation_required",
+        "A finding candidate must select at least one source observation",
+      );
+    }
+    if (
+      new Set(link.sourceObservationIds).size !==
+      link.sourceObservationIds.length
+    ) {
+      throw new DomainConflictError(
+        "duplicate_finding_observation",
+        "A finding candidate cannot repeat a source observation",
+      );
+    }
+    for (const observationId of link.sourceObservationIds) {
+      if (!observationIds.has(observationId)) {
+        throw new DomainConflictError(
+          "finding_observation_not_attached",
+          "A finding candidate can reference only observations recorded in its investigation",
+          { observationId },
         );
       }
     }

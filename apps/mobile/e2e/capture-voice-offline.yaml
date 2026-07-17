@@ -1,7 +1,17 @@
 appId: co.inspectionhub.field
 name: Local photo, voice and offline queue
 ---
-- launchApp
+- launchApp:
+    clearState: true
+- tapOn:
+    text: "InspectionHub Field, http://.*"
+    optional: true
+- tapOn:
+    text: "Continue"
+    optional: true
+- tapOn:
+    text: "Close"
+    optional: true
 - assertVisible: "Synthetic assigned inspection"
 - assertVisible: "Take photo"
 - tapOn: "Take photo"

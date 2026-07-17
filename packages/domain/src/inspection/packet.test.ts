@@ -5,6 +5,7 @@ import { createCoverageLedger, recordAreaCoverage } from "./coverage.js";
 import {
   attachInvestigationEvidence,
   finishInvestigation,
+  recordInvestigationObservation,
   startInvestigation,
 } from "./investigation.js";
 import { createInvestigationPacket } from "./packet.js";
@@ -54,8 +55,18 @@ describe("bounded investigation packet seed", () => {
       inspectorId: "inspector-1",
       source: "attached_recent",
     });
-    const completed = finishInvestigation(attached, {
+    const observed = recordInvestigationObservation(attached, {
       expectedRevision: 1,
+      observation: {
+        areaId: "bathroom",
+        observationId: "observation-1",
+        recordedAt: "2026-07-14T08:00:30.000+10:00",
+        recordedByInspectorId: "inspector-1",
+        text: "Several cracked bathroom tiles were observed.",
+      },
+    });
+    const completed = finishInvestigation(observed, {
+      expectedRevision: 2,
       completedAt: "2026-07-14T08:01:00.000+10:00",
       inspectorId: "inspector-1",
       draftingDisposition: "queue_ai_asynchronously",
@@ -65,7 +76,8 @@ describe("bounded investigation packet seed", () => {
           findingCandidateId: "candidate-1",
           module: "building",
           moduleId: "module-building",
-          sourceArtifactIds: ["photo-1"],
+          sourceArtifactIds: ["photo-1", "voice-1"],
+          sourceObservationIds: ["observation-1"],
         },
       ],
     });
@@ -147,8 +159,15 @@ describe("bounded investigation packet seed", () => {
       "photo-1",
       "voice-1",
     ]);
+    expect(packet.findingCandidates).toEqual([
+      expect.objectContaining({
+        findingCandidateId: "candidate-1",
+        sourceArtifactIds: ["photo-1", "voice-1"],
+        sourceObservationIds: ["observation-1"],
+      }),
+    ]);
     expect(JSON.stringify(packet)).not.toContain("photo-private-coverage");
-    expect(packet.investigationRevision).toBe(2);
+    expect(packet.investigationRevision).toBe(3);
     expect(packet.transcriptSpans[0]).toMatchObject({
       correctionOrigin: "inspector",
       voiceArtifactId: "voice-1",
@@ -218,5 +237,66 @@ describe("bounded investigation packet seed", () => {
         createdAt: "2026-07-14T08:02:00.000+10:00",
       }),
     ).toThrowError(DomainConflictError);
+  });
+
+  it("requires coverage and packet modules to match the exact commission", () => {
+    const state = finishInvestigation(
+      startInvestigation({
+        investigationId: "investigation-module-identity",
+        organizationId: "organization-1",
+        jobId: "job-1",
+        commissionedModules: [
+          { module: "building", moduleId: "module-building" },
+        ],
+        areaId: "bathroom",
+        startedAt: "2026-07-14T08:00:00.000+10:00",
+        inspectorId: "inspector-1",
+      }),
+      {
+        expectedRevision: 0,
+        completedAt: "2026-07-14T08:01:00.000+10:00",
+        inspectorId: "inspector-1",
+        draftingDisposition: "manual_only",
+        outcome: "no_reportable_finding",
+      },
+    );
+    const coverage = createCoverageLedger({
+      organizationId: "organization-1",
+      jobId: "job-1",
+      commissionedModules: [
+        { module: "building", moduleId: "substituted-building-module" },
+      ],
+      areas: [
+        {
+          applicableModules: ["building"],
+          areaId: "bathroom",
+          label: "Bathroom",
+        },
+      ],
+    });
+
+    expect(() =>
+      createInvestigationPacket({
+        packetId: "packet-module-identity",
+        packetRevision: 1,
+        investigation: state,
+        coverageLedger: coverage,
+        selectedArtifactIds: [],
+        moduleSchemas: [
+          {
+            module: "building",
+            moduleId: "module-building",
+            schemaVersion: "building-finding-v1",
+          },
+        ],
+        versionPins: {
+          model: "manual-path",
+          promptVersion: "inspection-draft-v1",
+          skillVersions: [],
+        },
+        unknowns: [],
+        createdAt: "2026-07-14T08:02:00.000+10:00",
+      }),
+    ).toThrow("exact commissioned professional modules");
   });
 });

@@ -84,7 +84,7 @@ describe("professional snapshot validation", () => {
     ).toThrow("Stored investigation snapshot is invalid");
   });
 
-  it("restores a finding candidate sourced only by an inspector observation", () => {
+  it("restores a finding candidate with explicitly selected artifact and observation sources", () => {
     const started = startInvestigation({
       areaId: "area-bathroom",
       commissionedModules: [
@@ -96,8 +96,24 @@ describe("professional snapshot validation", () => {
       organizationId: "organization-1",
       startedAt: "2026-07-17T09:00:00.000+10:00",
     });
-    const observed = recordInvestigationObservation(started, {
+    const attached = attachInvestigationEvidence(started, {
+      artifacts: [
+        {
+          artifactId: "photo-1",
+          artifactKind: "photo",
+          captureAreaId: "area-bathroom",
+          capturedAt: "2026-07-17T09:00:30.000+10:00",
+          captureSequence: 1,
+          jobId: "job-1",
+        },
+      ],
+      attachedAt: "2026-07-17T09:00:31.000+10:00",
       expectedRevision: 0,
+      inspectorId: "inspector-1",
+      source: "captured_during_investigation",
+    });
+    const observed = recordInvestigationObservation(attached, {
+      expectedRevision: 1,
       observation: {
         areaId: "area-bathroom",
         observationId: "observation-1",
@@ -109,14 +125,15 @@ describe("professional snapshot validation", () => {
     const completed = finishInvestigation(observed, {
       completedAt: "2026-07-17T09:02:00.000+10:00",
       draftingDisposition: "queue_ai_asynchronously",
-      expectedRevision: 1,
+      expectedRevision: 2,
       inspectorId: "inspector-1",
       moduleLinks: [
         {
           findingCandidateId: "candidate-building-1",
           module: "building",
           moduleId: "module-building",
-          sourceArtifactIds: [],
+          sourceArtifactIds: ["photo-1"],
+          sourceObservationIds: ["observation-1"],
         },
       ],
       outcome: "finding_candidates",
@@ -125,8 +142,25 @@ describe("professional snapshot validation", () => {
     expect(parseInvestigationSnapshot(structuredClone(completed))).toEqual(
       completed,
     );
+    const completedLink = completed.completion?.moduleLinks[0];
+    expect(completedLink).toBeDefined();
+    for (const sourceObservationIds of [
+      [],
+      ["observation-1", "observation-1"],
+      ["observation-not-recorded"],
+    ]) {
+      expect(() =>
+        parseInvestigationSnapshot({
+          ...completed,
+          completion: {
+            ...completed.completion,
+            moduleLinks: [{ ...completedLink, sourceObservationIds }],
+          },
+        }),
+      ).toThrow("Stored investigation module link is invalid");
+    }
     expect(() =>
-      parseInvestigationSnapshot({ ...completed, revision: 1 }),
+      parseInvestigationSnapshot({ ...completed, revision: 2 }),
     ).toThrow("revision history is invalid");
   });
 

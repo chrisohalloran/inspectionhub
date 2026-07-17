@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  FORBIDDEN_CLAIM_CODES,
+  evaluateArchitectureOutputOracle,
   evaluateLockedHoldoutGate,
   findForbiddenClaims,
   selectDraftingArchitecture,
@@ -98,6 +100,158 @@ describe("predeclared drafting architecture decision", () => {
         ["termite_free", "negotiation_advice", "repair_cost"],
       ),
     ).toEqual(["termite_free", "negotiation_advice"]);
+  });
+
+  it("rejects undeclared forbidden-claim codes instead of silently using a literal fallback", () => {
+    expect(() =>
+      findForbiddenClaims("some output", ["not_a_registered_claim"] as never),
+    ).toThrow(/registered forbidden-claim code/u);
+    expect(FORBIDDEN_CLAIM_CODES).not.toContain("invented_measurement");
+    expect(FORBIDDEN_CLAIM_CODES).not.toContain("invented_recommendation");
+  });
+
+  it("scores inspector decisions and verifier expectations as executable oracles", () => {
+    expect(
+      evaluateArchitectureOutputOracle({
+        oracle: {
+          decision: "major_defect_attributed",
+          verifier: {
+            expected: "pass",
+            requiredIssueCodes: [],
+            forbiddenIssueCodes: [],
+          },
+          forbiddenOutputTerms: [],
+          recommendationPolicy: "any",
+        },
+        output: {
+          renderedDraft: "Cracked bathroom tiles were observed.",
+          guardPassed: true,
+          guardIssueCodes: [],
+          modules: [
+            {
+              module: "building",
+              moduleId: "module-building",
+              noReportableFinding: false,
+              classifications: [],
+              findingModuleIds: ["module-building"],
+              clauseKinds: ["observation", "conclusion"],
+              recommendationCount: 0,
+            },
+          ],
+        },
+      }),
+    ).toEqual(["inspector_decision:major_defect_attributed"]);
+
+    expect(
+      evaluateArchitectureOutputOracle({
+        oracle: {
+          decision: "flag_missing_recommendation",
+          verifier: {
+            expected: "pass",
+            requiredIssueCodes: ["missing_technical_recommendation"],
+            forbiddenIssueCodes: [],
+          },
+          forbiddenOutputTerms: [],
+          recommendationPolicy: "must_be_null",
+        },
+        output: {
+          renderedDraft: "Cracked render was observed over 600 mm.",
+          guardPassed: true,
+          guardIssueCodes: ["missing_technical_recommendation"],
+          modules: [
+            {
+              module: "building",
+              moduleId: "module-building",
+              noReportableFinding: false,
+              classifications: [],
+              findingModuleIds: ["module-building"],
+              clauseKinds: ["observation", "conclusion"],
+              recommendationCount: 0,
+            },
+          ],
+        },
+      }),
+    ).toEqual([]);
+  });
+
+  it("requires inspector classification authority, independent modules, and real verifier rejection", () => {
+    const baseModule = {
+      noReportableFinding: false,
+      clauseKinds: ["observation", "conclusion"],
+      recommendationCount: 0,
+    } as const;
+    const majorOracle = {
+      decision: "major_defect_attributed",
+      verifier: {
+        expected: "pass",
+        requiredIssueCodes: [],
+        forbiddenIssueCodes: [],
+      },
+      forbiddenOutputTerms: [],
+      recommendationPolicy: "any",
+    } as const;
+
+    expect(
+      evaluateArchitectureOutputOracle({
+        oracle: majorOracle,
+        output: {
+          renderedDraft: "Major defect",
+          guardPassed: true,
+          guardIssueCodes: [],
+          modules: [
+            {
+              ...baseModule,
+              module: "building",
+              moduleId: "module-building",
+              findingModuleIds: ["module-building"],
+              classifications: [
+                {
+                  value: "major_defect",
+                  attributedTo: "ai",
+                  sourceReferenceCount: 1,
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    ).toContain("inspector_decision:major_defect_attributed");
+
+    expect(
+      evaluateArchitectureOutputOracle({
+        oracle: {
+          decision: "separate_module_outcomes",
+          verifier: {
+            expected: "reject",
+            requiredIssueCodes: ["module_identity_mismatch"],
+            forbiddenIssueCodes: [],
+          },
+          forbiddenOutputTerms: [],
+          recommendationPolicy: "any",
+        },
+        output: {
+          renderedDraft: "Separate conclusions",
+          guardPassed: false,
+          guardIssueCodes: ["module_identity_mismatch"],
+          modules: [
+            {
+              ...baseModule,
+              module: "building",
+              moduleId: "duplicate-module",
+              findingModuleIds: ["duplicate-module"],
+              classifications: [],
+            },
+            {
+              ...baseModule,
+              module: "timber_pest",
+              moduleId: "duplicate-module",
+              findingModuleIds: ["duplicate-module"],
+              classifications: [],
+            },
+          ],
+        },
+      }),
+    ).toEqual(["inspector_decision:separate_module_outcomes"]);
   });
 });
 

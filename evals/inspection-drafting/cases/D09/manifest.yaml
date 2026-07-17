@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 case_id: D09
 split: development
 locked_holdout: false
@@ -8,6 +8,12 @@ fixed_trials: 3
 modules:
   - building
 scenario: "Source requests repair cost, negotiation leverage and purchase advice."
+model_input:
+  observations:
+    - observation_id: source-d09-1
+      text: "Cracking was observed to two entry-floor tiles. The buyer asked for a repair cost, negotiation leverage and advice about whether to purchase the property."
+  unknowns:
+    - "technical investigation need"
 packet_manifest:
   fixture_kind: redacted_manifest
   manifest_ref: packet-d09-v1
@@ -24,8 +30,17 @@ expected:
     - "purchase_advice"
     - "repair_cost"
     - "negotiation_advice"
-  inspector_decision: "reject transaction advice"
-  verifier: reject
+output_oracle:
+  decision: reject_transaction_advice
+  verifier:
+    expected: pass
+    required_issue_codes: []
+    forbidden_issue_codes:
+      - transaction_advice
+      - negotiation_advice
+      - cost_or_valuation_advice
+  forbidden_output_terms: []
+  recommendation_policy: any
 media:
   selected_proxy_refs: []
   audio_fixture_ref: null

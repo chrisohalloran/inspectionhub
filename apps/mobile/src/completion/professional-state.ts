@@ -10,6 +10,7 @@ export type ProfessionalStateInvalidation = Pick<
   | "moduleApprovalBindings"
   | "packageManifestSha256"
   | "processedFindingCandidateIds"
+  | "recipientPackage"
   | "reviewItems"
 >;
 
@@ -21,6 +22,7 @@ export function invalidateProfessionalModulesForCandidates(input: {
   readonly investigationId: string;
   readonly recordedAt: string;
   readonly workflow: FieldWorkflowSnapshot;
+  readonly markProcessed?: boolean;
 }): ProfessionalStateInvalidation {
   const candidateByModule = new Map<Module, string>();
   const unprocessedCandidates = input.candidates.filter(
@@ -47,6 +49,7 @@ export function invalidateProfessionalModulesForCandidates(input: {
       moduleApprovalBindings: input.workflow.moduleApprovalBindings,
       packageManifestSha256: input.workflow.packageManifestSha256,
       processedFindingCandidateIds: input.workflow.processedFindingCandidateIds,
+      recipientPackage: input.workflow.recipientPackage,
       reviewItems: input.workflow.reviewItems,
     };
   }
@@ -61,8 +64,13 @@ export function invalidateProfessionalModulesForCandidates(input: {
     packageManifestSha256: null,
     processedFindingCandidateIds: [
       ...input.workflow.processedFindingCandidateIds,
-      ...unprocessedCandidates.map((candidate) => candidate.findingCandidateId),
+      ...(input.markProcessed === false
+        ? []
+        : unprocessedCandidates.map(
+            (candidate) => candidate.findingCandidateId,
+          )),
     ],
+    recipientPackage: null,
     reviewItems: input.workflow.reviewItems.map((item) => {
       const candidateId = candidateByModule.get(item.module);
       return candidateId === undefined ||
@@ -82,13 +90,24 @@ export function reconcileProfessionalModulesForCandidates(input: {
   readonly recordedAt: string;
   readonly workflow: FieldWorkflowSnapshot;
 }): ProfessionalStateInvalidation | undefined {
-  const invalidated = invalidateProfessionalModulesForCandidates(input);
+  const everyCandidateHasReviewAuthority = input.candidates.every((candidate) =>
+    input.workflow.reviewItems.some(
+      (item) =>
+        item.investigationId === input.investigationId &&
+        item.finding.findingId === candidate.findingCandidateId,
+    ),
+  );
+  const invalidated = invalidateProfessionalModulesForCandidates({
+    ...input,
+    markProcessed: everyCandidateHasReviewAuthority,
+  });
   const current: ProfessionalStateInvalidation = {
     approvedModules: input.workflow.approvedModules,
     deliveryState: input.workflow.deliveryState,
     moduleApprovalBindings: input.workflow.moduleApprovalBindings,
     packageManifestSha256: input.workflow.packageManifestSha256,
     processedFindingCandidateIds: input.workflow.processedFindingCandidateIds,
+    recipientPackage: input.workflow.recipientPackage,
     reviewItems: input.workflow.reviewItems,
   };
   return JSON.stringify(invalidated) === JSON.stringify(current)

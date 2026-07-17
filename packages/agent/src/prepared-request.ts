@@ -30,6 +30,7 @@ export async function prepareInvestigationAiRequest(input: {
     packetHash: packet.canonicalHash,
     packetRevision: packet.packetRevision,
     modules: packet.modules,
+    findingCandidates: packet.findingCandidates,
     selectedSafeProxies: input.selectedSafeProxies,
     redactedSources: evidence.list().map((source) => ({
       ...source,

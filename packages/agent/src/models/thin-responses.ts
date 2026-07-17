@@ -125,6 +125,7 @@ export function plannerInstructions(): string {
   return [
     "Draft a provisional condition report from only the supplied frozen packet.",
     "Preserve every uncertainty qualifier and attach packet source references to every clause.",
+    "Use each supplied findingCandidateId exactly once in its matching module and cite only that candidate's authorised source scope.",
     "Keep Building and Timber Pest modules separate.",
     "Only repeat a classification when an inspector-authored source states it; attribute it to the inspector.",
     "Do not give purchase, negotiation, valuation, repair-cost, legal, settlement, timing, warranty, or guarantee advice.",

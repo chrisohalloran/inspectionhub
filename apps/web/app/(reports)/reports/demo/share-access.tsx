@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import styles from "./report.module.css";
+import { recipientMutationFailureMessage } from "./recipient-mutation-feedback";
 
 type Invitation = Readonly<{
   invitationId: string;
@@ -17,6 +18,8 @@ const dateFormatter = new Intl.DateTimeFormat("en-AU", {
   timeStyle: "short",
   timeZone: "Australia/Brisbane",
 });
+const invitationFailure =
+  "The invitation could not be changed. Refresh and try again.";
 
 export function ShareAccess({
   initialInvitations,
@@ -26,25 +29,30 @@ export function ShareAccess({
   proposedExpiry: number;
 }>) {
   const [invitations, setInvitations] = useState(initialInvitations);
-  const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const expiry = dateFormatter.format(proposedExpiry);
 
-  async function recordInvitation() {
+  async function recordInvitation(email: string) {
     setBusy(true);
-    setError(false);
+    setError(null);
     try {
       const response = await fetch("/reports/demo/access/share", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ email, expiresAt: proposedExpiry }),
       });
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        setError(
+          (await recipientMutationFailureMessage(response, "invitation")) ??
+            invitationFailure,
+        );
+        return;
+      }
       const result = (await response.json()) as { invitation: Invitation };
       setInvitations((current) => [result.invitation, ...current]);
     } catch {
-      setError(true);
+      setError(invitationFailure);
     } finally {
       setBusy(false);
     }
@@ -52,14 +60,20 @@ export function ShareAccess({
 
   async function revokeInvitation(invitationId: string) {
     setBusy(true);
-    setError(false);
+    setError(null);
     try {
       const response = await fetch("/reports/demo/access/share", {
         method: "DELETE",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ invitationId }),
       });
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        setError(
+          (await recipientMutationFailureMessage(response, "invitation")) ??
+            invitationFailure,
+        );
+        return;
+      }
       const result = (await response.json()) as { invitation: Invitation };
       setInvitations((current) =>
         current.map((invitation) =>
@@ -69,7 +83,7 @@ export function ShareAccess({
         ),
       );
     } catch {
-      setError(true);
+      setError(invitationFailure);
     } finally {
       setBusy(false);
     }
@@ -86,17 +100,22 @@ export function ShareAccess({
         className={styles.form}
         onSubmit={(event) => {
           event.preventDefault();
-          void recordInvitation();
+          const email = new FormData(event.currentTarget).get("email");
+          if (typeof email === "string") void recordInvitation(email);
         }}
       >
         <label htmlFor="share-email">Recipient email address</label>
         <input
           id="share-email"
-          onChange={(event) => setEmail(event.currentTarget.value)}
+          name="email"
+          placeholder="buyer@example.com"
           required
           type="email"
-          value={email}
         />
+        <p>
+          Use a synthetic <code>@example.com</code> address. Real recipient
+          details are not accepted in this public demo.
+        </p>
         <p>
           <strong>Access expiry:</strong> {expiry}. The invitation cannot extend
           your access or module scope.
@@ -111,9 +130,9 @@ export function ShareAccess({
           Record named access request
         </button>
       </form>
-      {error ? (
+      {error !== null ? (
         <p className={styles.status} role="alert">
-          The invitation could not be changed. Refresh and try again.
+          {error}
         </p>
       ) : null}
       <h4>Invitation activity</h4>

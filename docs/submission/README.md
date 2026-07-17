@@ -1,7 +1,7 @@
 # Build Week submission pack
 
 Status: **blocked — do not represent as submitted or complete**
-Checked: 16 July 2026, Australia/Brisbane
+Checked: 17 July 2026, Australia/Brisbane
 
 Official submission deadline: **22 July 2026 at 10:00 AM AEST** (21 July,
 5:00 PM Pacific Time). Selected track: **Work and Productivity**. Keep every
@@ -17,22 +17,22 @@ is not. `pnpm milestone:submission` evaluates the official Devpost preflight;
 validation contract. Neither result may be replaced by a checklist ticked by
 the builder.
 
-| Asset                                          | Current evidence state                                |
-| ---------------------------------------------- | ----------------------------------------------------- |
-| Project description                            | Drafted in `devpost-copy.md`; not verified in Devpost |
-| Demo script                                    | Drafted at 2:50; not rehearsed or published           |
-| Public video URL                               | Unproven                                              |
-| Public repository URL                          | Logged-out HTTP 200 observed; evidence input pending  |
-| Public demo URL                                | Unproven                                              |
-| Local judge test build                         | One-command synthetic path observed; input pending    |
-| Logged-out asset review                        | Unproven                                              |
-| Repository licence                             | AGPL-3.0-only                                         |
-| Primary Codex `/feedback` Session ID           | Goal task ID recorded; `/feedback` confirmation due   |
-| Physical Build Week iPhone journey             | Internal validation unproven; not a Devpost field     |
-| Live GPT-5.6 development + locked-holdout gate | Blocked by OpenAI Platform connector reauthentication |
-| Two recipient and two client sessions          | Unproven                                              |
-| Accessibility audit                            | Internal validation unproven; not a Devpost field     |
-| Devpost submission                             | Not performed                                         |
+| Asset                                          | Current evidence state                                                                                                                            |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Project description                            | Drafted in `devpost-copy.md`; not verified in Devpost                                                                                             |
+| Demo script                                    | Drafted at 2:50; not rehearsed or published                                                                                                       |
+| Public video URL                               | Unproven                                                                                                                                          |
+| Public repository URL                          | Logged-out HTTP 200 observed; evidence input pending                                                                                              |
+| Public demo URL                                | Unproven                                                                                                                                          |
+| Local judge test build                         | One-command synthetic path observed; input pending                                                                                                |
+| Logged-out asset review                        | Unproven                                                                                                                                          |
+| Repository licence                             | AGPL-3.0-only                                                                                                                                     |
+| Primary Codex `/feedback` Session ID           | Goal task ID recorded; `/feedback` confirmation due                                                                                               |
+| Physical Build Week iPhone journey             | Internal validation unproven; not a Devpost field                                                                                                 |
+| Live GPT-5.6 development + locked-holdout gate | Not run; no API credential was made available to this workspace, and exposed holdout-labelled fixtures cannot count as blinded promotion evidence |
+| Two recipient and two client sessions          | Unproven                                                                                                                                          |
+| Accessibility audit                            | Internal validation unproven; not a Devpost field                                                                                                 |
+| Devpost submission                             | Not performed                                                                                                                                     |
 
 Public repository:
 `https://github.com/chrisohalloran/inspectionhub`
@@ -42,11 +42,11 @@ Primary goal task ID:
 the exact `/feedback` value must still be confirmed in Codex before the form is
 submitted rather than assumed to be identical.
 
-The secure OpenAI Platform key setup was retried on 16 July 2026 and returned
-`This app connection requires reauthentication before other actions on this app
-can succeed.` No API key was created or copied through an unsafe fallback. The
-live GPT-5.6 requirement therefore remains blocked until that connector is
-reauthenticated and the bounded live evaluation is observed.
+No `OPENAI_API_KEY` is configured in this workspace. The deterministic suite
+fails closed with exit code 5 when live evaluation is required, and no key was
+created or copied through an unsafe fallback. The live GPT-5.6 requirement
+therefore remains blocked until a project API key is configured and the bounded
+live evaluation is observed.
 
 ## Official asset contract
 

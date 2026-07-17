@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 case_id: H08
 split: holdout
 locked_holdout: true
@@ -19,7 +19,8 @@ expected:
   required_facts:
     - "unsupported clause path"
   allowed_uncertainties: []
-  forbidden_claims:
+  forbidden_claims: []
+  system_scenario_codes:
     - "verifier_disagreement_ignored"
   inspector_decision: "reject exact draft"
   verifier: reject

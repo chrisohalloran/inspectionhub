@@ -1,6 +1,6 @@
 # U10 security, observability and failure-operations validation
 
-**Validated:** 2026-07-16
+**Validated:** 2026-07-17
 **Scope:** synthetic/local Build Week slice
 **Production security status:** not activated or proven
 
@@ -46,6 +46,14 @@ or inspect rate-limit buckets directly. Buckets retain only aggregate counts
 and have a narrow fixed 24-hour pruning command, avoiding an unbounded request
 event log.
 
+Recipient share/contact routes authenticate the named grant before consuming
+that same fail-closed public boundary. They enforce a 30-request-per-minute
+per-grant policy first and then a route-wide 300-request-per-minute
+`recipient_demo_global` policy, so invalid tokens do not consume a valid
+recipient's allowance and rotating grants cannot bypass the route-wide cap.
+Their database commands then enforce separate grant-lifetime and rolling
+report-window quotas under the report advisory lock.
+
 The operations UI is a synthetic, content-free projection. It returns not found
 in production and unless `OPERATIONS_DEMO_MODE=true`; it is not a raw database
 administration surface.
@@ -56,7 +64,7 @@ administration surface.
 pnpm test:integration
 ```
 
-Passed eight migrations and five portable SQL suites. U10 cases cover an
+Passed ten migrations and six portable SQL suites. U10 cases cover an
 assigned inspector success path, caller-independent bound-device derivation,
 cross-tenant denial, unknown-action denial, AAL1 command denial, JWT-refresh
 resistant absolute-session expiry, missing auth-session denial, immediate bound
@@ -73,13 +81,16 @@ node scripts/security-check/static-security-check.mjs
 
 Passed recursive `.env*` (including `.env.example`) and JWT/credential checks,
 unsafe rendering/DOM execution sink, publicly exposed privileged environment
-variable, wildcard-CORS and nonce-CSP checks.
+variable, wildcard-CORS and nonce-CSP checks. The static contract also compares
+the complete TypeScript policy-to-limit map with the latest Postgres constraint
+and the web E2E fixture, preventing a missing or stale global policy from turning
+the recipient routes into a hidden 503 path.
 
 ```text
 node scripts/security-check/dependency-audit.mjs
 ```
 
-OSV inspected 788 locked npm packages. High, critical and unknown/unparseable
+OSV inspected 874 locked npm packages. High, critical and unknown/unparseable
 severity advisories are blocking; low/moderate findings remain visible. At this
 run no blocking advisory was found.
 Two moderate transitive findings remain visible: `postcss@8.4.31`
@@ -100,7 +111,7 @@ pnpm exec vitest run --config vitest.config.ts \
   apps/web/app/api/webhooks/rate-limit.test.ts
 ```
 
-Passed 62 focused tests. The active `pnpm test:security` gate runs its security
+Passed 65 focused tests. The active `pnpm test:security` gate runs its security
 slice, the live OSV scan and the complete Postgres integration suite together.
 
 ## Must-pass rubric

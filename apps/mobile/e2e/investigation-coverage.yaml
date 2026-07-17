@@ -1,7 +1,11 @@
 appId: co.inspectionhub.field
 name: Investigation evidence, measurement, coverage and shared completion
 ---
-- launchApp
+- launchApp:
+    clearState: true
+- tapOn:
+    text: "InspectionHub Field, http://.*"
+    optional: true
 - tapOn:
     text: "Continue"
     optional: true
@@ -17,6 +21,10 @@ name: Investigation evidence, measurement, coverage and shared completion
 - assertVisible: ".*Photo saved locally as private coverage evidence — queued for sync.*"
 - tapOn: "Start investigation"
 - assertVisible: ".*Investigation started — capture remains private until inspector review.*"
+- tapOn: "Record voice note"
+- assertVisible: ".*Voice note recording — photo capture remains available.*"
+- tapOn: "Stop voice note"
+- assertVisible: ".*Voice note saved locally and linked to the active investigation — queued for sync.*"
 - scrollUntilVisible:
     element:
       text: "Attach recent (3)"
@@ -24,6 +32,32 @@ name: Investigation evidence, measurement, coverage and shared completion
     centerElement: true
 - tapOn: "Attach recent (3)"
 - assertVisible: ".*3 recent captures attached in original capture order.*"
+- scrollUntilVisible:
+    element:
+      text: "Add manual note"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Add manual note"
+- swipe:
+    start: 2%, 55%
+    end: 2%, 25%
+    duration: 500
+- tapOn:
+    id: "manual-observation-input"
+- inputText: "Cracking was observed through several tiles in the shower base and main bathroom floor area."
+- assertVisible: ".*Cracking was observed through several tiles.*"
+- swipe:
+    start: 2%, 55%
+    end: 2%, 25%
+    duration: 500
+- scrollUntilVisible:
+    element:
+      text: "Save manual observation"
+    direction: UP
+    centerElement: true
+- tapOn: "Save manual observation"
+- assertVisible: ".*Manual observation saved and linked to the active investigation.*"
+- assertVisible: ".*1 manual notes.*"
 - scrollUntilVisible:
     element:
       text: "Change area"
@@ -140,14 +174,40 @@ name: Investigation evidence, measurement, coverage and shared completion
 - tapOn: "Building candidate — not selected"
 - scrollUntilVisible:
     element:
-      text: "Timber Pest candidate — not selected"
+      id: "candidate-building-evidence-0"
     direction: DOWN
     centerElement: true
-- tapOn: "Timber Pest candidate — not selected"
+- tapOn:
+    id: "candidate-building-evidence-0"
+- assertVisible: ".*Evidence 1: voice note.*selected.*"
+- scrollUntilVisible:
+    element:
+      id: "candidate-building-evidence-4"
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: "candidate-building-evidence-4"
+- assertVisible: ".*Evidence 5: manual note.*selected.*"
+- scrollUntilVisible:
+    element:
+      id: "candidate-building-observation-0"
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: "candidate-building-observation-0"
+- assertVisible: ".*Observation 1: Cracking was observed through several tiles.*selected.*"
+- scrollUntilVisible:
+    element:
+      text: "Confirm Building candidate sources"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Confirm Building candidate sources"
+- assertVisible: ".*Building candidate sources confirmed: 2 evidence items and 1 inspector observation.*"
+- assertVisible: "Building sources confirmed — 2 evidence items, 1 observation"
 - scrollUntilVisible:
     element:
       text: "Save finding candidate"
     direction: DOWN
     centerElement: true
 - tapOn: "Save finding candidate"
-- assertVisible: ".*Investigation candidate saved locally.*"
+- assertVisible: ".*deterministic synthetic draft ready from the exact source packet.*"

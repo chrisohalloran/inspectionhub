@@ -187,12 +187,25 @@ function stringLiterals(source, declaration) {
 function sqlCheckLiterals(source, columnName) {
   const block = source.match(
     new RegExp(
-      `${columnName} text not null check \\(${columnName} in \\(([\\s\\S]*?)\\)\\)`,
+      `(?:${columnName} text not null )?check \\(${columnName} in \\(([\\s\\S]*?)\\)\\)`,
       "u",
     ),
   )?.[1];
   if (!block) return null;
   return [...block.matchAll(/'([a-z][a-z0-9_]*)'/gu)].map((match) => match[1]);
+}
+
+function integerObjectLiterals(source, declaration) {
+  const block = source.match(
+    new RegExp(
+      `const ${declaration} = Object\\.freeze\\(\\{([\\s\\S]*?)\\}\\)`,
+      "u",
+    ),
+  )?.[1];
+  if (!block) return null;
+  return [...block.matchAll(/([a-z][a-z0-9_]*):\s*(\d+)/gu)].map(
+    (match) => `${match[1]}:${match[2]}`,
+  );
 }
 
 const authorizationSource = await readFile(
@@ -207,10 +220,21 @@ const rateLimitSource = await readFile(
   path.join(root, "packages/security/src/rate-limit.ts"),
   "utf8",
 );
+const rateLimitFixtureSource = await readFile(
+  path.join(root, "e2e/web/rate-limit-fixture-server.mjs"),
+  "utf8",
+);
 const securityMigration = await readFile(
   path.join(
     root,
     "supabase/migrations/20260715000700_u10_security_operations.sql",
+  ),
+  "utf8",
+);
+const recipientDemoBoundsMigration = await readFile(
+  path.join(
+    root,
+    "supabase/migrations/20260717001000_recipient_demo_public_bounds.sql",
   ),
   "utf8",
 );
@@ -229,8 +253,16 @@ const applicationRateLimitPolicies = stringLiterals(
   "RATE_LIMIT_POLICIES",
 );
 const databaseRateLimitPolicies = sqlCheckLiterals(
-  securityMigration,
+  recipientDemoBoundsMigration,
   "policy_name",
+);
+const applicationRateLimitEntries = integerObjectLiterals(
+  rateLimitSource,
+  "policyLimits",
+);
+const fixtureRateLimitEntries = integerObjectLiterals(
+  rateLimitFixtureSource,
+  "limits",
 );
 
 for (const [name, applicationValues, databaseValues] of [
@@ -252,6 +284,17 @@ for (const [name, applicationValues, databaseValues] of [
       `security contract: ${name} vocabulary differs between TypeScript and Postgres`,
     );
   }
+}
+
+if (
+  applicationRateLimitEntries === null ||
+  fixtureRateLimitEntries === null ||
+  JSON.stringify([...applicationRateLimitEntries].sort()) !==
+    JSON.stringify([...fixtureRateLimitEntries].sort())
+) {
+  findings.push(
+    "security contract: rate-limit fixture limits differ from TypeScript",
+  );
 }
 
 if (findings.length > 0) {

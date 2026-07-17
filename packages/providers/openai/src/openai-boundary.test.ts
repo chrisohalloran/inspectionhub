@@ -20,6 +20,15 @@ function packet(): MinimizedAiPacket {
     packetHash: hash("packet-one"),
     packetRevision: 1,
     modules: [{ module: "building", moduleId: "module-building" }],
+    findingCandidates: [
+      {
+        findingCandidateId: "candidate-one",
+        module: "building",
+        moduleId: "module-building",
+        sourceArtifactIds: ["original-one"],
+        sourceObservationIds: ["observation-one"],
+      },
+    ],
     selectedSafeProxies: [
       {
         artifactId: "proxy-one",
@@ -30,6 +39,11 @@ function packet(): MinimizedAiPacket {
       },
     ],
     redactedSources: [
+      {
+        kind: "artifact",
+        sourceId: "original-one",
+        safeSummary: { artifactKind: "photo" },
+      },
       {
         kind: "observation",
         sourceId: "observation-one",
@@ -104,15 +118,16 @@ describe("OpenAI privacy and provenance boundary", () => {
       prepareOpenAiRequest(
         boundary({
           ...packet(),
-          redactedSources: [
-            {
-              kind: "observation",
-              sourceId: "observation-one",
-              safeSummary: {
-                text: "Contact buyer@example.com at 12 Example Street",
-              },
-            },
-          ],
+          redactedSources: packet().redactedSources.map((source) =>
+            source.kind === "observation"
+              ? {
+                  ...source,
+                  safeSummary: {
+                    text: "Contact buyer@example.com at 12 Example Street",
+                  },
+                }
+              : source,
+          ),
         }),
       ),
     ).rejects.toThrow(/unredacted personal or property data/);

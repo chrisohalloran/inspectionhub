@@ -87,6 +87,162 @@ export function worstTrialHasCriticalFailure(
   return trials.some((trial) => trial.criticalFailures > 0);
 }
 
+export const ARCHITECTURE_DECISION_ORACLE_CODES = [
+  "major_defect_attributed",
+  "corrected_measurement_retained",
+  "unresolved_mechanism_unclassified",
+  "material_limitation_retained",
+  "no_reportable_finding",
+  "separate_module_outcomes",
+  "qualified_construction_hypothesis",
+  "bounded_no_visible_evidence",
+  "reject_transaction_advice",
+  "flag_missing_recommendation",
+] as const;
+
+export type ArchitectureDecisionOracleCode =
+  (typeof ARCHITECTURE_DECISION_ORACLE_CODES)[number];
+
+export type ArchitectureOutputOracle = Readonly<{
+  decision: ArchitectureDecisionOracleCode;
+  verifier: Readonly<{
+    expected: "pass" | "reject";
+    requiredIssueCodes: readonly string[];
+    forbiddenIssueCodes: readonly string[];
+  }>;
+  forbiddenOutputTerms: readonly string[];
+  recommendationPolicy: "any" | "must_be_null" | "must_be_present";
+}>;
+
+export type ArchitectureOracleOutput = Readonly<{
+  renderedDraft: string;
+  guardPassed: boolean;
+  guardIssueCodes: readonly string[];
+  modules: readonly Readonly<{
+    module: "building" | "timber_pest";
+    moduleId: string;
+    noReportableFinding: boolean;
+    classifications: readonly Readonly<{
+      value: string;
+      attributedTo: string;
+      sourceReferenceCount: number;
+    }>[];
+    findingModuleIds: readonly string[];
+    clauseKinds: readonly string[];
+    recommendationCount: number;
+  }>[];
+}>;
+
+export function evaluateArchitectureOutputOracle(input: {
+  readonly oracle: ArchitectureOutputOracle;
+  readonly output: ArchitectureOracleOutput;
+}): readonly string[] {
+  const failures: string[] = [];
+  const rendered = input.output.renderedDraft.toLocaleLowerCase("en-AU");
+  if (!decisionSatisfied(input.oracle.decision, input.output, rendered)) {
+    failures.push(`inspector_decision:${input.oracle.decision}`);
+  }
+  const expectedGuardPass = input.oracle.verifier.expected === "pass";
+  if (input.output.guardPassed !== expectedGuardPass) {
+    failures.push(`verifier_expected:${input.oracle.verifier.expected}`);
+  }
+  for (const code of input.oracle.verifier.requiredIssueCodes) {
+    if (!input.output.guardIssueCodes.includes(code)) {
+      failures.push(`verifier_missing_issue:${code}`);
+    }
+  }
+  for (const code of input.oracle.verifier.forbiddenIssueCodes) {
+    if (input.output.guardIssueCodes.includes(code)) {
+      failures.push(`verifier_forbidden_issue:${code}`);
+    }
+  }
+  for (const term of input.oracle.forbiddenOutputTerms) {
+    if (rendered.includes(term.toLocaleLowerCase("en-AU"))) {
+      failures.push(`forbidden_output_term:${term}`);
+    }
+  }
+  const recommendationCount = input.output.modules.reduce(
+    (total, module) => total + module.recommendationCount,
+    0,
+  );
+  if (
+    (input.oracle.recommendationPolicy === "must_be_null" &&
+      recommendationCount !== 0) ||
+    (input.oracle.recommendationPolicy === "must_be_present" &&
+      recommendationCount === 0)
+  ) {
+    failures.push(`recommendation_policy:${input.oracle.recommendationPolicy}`);
+  }
+  return Object.freeze(failures);
+}
+
+function decisionSatisfied(
+  decision: ArchitectureDecisionOracleCode,
+  output: ArchitectureOracleOutput,
+  rendered: string,
+): boolean {
+  switch (decision) {
+    case "major_defect_attributed":
+      return output.modules.some((module) =>
+        module.classifications.some(
+          (classification) =>
+            classification.value === "major_defect" &&
+            classification.attributedTo === "inspector" &&
+            classification.sourceReferenceCount > 0,
+        ),
+      );
+    case "corrected_measurement_retained":
+      return /\b(?:3\s?mm|3\s+millimetres?|three\s+millimetres?)\b/iu.test(
+        rendered,
+      );
+    case "unresolved_mechanism_unclassified":
+      return (
+        output.modules.every((module) => module.classifications.length === 0) &&
+        !/\b(?:active|current) leak (?:is )?confirmed\b/iu.test(rendered)
+      );
+    case "material_limitation_retained":
+      return output.modules.some((module) =>
+        module.clauseKinds.includes("limitation"),
+      );
+    case "no_reportable_finding":
+      return output.modules.some(
+        (module) => module.module === "building" && module.noReportableFinding,
+      );
+    case "separate_module_outcomes":
+      return (
+        output.modules.length === 2 &&
+        output.modules.some((module) => module.module === "building") &&
+        output.modules.some((module) => module.module === "timber_pest") &&
+        new Set(output.modules.map((module) => module.moduleId)).size === 2 &&
+        output.modules.every((module) =>
+          module.findingModuleIds.every(
+            (findingModuleId) => findingModuleId === module.moduleId,
+          ),
+        )
+      );
+    case "qualified_construction_hypothesis":
+      return output.modules.some((module) =>
+        module.clauseKinds.some(
+          (kind) => kind === "assumption" || kind === "hypothesis",
+        ),
+      );
+    case "bounded_no_visible_evidence":
+      return (
+        rendered.includes("no visible evidence") &&
+        /\baccessible|accessed\b/iu.test(rendered) &&
+        /\bat the time|on the day|during the inspection\b/iu.test(rendered)
+      );
+    case "reject_transaction_advice":
+      return !/\b(?:buy|purchase|negotiate|price reduction|repair cost|cost to repair|budget \$)\b/iu.test(
+        rendered,
+      );
+    case "flag_missing_recommendation":
+      return output.guardIssueCodes.includes(
+        "missing_technical_recommendation",
+      );
+  }
+}
+
 export type LockedHoldoutTrial = Readonly<{
   caseId: string;
   trial: number;
@@ -142,7 +298,30 @@ export function evaluateLockedHoldoutGate(input: {
   });
 }
 
-const FORBIDDEN_CLAIM_PATTERNS: Readonly<Record<string, RegExp>> = {
+export const FORBIDDEN_CLAIM_CODES = [
+  "active_infestation_confirmed",
+  "assumption_as_fact",
+  "confirmed_leak",
+  "electrical_compliance_certificate",
+  "fully_inspected",
+  "future_infestation_guaranteed",
+  "major_defect_invented",
+  "merged_taxonomy",
+  "negotiation_advice",
+  "no_termites",
+  "property_passed",
+  "property_safe",
+  "purchase_advice",
+  "repair_cost",
+  "roof_space_clear",
+  "termite_damage_confirmed",
+  "termite_free",
+  "unselected_artifact_claim",
+] as const;
+
+export type ForbiddenClaimCode = (typeof FORBIDDEN_CLAIM_CODES)[number];
+
+const FORBIDDEN_CLAIM_PATTERNS: Readonly<Record<ForbiddenClaimCode, RegExp>> = {
   active_infestation_confirmed:
     /\b(?:active|current) (?:termite|timber pest) (?:activity|infestation) (?:is )?(?:confirmed|present)\b/iu,
   assumption_as_fact:
@@ -173,13 +352,14 @@ const FORBIDDEN_CLAIM_PATTERNS: Readonly<Record<string, RegExp>> = {
 
 export function findForbiddenClaims(
   renderedDraft: string,
-  forbiddenClaimCodes: readonly string[],
-): readonly string[] {
+  forbiddenClaimCodes: readonly ForbiddenClaimCode[],
+): readonly ForbiddenClaimCode[] {
   return forbiddenClaimCodes.filter((code) => {
     const explicit = FORBIDDEN_CLAIM_PATTERNS[code];
-    if (explicit?.test(renderedDraft) === true) return true;
-    const literal = code.replaceAll("_", " ");
-    return renderedDraft.toLocaleLowerCase("en-AU").includes(literal);
+    if (explicit === undefined) {
+      throw new Error(`Unknown registered forbidden-claim code: ${code}`);
+    }
+    return explicit.test(renderedDraft);
   });
 }
 
