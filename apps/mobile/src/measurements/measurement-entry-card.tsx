@@ -146,7 +146,7 @@ export function MeasurementEntryCard(props: {
         />
         <Action
           disabled={saving}
-          label={saving ? "Saving measurement" : "Cancel measurement"}
+          label="Cancel measurement"
           onPress={props.onCancel}
         />
       </View>
@@ -170,10 +170,7 @@ function Choice(props: {
         pressed && styles.pressed,
       ]}
     >
-      <Text style={styles.choiceLabel}>
-        {props.label}
-        {props.selected ? " — selected" : ""}
-      </Text>
+      <Text style={styles.choiceLabel}>{props.label}</Text>
     </Pressable>
   );
 }

@@ -34,7 +34,6 @@ export function InvestigationControlDock(props: InvestigationControlDockProps) {
         <View
           accessible
           accessibilityLabel={`Current area ${view.currentAreaLabel}. ${view.investigationStatusLabel}. ${view.voiceStateLabel}. ${compactOperationStatus(props.operationState)}. ${props.operationStatus}`}
-          accessibilityLiveRegion="polite"
         >
           <Text style={styles.metadata}>Current area</Text>
           <Text style={styles.area}>{view.currentAreaLabel}</Text>

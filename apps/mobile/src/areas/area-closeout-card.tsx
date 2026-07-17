@@ -64,8 +64,8 @@ export function AreaCloseoutCard(props: {
       {props.summaries.length === 0 ? (
         <Text style={styles.metadata}>No coverage judgement recorded yet.</Text>
       ) : (
-        props.summaries.map((summary) => (
-          <Text key={summary} style={styles.metadata}>
+        props.summaries.map((summary, index) => (
+          <Text key={`${summary}-${index}`} style={styles.metadata}>
             {summary}
           </Text>
         ))
@@ -123,7 +123,7 @@ export function AreaCloseoutCard(props: {
         />
         <Action
           disabled={saving}
-          label={saving ? "Saving coverage" : "Cancel close-out"}
+          label="Cancel close-out"
           onPress={props.onCancel}
         />
       </View>
@@ -149,10 +149,7 @@ function Choice(props: {
         pressed && styles.pressed,
       ]}
     >
-      <Text style={styles.choiceLabel}>
-        {props.label}
-        {props.selected ? " — selected" : ""}
-      </Text>
+      <Text style={styles.choiceLabel}>{props.label}</Text>
     </Pressable>
   );
 }
