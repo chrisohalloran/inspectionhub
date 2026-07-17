@@ -2,7 +2,37 @@ appId: co.inspectionhub.field
 name: Persisted exact review, independent approval and synthetic delivery state
 ---
 - launchApp
+- scrollUntilVisible:
+    element:
+      text: "Review & complete"
+    direction: UP
+    centerElement: false
+- scrollUntilVisible:
+    element:
+      text: "Test: complete coverage"
+    direction: DOWN
+    visibilityPercentage: 50
+    centerElement: false
+- tapOn: "Test: complete coverage"
+- assertVisible: ".*Synthetic test coverage completed.*"
+- scrollUntilVisible:
+    element:
+      text: "Review & complete"
+    direction: UP
+    centerElement: true
 - tapOn: "Review & complete"
+- scrollUntilVisible:
+    element:
+      text: ".*Completion checklist.*"
+    direction: DOWN
+    visibilityPercentage: 50
+    centerElement: true
+- assertVisible: ".*Completion checklist.*"
+- scrollUntilVisible:
+    element:
+      text: "AI suggestion — review required.*"
+    direction: DOWN
+    centerElement: true
 - assertVisible: "AI suggestion — review required.*"
 - scrollUntilVisible:
     element:
@@ -34,7 +64,14 @@ name: Persisted exact review, independent approval and synthetic delivery state
 - assertVisible: "Delivery queued.*"
 - stopApp
 - launchApp
+- assertVisible: ".*Storage ready.*"
+- scrollUntilVisible:
+    element:
+      text: "Review & complete"
+    direction: UP
+    centerElement: true
 - tapOn: "Review & complete"
+- assertVisible: ".*Completion checklist.*"
 - scrollUntilVisible:
     element:
       text: "Building approved"
@@ -44,6 +81,13 @@ name: Persisted exact review, independent approval and synthetic delivery state
     element:
       text: "Delivery queued.*"
     direction: DOWN
+- scrollUntilVisible:
+    element:
+      text: "Test: confirm evidence durable"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Test: confirm evidence durable"
+- assertVisible: "Delivery queued"
 - scrollUntilVisible:
     element:
       text: "Test: provider confirms sent"

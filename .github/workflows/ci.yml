@@ -49,7 +49,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm test:submission-readiness
-      - run: pnpm test:e2e:mobile
+      - name: Mobile deterministic contract tests
+        run: pnpm test:contract:mobile
       - run: pnpm test:integration
       - run: pnpm test:soak
       - run: pnpm test:eval

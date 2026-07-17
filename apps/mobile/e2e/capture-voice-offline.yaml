@@ -6,12 +6,31 @@ name: Local photo, voice and offline queue
 - assertVisible: "Take photo"
 - tapOn: "Take photo"
 - assertVisible: ".*Photo saved locally as private coverage evidence — queued for sync.*"
+- scrollUntilVisible:
+    element:
+      text: "Test: return after partial sync"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Test: return after partial sync"
+- tapOn: "Take photo"
+- assertVisible: ".*Not saved — retry.*"
+- assertVisible: ".*Capture not acknowledged.*"
 - tapOn: "Record voice note"
 - assertVisible: ".*Voice note recording — photo capture remains available.*"
 - assertVisible: "Take photo"
 - tapOn: "Stop voice note"
 - assertVisible: ".*Voice note saved locally — queued independently for sync.*"
+- scrollUntilVisible:
+    element:
+      text: "Review & complete"
+    direction: UP
+    centerElement: false
+- scrollUntilVisible:
+    element:
+      text: "Test: go offline"
+    direction: DOWN
+    centerElement: true
 - tapOn: "Test: go offline"
-- assertVisible: "Offline — local capture remains available.*"
+- assertVisible: ".*Offline — local capture remains available.*"
 - tapOn: "Take photo"
 - assertVisible: ".*Photo saved locally as private coverage evidence — queued for sync.*"

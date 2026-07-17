@@ -15,6 +15,8 @@ export function createSyntheticReviewItems(): readonly InvestigationReviewItem[]
   return [
     reviewItem({
       base: confirmedBuildingFinding,
+      contentHash:
+        "0ddaaf2ea77adc9d1b48fe9e9117d9c0ce8c5a59ad4db5b6d01857c35e793d02",
       investigationId: "51000000-0000-4000-8000-000000000001",
       packetHash: "d".repeat(64),
       packetId: "51000000-0000-4000-8000-000000000002",
@@ -41,6 +43,8 @@ export function createSyntheticReviewItems(): readonly InvestigationReviewItem[]
           category: "no_visible_evidence" as const,
         },
       },
+      contentHash:
+        "48629839b0ac762e17aa548c1c3b7d99eab443becb6bfd37f1d2ea0803a160e4",
       investigationId: "52000000-0000-4000-8000-000000000001",
       packetHash: "f".repeat(64),
       packetId: "52000000-0000-4000-8000-000000000002",
@@ -53,6 +57,7 @@ export function createSyntheticReviewItems(): readonly InvestigationReviewItem[]
 
 function reviewItem(input: {
   base: typeof confirmedBuildingFinding | typeof confirmedTimberPestFinding;
+  contentHash: string;
   investigationId: string;
   packetHash: string;
   packetId: string;
@@ -77,7 +82,7 @@ function reviewItem(input: {
     organizationId: input.base.organizationId,
     jobId: input.base.jobId,
     moduleId: input.base.moduleId,
-    contentHash: input.base.contentHash,
+    contentHash: input.contentHash,
     content: input.base.content,
     authorship: {
       origin: "ai",
@@ -91,7 +96,7 @@ function reviewItem(input: {
     verifier: {
       status: "passed",
       draftVersionId: input.base.versionId,
-      contentHash: input.base.contentHash,
+      contentHash: input.contentHash,
       verifierVersion: "deterministic-verifier-v1",
       verifiedAt,
     },

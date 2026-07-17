@@ -3,6 +3,7 @@ import type {
   InvestigationMeasurementKind,
   InvestigationMeasurementUnit,
 } from "@inspection/domain/inspection/mobile";
+import { investigationMeasurementValidationError } from "@inspection/domain/inspection/mobile";
 
 const allowedUnits: Readonly<
   Record<InvestigationMeasurementKind, readonly InvestigationMeasurementUnit[]>
@@ -42,6 +43,14 @@ export function validateMeasurementInput(input: {
       ok: false,
       error: "Select a unit that matches the measurement type.",
     };
+  }
+  const validationError = investigationMeasurementValidationError({
+    kind: input.kind,
+    unit: input.unit,
+    value,
+  });
+  if (validationError !== null) {
+    return { ok: false, error: validationError };
   }
   return { ok: true, value };
 }

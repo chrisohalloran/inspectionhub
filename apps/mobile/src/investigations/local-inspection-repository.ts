@@ -1,6 +1,8 @@
-import type {
-  CoverageLedger,
-  Investigation,
+import {
+  parseCoverageLedgerSnapshot,
+  parseInvestigationSnapshot,
+  type CoverageLedger,
+  type Investigation,
 } from "@inspection/domain/inspection/mobile";
 
 export type LocalInspectionAggregate = CoverageLedger | Investigation;
@@ -27,6 +29,7 @@ export type LocalInspectionEventRecord = {
     | "investigation.area_changed"
     | "investigation.completed"
     | "investigation.evidence_attached"
+    | "investigation.evidence_area_reassigned"
     | "investigation.measurement_recorded"
     | "investigation.observation_recorded"
     | "investigation.paused"
@@ -38,10 +41,22 @@ export type LocalInspectionEventRecord = {
 };
 
 export interface LocalInspectionSnapshotPort {
+  listSnapshots(
+    aggregateKind: LocalInspectionAggregateKind,
+  ): Promise<readonly LocalInspectionSnapshotRecord[]>;
   readSnapshot(
     aggregateKind: LocalInspectionAggregateKind,
     aggregateId: string,
   ): Promise<LocalInspectionSnapshotRecord | null>;
+  readEventHistory(
+    aggregateKind: LocalInspectionAggregateKind,
+    aggregateId: string,
+  ): Promise<
+    readonly Readonly<{
+      aggregateRevision: number;
+      snapshotSha256: string;
+    }>[]
+  >;
   compareAndSet(input: {
     readonly expectedStoredRevision: number | null;
     readonly snapshot: LocalInspectionSnapshotRecord;
@@ -76,6 +91,33 @@ export function createLocalInspectionRepository(dependencies: {
   readonly storage: LocalInspectionSnapshotPort;
 }) {
   return {
+    async findOpenInvestigationForJob(
+      jobId: string,
+    ): Promise<Investigation | null> {
+      const records = await dependencies.storage.listSnapshots("investigation");
+      const open: Investigation[] = [];
+      for (const record of records) {
+        const investigation = await loadCheckedSnapshot<Investigation>(
+          record,
+          dependencies.digest,
+          { aggregateId: record.aggregateId, kind: "investigation" },
+          dependencies.storage,
+        );
+        if (
+          investigation.jobId === jobId &&
+          (investigation.status === "active" ||
+            investigation.status === "paused")
+        ) {
+          open.push(investigation);
+        }
+      }
+      if (open.length > 1) {
+        throw new LocalInspectionCorruptionError(
+          "Multiple open investigations exist for the assigned job",
+        );
+      }
+      return open[0] ?? null;
+    },
     async loadInvestigation(
       investigationId: string,
     ): Promise<Investigation | null> {
@@ -85,19 +127,26 @@ export function createLocalInspectionRepository(dependencies: {
       );
       return record === null
         ? null
-        : loadCheckedSnapshot<Investigation>(record, dependencies.digest, {
-            aggregateId: investigationId,
-            kind: "investigation",
-          });
+        : loadCheckedSnapshot<Investigation>(
+            record,
+            dependencies.digest,
+            {
+              aggregateId: investigationId,
+              kind: "investigation",
+            },
+            dependencies.storage,
+          );
     },
     async loadCoverage(jobId: string): Promise<CoverageLedger | null> {
       const record = await dependencies.storage.readSnapshot("coverage", jobId);
       return record === null
         ? null
-        : loadCheckedSnapshot<CoverageLedger>(record, dependencies.digest, {
-            aggregateId: jobId,
-            kind: "coverage",
-          });
+        : loadCheckedSnapshot<CoverageLedger>(
+            record,
+            dependencies.digest,
+            { aggregateId: jobId, kind: "coverage" },
+            dependencies.storage,
+          );
     },
     async saveInvestigation(input: {
       readonly investigation: Investigation;
@@ -162,7 +211,7 @@ async function saveAggregate(
   if (input.aggregate.revision !== requiredRevision) {
     throw new LocalInspectionRevisionConflictError();
   }
-  assertSafeMetadata(input.event.safeMetadataJson);
+  assertSafeMetadata(input.event.eventType, input.event.safeMetadataJson);
   const snapshotJson = JSON.stringify(input.aggregate);
   const snapshotSha256 = await dependencies.digest.sha256(snapshotJson);
   const snapshot: LocalInspectionSnapshotRecord = {
@@ -197,6 +246,7 @@ async function loadCheckedSnapshot<T extends LocalInspectionAggregate>(
     readonly aggregateId: string;
     readonly kind: LocalInspectionAggregateKind;
   },
+  storage: LocalInspectionSnapshotPort,
 ): Promise<T> {
   if (
     record.schemaVersion !== 1 ||
@@ -231,7 +281,30 @@ async function loadCheckedSnapshot<T extends LocalInspectionAggregate>(
       "Local inspection snapshot revision does not match its ledger record",
     );
   }
-  assertAggregateShape(parsed, expected.kind);
+  const eventHistory = await storage.readEventHistory(
+    expected.kind,
+    expected.aggregateId,
+  );
+  if (
+    eventHistory.length !== record.aggregateRevision + 1 ||
+    eventHistory.some((event, index) => event.aggregateRevision !== index) ||
+    eventHistory.at(-1)?.snapshotSha256 !== record.snapshotSha256
+  ) {
+    throw new LocalInspectionCorruptionError(
+      "Local inspection event history does not match its snapshot revision",
+    );
+  }
+  let aggregate: LocalInspectionAggregate;
+  try {
+    aggregate =
+      expected.kind === "investigation"
+        ? parseInvestigationSnapshot(parsed)
+        : parseCoverageLedgerSnapshot(parsed);
+  } catch {
+    throw new LocalInspectionCorruptionError(
+      "Local inspection snapshot does not match the required aggregate schema",
+    );
+  }
   const identityKey =
     expected.kind === "investigation" ? "investigationId" : "jobId";
   const parsedRecord = parsed as Record<string, unknown>;
@@ -240,44 +313,13 @@ async function loadCheckedSnapshot<T extends LocalInspectionAggregate>(
       "Local inspection snapshot payload identity does not match its ledger record",
     );
   }
-  return parsed as T;
+  return aggregate as T;
 }
 
-function assertAggregateShape(
-  value: object,
-  kind: LocalInspectionAggregateKind,
+function assertSafeMetadata(
+  eventType: LocalInspectionEventRecord["eventType"],
+  value: string,
 ): void {
-  const record = value as Record<string, unknown>;
-  const requiredArrays =
-    kind === "investigation"
-      ? ["areaVisits", "evidence", "measurements", "observations", "timeline"]
-      : ["areas", "entries", "limitations", "revisitItems"];
-  if (
-    typeof record.organizationId !== "string" ||
-    typeof record.jobId !== "string" ||
-    !Number.isInteger(record.revision) ||
-    requiredArrays.some((key) => !Array.isArray(record[key]))
-  ) {
-    throw new LocalInspectionCorruptionError(
-      "Local inspection snapshot does not match the required aggregate shape",
-    );
-  }
-  if (
-    kind === "investigation" &&
-    ![
-      "active",
-      "paused",
-      "completed_findings",
-      "completed_no_reportable_finding",
-    ].includes(String(record.status))
-  ) {
-    throw new LocalInspectionCorruptionError(
-      "Local investigation snapshot has an invalid lifecycle state",
-    );
-  }
-}
-
-function assertSafeMetadata(value: string): void {
   let parsed: unknown;
   try {
     parsed = JSON.parse(value) as unknown;
@@ -291,18 +333,7 @@ function assertSafeMetadata(value: string): void {
       "Local inspection event safe metadata must be an object",
     );
   }
-  const allowedKeys = new Set([
-    "areaId",
-    "artifactCount",
-    "coverageState",
-    "draftingDisposition",
-    "measurementKind",
-    "module",
-    "moduleId",
-    "outcome",
-    "source",
-    "status",
-  ]);
+  const allowedKeys = metadataKeysByEvent[eventType];
   for (const [key, item] of Object.entries(parsed)) {
     if (!allowedKeys.has(key)) {
       throw new TypeError(
@@ -326,5 +357,67 @@ function assertSafeMetadata(value: string): void {
     ) {
       throw new TypeError("Local inspection event metadata value is unsafe");
     }
+    if (!metadataValueAllowed(key, item)) {
+      throw new TypeError(
+        "Local inspection event metadata value is not allowed for its key",
+      );
+    }
   }
 }
+
+const metadataKeysByEvent: Readonly<
+  Record<LocalInspectionEventRecord["eventType"], ReadonlySet<string>>
+> = {
+  "area.coverage_initialized": new Set(["status"]),
+  "area.coverage_recorded": new Set(["areaId", "coverageState", "module"]),
+  "investigation.area_changed": new Set(["areaId"]),
+  "investigation.completed": new Set(["draftingDisposition", "outcome"]),
+  "investigation.evidence_attached": new Set(["artifactCount", "source"]),
+  "investigation.evidence_area_reassigned": new Set(["areaId", "status"]),
+  "investigation.measurement_recorded": new Set(["areaId", "measurementKind"]),
+  "investigation.observation_recorded": new Set(["areaId"]),
+  "investigation.paused": new Set(["status"]),
+  "investigation.resumed": new Set(["status"]),
+  "investigation.started": new Set(["areaId", "status"]),
+};
+
+function metadataValueAllowed(key: string, value: unknown): boolean {
+  if (key === "areaId" || key === "moduleId") {
+    return (
+      typeof value === "string" && /^[a-z0-9][a-z0-9._:-]{0,199}$/iu.test(value)
+    );
+  }
+  if (key === "artifactCount") {
+    return (
+      Number.isInteger(value) &&
+      (value as number) >= 1 &&
+      (value as number) <= 1000
+    );
+  }
+  const allowed = metadataEnumValues[key];
+  return (
+    allowed !== undefined && typeof value === "string" && allowed.has(value)
+  );
+}
+
+const metadataEnumValues: Readonly<Record<string, ReadonlySet<string>>> = {
+  coverageState: new Set([
+    "access_limited",
+    "inaccessible",
+    "inspected",
+    "not_applicable",
+    "revisit",
+  ]),
+  draftingDisposition: new Set(["manual_only", "queue_ai_asynchronously"]),
+  measurementKind: new Set([
+    "crack_width",
+    "length",
+    "level_variation",
+    "moisture_reading",
+    "other",
+  ]),
+  module: new Set(["building", "timber_pest"]),
+  outcome: new Set(["finding_candidates", "no_reportable_finding"]),
+  source: new Set(["attached_recent", "captured_during_investigation"]),
+  status: new Set(["active", "initialized", "paused", "reassigned"]),
+};

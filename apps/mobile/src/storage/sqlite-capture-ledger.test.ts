@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { domainFixtureIds } from "@inspection/test-fixtures/domain";
 
 import type { CaptureIntent, DurableArtifact } from "../capture/types.js";
+import { createSyntheticReviewItems } from "../review/demo-review-items.js";
+import { acceptReviewItem } from "../review/investigation-review.js";
 import {
   captureLedgerSchemaSql,
   createSQLiteCaptureLedger,
@@ -19,6 +22,13 @@ class RecordingSQLite implements SQLiteCaptureConnection {
   readonly execs: string[] = [];
   transactionCount = 0;
   failArtifactInsert = false;
+  fieldSessionSnapshot: string | undefined;
+  readonly fieldWorkflowEvents: {
+    job_id: string;
+    revision: number;
+    transition_type: string;
+    workflow_json: string;
+  }[] = [];
   #activeTransaction = 0;
 
   execAsync(source: string): Promise<void> {
@@ -30,8 +40,17 @@ class RecordingSQLite implements SQLiteCaptureConnection {
     source: string,
     ...params: readonly SQLiteValue[]
   ): Promise<T[]> {
-    void source;
     void params;
+    if (source.includes("FROM field_session")) {
+      return Promise.resolve(
+        (this.fieldSessionSnapshot === undefined
+          ? []
+          : [{ snapshot_json: this.fieldSessionSnapshot }]) as T[],
+      );
+    }
+    if (source.includes("FROM field_workflow_events")) {
+      return Promise.resolve([...this.fieldWorkflowEvents] as T[]);
+    }
     return Promise.resolve([]);
   }
 
@@ -61,6 +80,17 @@ class RecordingSQLite implements SQLiteCaptureConnection {
       source.includes("INSERT INTO capture_artifacts")
     ) {
       return Promise.reject(new Error("injected SQLite failure"));
+    }
+    if (source.includes("INSERT INTO field_session")) {
+      this.fieldSessionSnapshot = String(params[0]);
+    }
+    if (source.includes("INSERT INTO field_workflow_events")) {
+      this.fieldWorkflowEvents.push({
+        job_id: String(params[0]),
+        revision: Number(params[1]),
+        transition_type: String(params[2]),
+        workflow_json: String(params[4]),
+      });
     }
     return Promise.resolve({ changes: 1, lastInsertRowId: 1 });
   }
@@ -233,13 +263,25 @@ describe("Expo SQLite capture ledger", () => {
   it("persists the field workflow with its package manifest before UI confirmation", async () => {
     const database = new RecordingSQLite();
     const ledger = await createSQLiteCaptureLedger(database);
+    const accepted = createSyntheticReviewItems().map(acceptReviewItem);
     await ledger.saveFieldSession({
       areaId: "area-main-bathroom",
-      cachedAssignedJobIds: ["job-demo"],
+      cachedAssignedJobIds: [domainFixtureIds.jobId],
+      commissionedModules: [
+        {
+          module: "building",
+          moduleId: domainFixtureIds.buildingModuleId,
+        },
+        {
+          module: "timber_pest",
+          moduleId: domainFixtureIds.timberPestModuleId,
+        },
+      ],
       deviceId: "device-field-01",
       deviceState: "enrolled",
-      jobId: "job-demo",
+      jobId: domainFixtureIds.jobId,
       nextSequence: 2,
+      organizationId: domainFixtureIds.organizationId,
       session: "valid",
       updatedAt: "2026-07-16T01:00:01.000Z",
       workflow: {
@@ -247,14 +289,20 @@ describe("Expo SQLite capture ledger", () => {
         deliveryState: "queued",
         investigationStatus: "completed_findings",
         lastTransition: "package_confirmed",
+        moduleApprovalBindings: [
+          approvalBinding(accepted[0]!, "a"),
+          approvalBinding(accepted[1]!, "b"),
+        ],
         packageManifestSha256: "c".repeat(64),
-        reviewItems: [],
+        processedFindingCandidateIds: [],
+        reviewItems: accepted,
         revision: 6,
         updatedAt: "2026-07-16T01:00:00.000Z",
       },
     });
 
-    const saved = ledger.getFieldSession();
+    const reopened = await createSQLiteCaptureLedger(database);
+    const saved = reopened.getFieldSession();
     expect(saved?.workflow).toMatchObject({
       approvedModules: ["building", "timber_pest"],
       deliveryState: "queued",
@@ -271,9 +319,27 @@ describe("Expo SQLite capture ledger", () => {
     );
     expect(event?.transaction).toBe(1);
     expect(event?.params.slice(0, 3)).toEqual([
-      "job-demo",
+      domainFixtureIds.jobId,
       6,
       "package_confirmed",
     ]);
   });
 });
+
+function approvalBinding(
+  review: ReturnType<typeof acceptReviewItem>,
+  seed: string,
+) {
+  return {
+    coverageRevision: 4,
+    module: review.module,
+    reviewVersions: [
+      {
+        contentHash: review.finding.contentHash,
+        reviewId: review.reviewId,
+        versionId: review.finding.versionId,
+      },
+    ],
+    snapshotSha256: seed.repeat(64),
+  };
+}

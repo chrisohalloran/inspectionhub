@@ -8,16 +8,64 @@ name: Area change and cached-job capture after session expiry
 - tapOn:
     text: "Close"
     optional: true
-- assertVisible: "Protected local storage ready."
+- assertVisible: ".*Storage ready.*"
 - tapOn: "Start investigation"
 - assertVisible: ".*Investigation started — capture remains private until inspector review.*"
+- scrollUntilVisible:
+    element:
+      text: "Change area"
+    direction: DOWN
+    visibilityPercentage: 50
+    centerElement: false
+- swipe:
+    start: 2%, 55%
+    end: 2%, 25%
+    duration: 500
+- scrollUntilVisible:
+    element:
+      text: "Change area"
+    direction: UP
+    speed: 20
+    visibilityPercentage: 50
+    centerElement: false
 - tapOn: "Change area"
-- assertVisible: "Second floor / Adjacent bedroom selected — active investigation retained."
+- assertVisible: "Select area"
+- scrollUntilVisible:
+    element:
+      text: "Second floor / Adjacent bedroom"
+    direction: DOWN
+    visibilityPercentage: 100
+    centerElement: true
+- tapOn: "Second floor / Adjacent bedroom"
+- assertVisible: ".*Second floor / Adjacent bedroom selected — active investigation retained.*"
 - stopApp
 - launchApp
-- assertVisible: "Protected local storage ready."
+- assertVisible: ".*Storage ready.*"
 - assertVisible: ".*Investigation active. Voice note ready.*"
+- scrollUntilVisible:
+    element:
+      text: "Review & complete"
+    direction: UP
+    centerElement: false
+- tapOn: "Review & complete"
+- assertVisible: "Finish the open investigation"
+- scrollUntilVisible:
+    element:
+      text: "Continue field work"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Continue field work"
+- scrollUntilVisible:
+    element:
+      text: "Review & complete"
+    direction: UP
+    centerElement: false
+- scrollUntilVisible:
+    element:
+      text: "Test: expire session"
+    direction: DOWN
+    centerElement: true
 - tapOn: "Test: expire session"
-- assertVisible: "Session expired — the open cached job can still capture; sync and approval require sign-in.*"
+- assertVisible: ".*Session expired — the open cached job can still capture; sync and approval require sign-in.*"
 - tapOn: "Take photo"
 - assertVisible: ".*Photo saved locally and linked to the active investigation — queued for sync.*"

@@ -10,7 +10,11 @@ import type {
   QueueLane,
 } from "../capture/types";
 import { transitionQueueState, type QueueEvent } from "../sync/queue-machine";
-import { cloneFieldSession, parseFieldWorkflow } from "./field-workflow";
+import {
+  cloneFieldSession,
+  parseFieldSession,
+  parseFieldWorkflow,
+} from "./field-workflow";
 import type { CaptureLedger } from "./ports";
 
 export type SQLiteValue = null | number | string;
@@ -224,35 +228,7 @@ function assertArtifact(artifact: DurableArtifact): void {
 }
 
 function parseSession(value: string): FieldSessionSnapshot {
-  const parsed: unknown = JSON.parse(value);
-  if (typeof parsed !== "object" || parsed === null) {
-    throw new Error("Stored field session is invalid");
-  }
-  const candidate = parsed as Partial<FieldSessionSnapshot>;
-  if (
-    (candidate.activeInvestigationId !== undefined &&
-      typeof candidate.activeInvestigationId !== "string") ||
-    typeof candidate.areaId !== "string" ||
-    !Array.isArray(candidate.cachedAssignedJobIds) ||
-    !candidate.cachedAssignedJobIds.every((item) => typeof item === "string") ||
-    typeof candidate.deviceId !== "string" ||
-    !["enrolled", "lost", "revoked"].includes(candidate.deviceState ?? "") ||
-    typeof candidate.jobId !== "string" ||
-    (candidate.lastInvestigationId !== undefined &&
-      typeof candidate.lastInvestigationId !== "string") ||
-    !Number.isSafeInteger(candidate.nextSequence) ||
-    !["expired", "valid"].includes(candidate.session ?? "") ||
-    typeof candidate.updatedAt !== "string"
-  ) {
-    throw new Error("Stored field session is invalid");
-  }
-  const session = candidate as FieldSessionSnapshot;
-  return cloneFieldSession({
-    ...session,
-    ...(candidate.workflow === undefined
-      ? {}
-      : { workflow: parseFieldWorkflow(candidate.workflow) }),
-  });
+  return parseFieldSession(JSON.parse(value) as unknown);
 }
 
 export class SQLiteCaptureLedger implements CaptureLedger {
@@ -668,14 +644,9 @@ export class SQLiteCaptureLedger implements CaptureLedger {
   }
 
   async saveFieldSession(snapshot: FieldSessionSnapshot): Promise<void> {
-    if (
-      snapshot.nextSequence < 1 ||
-      !Number.isSafeInteger(snapshot.nextSequence)
-    ) {
-      throw new Error("Field session next sequence must be a positive integer");
-    }
+    const validated = parseFieldSession(snapshot);
     const currentWorkflow = this.#fieldSession?.workflow;
-    const nextWorkflow = snapshot.workflow;
+    const nextWorkflow = validated.workflow;
     if (currentWorkflow !== undefined && nextWorkflow === undefined) {
       throw new Error("A protected field workflow cannot be removed");
     }
@@ -694,7 +665,7 @@ export class SQLiteCaptureLedger implements CaptureLedger {
         "Field workflow transitions must append exactly one immutable revision",
       );
     }
-    const serialised = JSON.stringify(snapshot);
+    const serialised = JSON.stringify(validated);
     await this.#database.withExclusiveTransactionAsync(async (transaction) => {
       await transaction.runAsync(
         "INSERT INTO field_session (singleton, snapshot_json) VALUES (1, ?) ON CONFLICT(singleton) DO UPDATE SET snapshot_json = excluded.snapshot_json",
@@ -703,7 +674,7 @@ export class SQLiteCaptureLedger implements CaptureLedger {
       if (workflowChanged && nextWorkflow !== undefined) {
         await transaction.runAsync(
           "INSERT INTO field_workflow_events (job_id, revision, transition_type, recorded_at, workflow_json) VALUES (?, ?, ?, ?, ?)",
-          snapshot.jobId,
+          validated.jobId,
           nextWorkflow.revision,
           nextWorkflow.lastTransition,
           nextWorkflow.updatedAt,
@@ -711,7 +682,7 @@ export class SQLiteCaptureLedger implements CaptureLedger {
         );
       }
     });
-    this.#fieldSession = cloneFieldSession(snapshot);
+    this.#fieldSession = cloneFieldSession(validated);
   }
 }
 

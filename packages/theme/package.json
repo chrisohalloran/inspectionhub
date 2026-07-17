@@ -6,6 +6,7 @@
   "exports": {
     "./tokens": {
       "types": "./src/tokens.ts",
+      "react-native": "./src/tokens.ts",
       "development": "./src/tokens.ts",
       "import": "./dist/tokens.js"
     },

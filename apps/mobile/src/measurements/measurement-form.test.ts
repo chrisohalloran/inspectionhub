@@ -34,6 +34,23 @@ describe("structured measurement form", () => {
     ).toMatchObject({ ok: false });
   });
 
+  it("rejects negative dimensions and percentage moisture outside zero to one hundred", () => {
+    expect(
+      validateMeasurementInput({
+        kind: "crack_width",
+        rawValue: "-0.5",
+        unit: "millimetres",
+      }),
+    ).toMatchObject({ ok: false });
+    expect(
+      validateMeasurementInput({
+        kind: "moisture_reading",
+        rawValue: "101",
+        unit: "percent",
+      }),
+    ).toMatchObject({ ok: false });
+  });
+
   it("offers explicit units and accessible large-text controls", () => {
     expect(unitsForMeasurement("moisture_reading")).toEqual([
       "percent",

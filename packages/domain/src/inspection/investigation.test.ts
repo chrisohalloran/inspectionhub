@@ -292,4 +292,35 @@ describe("investigation evidence thread", () => {
       }),
     ).toThrowError(DomainConflictError);
   });
+
+  it("rejects physically invalid structured measurements in the domain", () => {
+    const invalidMeasurements = [
+      {
+        kind: "crack_width" as const,
+        unit: "millimetres" as const,
+        value: -0.1,
+      },
+      {
+        kind: "moisture_reading" as const,
+        unit: "percent" as const,
+        value: 101,
+      },
+    ];
+
+    for (const [index, invalid] of invalidMeasurements.entries()) {
+      expect(() =>
+        recordInvestigationMeasurement(newInvestigation(), {
+          expectedRevision: 0,
+          measurement: {
+            areaId: bathroom,
+            measuredAt: "2026-07-14T08:06:00.000+10:00",
+            measuredByInspectorId: inspectorId,
+            measurementId: `measurement-invalid-${index}`,
+            note: null,
+            ...invalid,
+          },
+        }),
+      ).toThrowError(DomainConflictError);
+    }
+  });
 });

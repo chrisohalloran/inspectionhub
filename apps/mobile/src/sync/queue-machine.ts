@@ -40,3 +40,23 @@ export function transitionQueueState(
   }
   return next;
 }
+
+export function syntheticServerDurabilityPath(
+  state: CaptureQueueState,
+): readonly QueueEvent[] {
+  switch (state) {
+    case "pending":
+      return ["begin_upload", "confirm_server_durable"];
+    case "uploading":
+      return ["confirm_server_durable"];
+    case "blocked_session":
+    case "failed":
+      return ["retry", "begin_upload", "confirm_server_durable"];
+    case "server_durable":
+      return [];
+    case "blocked_revoked":
+      throw new Error(
+        "Synthetic server durability cannot bypass a revoked-device block",
+      );
+  }
+}

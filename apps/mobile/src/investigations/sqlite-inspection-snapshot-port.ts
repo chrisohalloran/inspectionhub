@@ -70,6 +70,46 @@ export class SqliteInspectionSnapshotPort implements LocalInspectionSnapshotPort
     return row === null ? null : mapSnapshotRow(row);
   }
 
+  async listSnapshots(
+    aggregateKind: "coverage" | "investigation",
+  ): Promise<readonly LocalInspectionSnapshotRecord[]> {
+    const rows = await this.#database.getAllAsync<SnapshotRow>(
+      `SELECT aggregate_kind, aggregate_id, aggregate_revision, schema_version,
+              snapshot_json, snapshot_sha256, updated_at
+       FROM local_inspection_snapshots
+       WHERE aggregate_kind = ?
+       ORDER BY aggregate_id ASC`,
+      aggregateKind,
+    );
+    return rows.map(mapSnapshotRow);
+  }
+
+  async readEventHistory(
+    aggregateKind: "coverage" | "investigation",
+    aggregateId: string,
+  ): Promise<
+    readonly Readonly<{
+      aggregateRevision: number;
+      snapshotSha256: string;
+    }>[]
+  > {
+    const rows = await this.#database.getAllAsync<{
+      aggregate_revision: number;
+      snapshot_sha256: string;
+    }>(
+      `SELECT aggregate_revision, snapshot_sha256
+       FROM local_inspection_events
+       WHERE aggregate_kind = ? AND aggregate_id = ?
+       ORDER BY aggregate_revision ASC`,
+      aggregateKind,
+      aggregateId,
+    );
+    return rows.map((row) => ({
+      aggregateRevision: row.aggregate_revision,
+      snapshotSha256: row.snapshot_sha256,
+    }));
+  }
+
   async compareAndSet(
     input: Parameters<LocalInspectionSnapshotPort["compareAndSet"]>[0],
   ): Promise<"saved" | "revision_conflict"> {

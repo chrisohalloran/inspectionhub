@@ -1,0 +1,153 @@
+appId: co.inspectionhub.field
+name: Investigation evidence, measurement, coverage and shared completion
+---
+- launchApp
+- tapOn:
+    text: "Continue"
+    optional: true
+- tapOn:
+    text: "Close"
+    optional: true
+- assertVisible: ".*Storage ready.*"
+- tapOn: "Take photo"
+- assertVisible: ".*Photo saved locally as private coverage evidence — queued for sync.*"
+- tapOn: "Take photo"
+- assertVisible: ".*Photo saved locally as private coverage evidence — queued for sync.*"
+- tapOn: "Take photo"
+- assertVisible: ".*Photo saved locally as private coverage evidence — queued for sync.*"
+- tapOn: "Start investigation"
+- assertVisible: ".*Investigation started — capture remains private until inspector review.*"
+- scrollUntilVisible:
+    element:
+      text: "Attach recent (3)"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Attach recent (3)"
+- assertVisible: ".*3 recent captures attached in original capture order.*"
+- scrollUntilVisible:
+    element:
+      text: "Change area"
+    direction: UP
+    visibilityPercentage: 50
+- tapOn: "Change area"
+- assertVisible: "Select area"
+- scrollUntilVisible:
+    element:
+      text: "Roof void"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Roof void"
+- assertVisible: ".*Roof void selected — active investigation retained.*"
+- scrollUntilVisible:
+    element:
+      text: "Add measurement"
+    direction: UP
+    centerElement: true
+- tapOn: "Add measurement"
+- scrollUntilVisible:
+    element:
+      text: "Measurement numeric input"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Measurement numeric input"
+- inputText: "1.5"
+- scrollUntilVisible:
+    element:
+      text: "Save measurement"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Save measurement"
+- assertVisible: ".*Measurement saved locally in Roof void.*"
+- scrollUntilVisible:
+    element:
+      text: "Review evidence areas"
+    direction: UP
+    centerElement: true
+- tapOn: "Review evidence areas"
+- scrollUntilVisible:
+    element:
+      text: "Correct assigned area"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Correct assigned area"
+- scrollUntilVisible:
+    element:
+      text: "Assign to Roof void"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Assign to Roof void"
+- assertVisible: ".*original capture area retained.*"
+- scrollUntilVisible:
+    element:
+      text: "Close evidence areas"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Close evidence areas"
+- scrollUntilVisible:
+    element:
+      text: "Close out area"
+    direction: UP
+    visibilityPercentage: 50
+- tapOn: "Close out area"
+- assertVisible: "Close out Roof void"
+- scrollUntilVisible:
+    element:
+      text: "Inaccessible"
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    text: "Inaccessible"
+    retryTapIfNoChange: true
+- assertVisible: "Inaccessible — selected"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      text: ".*Coverage detail input.*"
+    direction: DOWN
+    centerElement: true
+- tapOn: ".*Coverage detail input.*"
+- inputText: "Access hatch obstructed at the time of inspection."
+- scrollUntilVisible:
+    element:
+      text: "Save coverage"
+    direction: DOWN
+    centerElement: true
+- swipe:
+    start: 2%, 55%
+    end: 2%, 25%
+    duration: 500
+- scrollUntilVisible:
+    element:
+      text: "Save coverage"
+    direction: UP
+    speed: 20
+    visibilityPercentage: 50
+    centerElement: false
+- tapOn: "Save coverage"
+- assertVisible: ".*Building coverage recorded as inaccessible.*"
+- scrollUntilVisible:
+    element:
+      text: "Finish investigation"
+    direction: UP
+    visibilityPercentage: 50
+- tapOn: "Finish investigation"
+- assertVisible: "Finding candidate modules"
+- scrollUntilVisible:
+    element:
+      text: "Building candidate — not selected"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Building candidate — not selected"
+- scrollUntilVisible:
+    element:
+      text: "Timber Pest candidate — not selected"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Timber Pest candidate — not selected"
+- scrollUntilVisible:
+    element:
+      text: "Save finding candidate"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Save finding candidate"
+- assertVisible: ".*Investigation candidate saved locally.*"

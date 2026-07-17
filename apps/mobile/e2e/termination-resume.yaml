@@ -9,6 +9,16 @@ name: Atomic-rename termination and startup recovery
     text: "Close"
     optional: true
 - assertVisible: "Take photo"
+- scrollUntilVisible:
+    element:
+      text: "Review & complete"
+    direction: UP
+    centerElement: false
+- scrollUntilVisible:
+    element:
+      text: "Test: terminate after rename"
+    direction: DOWN
+    centerElement: true
 - tapOn: "Test: terminate after rename"
 - assertVisible: ".*Next synthetic capture will terminate after atomic rename.*"
 - tapOn: "Take photo"

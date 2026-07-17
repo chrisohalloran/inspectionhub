@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   changeInvestigationArea,
+  createCoverageLedger,
+  recordAreaCoverage,
   startInvestigation,
 } from "@inspection/domain/inspection/mobile";
 
@@ -72,6 +74,39 @@ describe("durable local investigation repository", () => {
     ]);
   });
 
+  it("recovers an open job investigation when the field-session pointer was not committed", async () => {
+    const storage = new InMemorySnapshotPort();
+    const firstProcess = createLocalInspectionRepository({ digest, storage });
+    const started = startInvestigation({
+      areaId: "main-bathroom",
+      commissionedModules: [
+        { module: "building", moduleId: "module-building" },
+      ],
+      inspectorId: "inspector-1",
+      investigationId: "investigation-orphan-boundary",
+      jobId: "job-1",
+      organizationId: "organization-1",
+      startedAt: "2026-07-14T08:00:00.000+10:00",
+    });
+    await firstProcess.saveInvestigation({
+      event: event("event-orphan-started", "investigation.started"),
+      expectedStoredRevision: null,
+      investigation: started,
+      updatedAt: "2026-07-14T08:00:00.000+10:00",
+    });
+
+    const reopenedProcess = createLocalInspectionRepository({
+      digest,
+      storage,
+    });
+    await expect(
+      reopenedProcess.findOpenInvestigationForJob("job-1"),
+    ).resolves.toMatchObject({
+      investigationId: "investigation-orphan-boundary",
+      status: "active",
+    });
+  });
+
   it("rejects a stale compare-and-set without replacing the durable current thread", async () => {
     const storage = new InMemorySnapshotPort();
     const repository = createLocalInspectionRepository({ digest, storage });
@@ -119,6 +154,66 @@ describe("durable local investigation repository", () => {
 
     await expect(
       repository.loadInvestigation("investigation-corrupt"),
+    ).rejects.toBeInstanceOf(LocalInspectionCorruptionError);
+  });
+
+  it("rejects a rechecksummed snapshot whose revision has no contiguous event history", async () => {
+    const storage = new InMemorySnapshotPort();
+    const repository = createLocalInspectionRepository({ digest, storage });
+    const started = startInvestigation({
+      areaId: "main-bathroom",
+      commissionedModules: [
+        { module: "building", moduleId: "module-building" },
+      ],
+      inspectorId: "inspector-1",
+      investigationId: "investigation-event-gap",
+      jobId: "job-1",
+      organizationId: "organization-1",
+      startedAt: "2026-07-14T08:00:00.000+10:00",
+    });
+    await repository.saveInvestigation({
+      event: event("event-started-gap", "investigation.started"),
+      expectedStoredRevision: null,
+      investigation: started,
+      updatedAt: "2026-07-14T08:00:00.000+10:00",
+    });
+    const rewrittenJson = JSON.stringify({ ...started, revision: 1 });
+    storage.snapshot = {
+      ...storage.snapshot!,
+      aggregateRevision: 1,
+      snapshotJson: rewrittenJson,
+      snapshotSha256: await digest.sha256(rewrittenJson),
+    };
+
+    await expect(
+      repository.loadInvestigation("investigation-event-gap"),
+    ).rejects.toThrow("event history does not match");
+  });
+
+  it("rejects a correctly checksummed but incomplete professional aggregate", async () => {
+    const storage = new InMemorySnapshotPort();
+    const snapshotJson = JSON.stringify({
+      areas: [],
+      entries: [],
+      jobId: "job-shape-bypass",
+      limitations: [],
+      organizationId: "organization-1",
+      revisitItems: [],
+      revision: 0,
+    });
+    storage.snapshot = {
+      aggregateId: "job-shape-bypass",
+      aggregateKind: "coverage",
+      aggregateRevision: 0,
+      schemaVersion: 1,
+      snapshotJson,
+      snapshotSha256: await digest.sha256(snapshotJson),
+      updatedAt: "2026-07-14T08:00:00.000+10:00",
+    };
+    const repository = createLocalInspectionRepository({ digest, storage });
+
+    await expect(
+      repository.loadCoverage("job-shape-bypass"),
     ).rejects.toBeInstanceOf(LocalInspectionCorruptionError);
   });
 
@@ -178,7 +273,79 @@ describe("durable local investigation repository", () => {
         updatedAt: "2026-07-14T08:00:00.000+10:00",
       }),
     ).rejects.toThrow("non-allowlisted key");
+    await expect(
+      repository.saveInvestigation({
+        investigation: started,
+        expectedStoredRevision: null,
+        event: {
+          ...event("event-unsafe-status", "investigation.started"),
+          safeMetadataJson: JSON.stringify({
+            status: "Cracked shower tiles appear to indicate movement.",
+          }),
+        },
+        updatedAt: "2026-07-14T08:00:00.000+10:00",
+      }),
+    ).rejects.toThrow("value is not allowed");
     expect(storage.events).toHaveLength(0);
+  });
+
+  it("accepts the redacted metadata used by coverage initialization and close-out", async () => {
+    const storage = new InMemorySnapshotPort();
+    const repository = createLocalInspectionRepository({ digest, storage });
+    const coverage = createCoverageLedger({
+      areas: [
+        {
+          applicableModules: ["building"],
+          areaId: "area-roof-void",
+          label: "Roof void",
+        },
+      ],
+      commissionedModules: [
+        { module: "building", moduleId: "module-building" },
+      ],
+      jobId: "job-coverage",
+      organizationId: "organization-1",
+    });
+    await repository.saveCoverage({
+      coverage,
+      event: {
+        eventId: "coverage-initialized",
+        eventType: "area.coverage_initialized",
+        occurredAt: "2026-07-17T08:00:00.000+10:00",
+        safeMetadataJson: JSON.stringify({ status: "initialized" }),
+      },
+      expectedStoredRevision: null,
+      updatedAt: "2026-07-17T08:00:00.000+10:00",
+    });
+    const closed = recordAreaCoverage(coverage, {
+      areaId: "area-roof-void",
+      coverageEntryId: "coverage-roof-building",
+      expectedRevision: 0,
+      inspectorId: "inspector-1",
+      module: "building",
+      recordedAt: "2026-07-17T08:01:00.000+10:00",
+      state: "inspected",
+    });
+    await repository.saveCoverage({
+      coverage: closed,
+      event: {
+        eventId: "coverage-recorded",
+        eventType: "area.coverage_recorded",
+        occurredAt: "2026-07-17T08:01:00.000+10:00",
+        safeMetadataJson: JSON.stringify({
+          areaId: "area-roof-void",
+          coverageState: "inspected",
+          module: "building",
+        }),
+      },
+      expectedStoredRevision: 0,
+      updatedAt: "2026-07-17T08:01:00.000+10:00",
+    });
+
+    expect(storage.events.map((item) => item.eventType)).toEqual([
+      "area.coverage_initialized",
+      "area.coverage_recorded",
+    ]);
   });
 });
 
@@ -201,6 +368,12 @@ class InMemorySnapshotPort implements LocalInspectionSnapshotPort {
     LocalInspectionSnapshotPort["compareAndSet"]
   >[0]["event"][] = [];
 
+  listSnapshots(aggregateKind: "coverage" | "investigation") {
+    return Promise.resolve(
+      this.snapshot?.aggregateKind === aggregateKind ? [this.snapshot] : [],
+    );
+  }
+
   readSnapshot(
     aggregateKind: "coverage" | "investigation",
     aggregateId: string,
@@ -210,6 +383,25 @@ class InMemorySnapshotPort implements LocalInspectionSnapshotPort {
         this.snapshot.aggregateId === aggregateId
         ? this.snapshot
         : null,
+    );
+  }
+
+  readEventHistory(
+    aggregateKind: "coverage" | "investigation",
+    aggregateId: string,
+  ) {
+    return Promise.resolve(
+      this.events
+        .filter(
+          (event) =>
+            event.aggregateKind === aggregateKind &&
+            event.aggregateId === aggregateId,
+        )
+        .sort((left, right) => left.aggregateRevision - right.aggregateRevision)
+        .map((event) => ({
+          aggregateRevision: event.aggregateRevision,
+          snapshotSha256: event.snapshotSha256,
+        })),
     );
   }
 

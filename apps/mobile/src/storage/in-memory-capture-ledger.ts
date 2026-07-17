@@ -10,7 +10,7 @@ import type {
   QueueLane,
 } from "../capture/types";
 import { transitionQueueState, type QueueEvent } from "../sync/queue-machine";
-import { cloneFieldSession } from "./field-workflow";
+import { cloneFieldSession, parseFieldSession } from "./field-workflow";
 import type { CaptureLedger } from "./ports";
 
 type InMemoryCaptureLedgerOptions = {
@@ -256,14 +256,9 @@ export class InMemoryCaptureLedger implements CaptureLedger {
   }
 
   saveFieldSession(snapshot: FieldSessionSnapshot): Promise<void> {
-    if (
-      snapshot.nextSequence < 1 ||
-      !Number.isSafeInteger(snapshot.nextSequence)
-    ) {
-      throw new Error("Field session next sequence must be a positive integer");
-    }
+    const validated = parseFieldSession(snapshot);
     const currentWorkflow = this.#fieldSession?.workflow;
-    const nextWorkflow = snapshot.workflow;
+    const nextWorkflow = validated.workflow;
     if (currentWorkflow !== undefined && nextWorkflow === undefined) {
       throw new Error("A protected field workflow cannot be removed");
     }
@@ -280,7 +275,7 @@ export class InMemoryCaptureLedger implements CaptureLedger {
         "Field workflow transitions must append exactly one immutable revision",
       );
     }
-    this.#fieldSession = cloneFieldSession(snapshot);
+    this.#fieldSession = cloneFieldSession(validated);
     return Promise.resolve();
   }
 }

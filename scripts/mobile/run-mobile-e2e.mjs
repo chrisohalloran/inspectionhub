@@ -9,6 +9,7 @@ const flows = [
   "apps/mobile/e2e/termination-resume.yaml",
   "apps/mobile/e2e/capture-voice-offline.yaml",
   "apps/mobile/e2e/review-complete-delivery.yaml",
+  "apps/mobile/e2e/investigation-coverage.yaml",
   "apps/mobile/e2e/area-session-expiry.yaml",
 ];
 
@@ -22,7 +23,13 @@ const requiredText = new Map([
   ],
   [
     "apps/mobile/e2e/capture-voice-offline.yaml",
-    ["Take photo", "Record voice note", "Test: go offline"],
+    [
+      "Take photo",
+      "Record voice note",
+      "Test: go offline",
+      "Test: return after partial sync",
+      ".*Not saved — retry.*",
+    ],
   ],
   [
     "apps/mobile/e2e/review-complete-delivery.yaml",
@@ -32,12 +39,29 @@ const requiredText = new Map([
       "Approve Building",
       "Approve Timber Pest",
       "Confirm delivery package",
+      "Completion checklist",
       "Delivery queued",
     ],
   ],
   [
     "apps/mobile/e2e/area-session-expiry.yaml",
-    ["Start investigation", "Change area", "Test: expire session"],
+    [
+      "Start investigation",
+      "Change area",
+      "Continue field work",
+      "Finish the open investigation",
+      "Test: expire session",
+    ],
+  ],
+  [
+    "apps/mobile/e2e/investigation-coverage.yaml",
+    [
+      "Attach recent (3)",
+      "Add measurement",
+      "Review evidence areas",
+      "Inaccessible",
+      "Timber Pest candidate — not selected",
+    ],
   ],
 ]);
 
@@ -67,6 +91,9 @@ for (const contract of [
   "expoCaptureResidueInventory",
   "openFieldPersistence",
   "InvestigationControlDock",
+  "AreaCloseoutCard",
+  "MeasurementEntryCard",
+  "EvidenceAreaCard",
   "InvestigationReviewCard",
   "ModuleCompletionDock",
   "DeliveryStatusCard",
@@ -84,6 +111,8 @@ const tests = spawnSync("pnpm", ["exec", "vitest", "run", "apps/mobile/src"], {
 if (tests.status !== 0) {
   throw new Error("The deterministic local-capture journey tests failed.");
 }
+
+const contractOnly = process.argv.includes("--contract-only");
 
 if (process.env.MOBILE_E2E_RUN_MAESTRO === "1") {
   const homebrewJavaHome =
@@ -117,8 +146,12 @@ if (process.env.MOBILE_E2E_RUN_MAESTRO === "1") {
   process.stdout.write(
     "Maestro mobile journeys passed on the attached runtime.\n",
   );
-} else {
+} else if (contractOnly) {
   process.stdout.write(
-    "Maestro flows and deterministic substitutes passed. No simulator or physical-device execution is claimed; set MOBILE_E2E_RUN_MAESTRO=1 with the E2E development build to execute Maestro.\n",
+    "Mobile deterministic contracts passed. No E2E runtime execution is claimed.\n",
+  );
+} else {
+  throw new Error(
+    "Mobile E2E requires Maestro runtime execution. Use pnpm test:contract:mobile for deterministic contract-only checks.",
   );
 }

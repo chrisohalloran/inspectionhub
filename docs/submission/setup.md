@@ -57,12 +57,17 @@ pnpm test
 pnpm build
 pnpm test:integration
 pnpm test:e2e:web
+pnpm test:contract:mobile
 pnpm test:e2e:mobile
 pnpm test:soak
 pnpm test:eval
 pnpm test:pdf
 pnpm test:security
 ```
+
+The mobile contract command is deterministic and host-independent. The mobile
+E2E command requires an attached Maestro runtime and cannot fall back to a
+contract-only success.
 
 Run the focused milestone machinery tests with:
 

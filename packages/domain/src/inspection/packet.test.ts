@@ -186,7 +186,13 @@ describe("bounded investigation packet seed", () => {
       commissionedModules: [
         { module: "building", moduleId: "module-building" },
       ],
-      areas: [],
+      areas: [
+        {
+          applicableModules: ["building"],
+          areaId: "bathroom",
+          label: "Bathroom",
+        },
+      ],
     });
 
     expect(() =>

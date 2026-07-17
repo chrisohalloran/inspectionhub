@@ -17,6 +17,18 @@ export type FieldDeliveryStatus = Readonly<{
   interventionRequired: boolean;
 }>;
 
+export function syntheticProviderDeliveryPath(input: {
+  readonly packageManifestSha256: string | null;
+  readonly state: FieldDeliveryState;
+}): readonly FieldDeliveryState[] {
+  if (input.packageManifestSha256 === null || input.state !== "queued") {
+    throw new Error(
+      "Synthetic provider confirmation requires a queued, hash-bound package",
+    );
+  }
+  return ["sending", "provider_accepted", "sent"];
+}
+
 export function fieldDeliveryStatus(
   state: FieldDeliveryState,
   interventionRequired = false,

@@ -237,11 +237,11 @@ export function recordInvestigationMeasurement(
   },
 ): Investigation {
   assertWritable(state, command.expectedRevision);
-  if (!Number.isFinite(command.measurement.value)) {
-    throw new DomainConflictError(
-      "invalid_measurement",
-      "A measurement value must be finite",
-    );
+  const validationError = investigationMeasurementValidationError(
+    command.measurement,
+  );
+  if (validationError !== null) {
+    throw new DomainConflictError("invalid_measurement", validationError);
   }
   if (
     state.measurements.some(
@@ -265,6 +265,48 @@ export function recordInvestigationMeasurement(
       }),
     ],
   });
+}
+
+const measurementUnits = {
+  crack_width: ["millimetres"],
+  length: ["millimetres", "metres"],
+  level_variation: ["millimetres"],
+  moisture_reading: ["percent", "relative_scale"],
+  other: ["millimetres", "metres", "percent", "relative_scale", "other"],
+} as const satisfies Readonly<
+  Record<
+    InvestigationMeasurement["kind"],
+    readonly InvestigationMeasurement["unit"][]
+  >
+>;
+
+export function investigationMeasurementValidationError(
+  measurement: Pick<InvestigationMeasurement, "kind" | "unit" | "value">,
+): string | null {
+  if (!Number.isFinite(measurement.value)) {
+    return "A measurement value must be finite";
+  }
+  if (!measurementUnits[measurement.kind].includes(measurement.unit as never)) {
+    return "A measurement unit must match its measurement type";
+  }
+  if (
+    (measurement.kind === "crack_width" ||
+      measurement.kind === "length" ||
+      measurement.kind === "level_variation" ||
+      (measurement.kind === "moisture_reading" &&
+        measurement.unit === "relative_scale")) &&
+    measurement.value < 0
+  ) {
+    return "A physical measurement cannot be negative";
+  }
+  if (
+    measurement.kind === "moisture_reading" &&
+    measurement.unit === "percent" &&
+    (measurement.value < 0 || measurement.value > 100)
+  ) {
+    return "A percentage moisture reading must be between 0 and 100";
+  }
+  return null;
 }
 
 export function recordInvestigationObservation(

@@ -1,13 +1,31 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  compactOperationStatus,
   deriveInvestigationShellView,
+  durabilityAnnouncement,
   investigationFieldControls,
   investigationShellAccessibilityContract,
 } from "./field-shell-contract.js";
 import { selectRecentJobCaptures } from "./recent-captures.js";
 
 describe("single capture shell investigation contract", () => {
+  it("keeps concise visible durability status without hiding the full area path", () => {
+    expect(compactOperationStatus("saved")).toBe("Saved locally");
+    expect(compactOperationStatus("needs_review")).toBe("Needs review");
+    expect(compactOperationStatus("not_saved")).toBe("Not saved — retry");
+  });
+
+  it("builds one explicit announcement for saved and failed durability states", () => {
+    expect(durabilityAnnouncement("ready", "Storage ready.")).toBeNull();
+    expect(
+      durabilityAnnouncement(
+        "not_saved",
+        "Photo not acknowledged — retry capture.",
+      ),
+    ).toBe("Not saved — retry. Photo not acknowledged — retry capture.");
+  });
+
   it("starts an investigation in one action and keeps all primary targets at least 48 pixels", () => {
     expect(investigationFieldControls.investigation.activationActions).toBe(1);
     for (const control of Object.values(investigationFieldControls)) {
