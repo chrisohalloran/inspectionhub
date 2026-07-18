@@ -1,6 +1,6 @@
 # U9 recipient portal and formal-record validation
 
-**Validated:** 2026-07-16 (Australia/Brisbane)
+**Validated:** 2026-07-17 (Australia/Brisbane)
 **Scope:** synthetic Build Week slice with locally validated shared authority
 **Production recipient-access status:** implemented but not deployed or publicly proven
 
@@ -41,6 +41,16 @@ closed on a contended mutation claim and cannot be selected in a public or
 production application environment. The fixed OTP remains a synthetic fixture;
 there is no email-provider send in this slice.
 
+The public synthetic demo accepts share targets only in the reserved
+`example.com` namespace. The current migration preserves any legacy audit row
+append-only, stores only a SHA-256 identity in an immutable quarantine sidecar
+and removes that row from recipient projection; every new non-reserved address
+is rejected. Share and contact mutations have three independent bounds: the
+shared public-boundary rate limiter, a five-action lifetime grant quota and a
+25-action rolling one-hour report quota. The report advisory lock serializes
+withdrawal, authority and both quota checks so minting a new grant cannot reset
+the report-wide public-demo limit.
+
 ## Executed automated proof
 
 ```text
@@ -60,13 +70,14 @@ metadata and media allowlisting.
 pnpm test:integration
 ```
 
-Passed nine migrations and six SQL suites. The recipient suite proves
+Passed ten migrations and six SQL suites. The recipient suite proves
 service-only privileges, single-use invitation/challenge transitions,
 grant/module/action fences, append-only revocation, withdrawal-aware atomic
-share/contact commands and current portal projection. A two-connection
-adversarial check holds the report lock, commits both module withdrawals and
-starts a concurrent share command; the share waits, fails against the committed
-withdrawal and leaves zero partial records.
+share/contact commands, reserved-address enforcement, upgrade quarantine,
+grant/report quota continuity and current portal projection. A two-connection
+adversarial check holds the report lock while a concurrent sixth mutation waits;
+the contender observes committed authority/quota state and leaves zero partial
+records.
 
 ```text
 pnpm --filter @inspection/recipient-access typecheck
@@ -137,6 +148,16 @@ therefore not a valid runtime for this CSP acceptance test. Browser responses
 use relative redirect locations so an infrastructure-normalized request host
 cannot send the recipient to a different host. Authenticated media and PDF
 checks use same-origin browser fetches, proving the actual Secure-cookie path.
+
+A separate manual readback on 17 July used the Codex in-app browser against the
+loopback-only judge build. It redeemed a unique synthetic invitation for
+`recipient@example.com`, completed the separate synthetic OTP step, and
+visually inspected the condition overview, module separation, limitations,
+inspector attribution and access controls. It then recorded a named
+`buyer@example.com` access request with the displayed expiry and a contact
+reference; the UI explicitly said no email, notification or report-content
+copy occurred. This is local synthetic browser acceptance, not a public URL,
+provider send or human comprehension result.
 
 ## Honest completion boundary
 

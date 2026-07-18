@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createAccessWebhookHandler } from "./route";
+import { createAccessWebhookHandler } from "./handler";
 
 const fixtureHeaders = {
   "content-type": "application/json",

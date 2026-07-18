@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 case_id: D04
 split: development
 locked_holdout: false
@@ -8,6 +8,18 @@ fixed_trials: 3
 modules:
   - building
 scenario: "Roof space is inaccessible because the access opening is obstructed."
+model_input:
+  limitations:
+    - limitation_id: source-d04-1
+      module: building
+      description: "The roof-space access opening was obstructed and the roof space was not accessible for visual inspection."
+      material: true
+  coverage:
+    - module: building
+      state: inaccessible
+      detail: "Roof-space access opening obstructed."
+  unknowns:
+    - "condition beyond visible boundary unknown"
 packet_manifest:
   fixture_kind: redacted_manifest
   manifest_ref: packet-d04-v1
@@ -23,8 +35,14 @@ expected:
     - "condition beyond visible boundary unknown"
   forbidden_claims:
     - "roof_space_clear"
-  inspector_decision: "material limitation retained"
-  verifier: pass
+output_oracle:
+  decision: material_limitation_retained
+  verifier:
+    expected: pass
+    required_issue_codes: []
+    forbidden_issue_codes: []
+  forbidden_output_terms: []
+  recommendation_policy: any
 media:
   selected_proxy_refs: []
   audio_fixture_ref: null

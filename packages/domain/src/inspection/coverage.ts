@@ -16,6 +16,12 @@ export function createCoverageLedger(input: {
   readonly commissionedModules: CoverageLedger["commissionedModules"];
   readonly areas: readonly InspectionArea[];
 }): CoverageLedger {
+  if (input.areas.length === 0) {
+    throw new DomainConflictError(
+      "coverage_has_no_area",
+      "Coverage requires at least one inspection area",
+    );
+  }
   if (input.commissionedModules.length === 0) {
     throw new DomainConflictError(
       "coverage_has_no_module",
@@ -42,6 +48,12 @@ export function createCoverageLedger(input: {
       );
     }
     areaIds.add(area.areaId);
+    if (area.applicableModules.length === 0) {
+      throw new DomainConflictError(
+        "coverage_area_has_no_module",
+        "Each inspection area requires at least one applicable commissioned module",
+      );
+    }
     for (const module of area.applicableModules) {
       if (
         !input.commissionedModules.some(

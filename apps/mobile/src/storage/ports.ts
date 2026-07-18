@@ -28,10 +28,12 @@ export interface CaptureLedger {
   getArtifact(captureId: string): DurableArtifact | undefined;
   getFieldSession(): FieldSessionSnapshot | undefined;
   getIntent(captureId: string): CaptureIntent | undefined;
+  getManualNote(noteId: string): ManualNote | undefined;
   getQueue(captureId: string): CaptureQueueItem | undefined;
   listArtifacts(): readonly DurableArtifact[];
   listEvents(): readonly LocalCaptureEvent[];
   listIntents(): readonly CaptureIntent[];
+  listManualNotes(): readonly ManualNote[];
   listPerformanceSamples(): readonly CapturePerformanceSample[];
   listQueue(lane?: QueueLane): readonly CaptureQueueItem[];
   applyQueueEvent(captureId: string, event: QueueEvent): Promise<void>;

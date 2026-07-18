@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import styles from "./report.module.css";
+import { recipientMutationFailureMessage } from "./recipient-mutation-feedback";
 
 type Invitation = Readonly<{
   invitationId: string;
@@ -17,6 +18,8 @@ const dateFormatter = new Intl.DateTimeFormat("en-AU", {
   timeStyle: "short",
   timeZone: "Australia/Brisbane",
 });
+const invitationFailure =
+  "The invitation could not be changed. Refresh and try again.";
 
 export function ShareAccess({
   initialInvitations,
@@ -26,25 +29,35 @@ export function ShareAccess({
   proposedExpiry: number;
 }>) {
   const [invitations, setInvitations] = useState(initialInvitations);
-  const [email, setEmail] = useState("");
+  const [hydrated, setHydrated] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const expiry = dateFormatter.format(proposedExpiry);
 
-  async function recordInvitation() {
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  async function recordInvitation(email: string) {
     setBusy(true);
-    setError(false);
+    setError(null);
     try {
       const response = await fetch("/reports/demo/access/share", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ email, expiresAt: proposedExpiry }),
       });
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        setError(
+          (await recipientMutationFailureMessage(response, "invitation")) ??
+            invitationFailure,
+        );
+        return;
+      }
       const result = (await response.json()) as { invitation: Invitation };
       setInvitations((current) => [result.invitation, ...current]);
     } catch {
-      setError(true);
+      setError(invitationFailure);
     } finally {
       setBusy(false);
     }
@@ -52,14 +65,20 @@ export function ShareAccess({
 
   async function revokeInvitation(invitationId: string) {
     setBusy(true);
-    setError(false);
+    setError(null);
     try {
       const response = await fetch("/reports/demo/access/share", {
         method: "DELETE",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ invitationId }),
       });
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        setError(
+          (await recipientMutationFailureMessage(response, "invitation")) ??
+            invitationFailure,
+        );
+        return;
+      }
       const result = (await response.json()) as { invitation: Invitation };
       setInvitations((current) =>
         current.map((invitation) =>
@@ -69,7 +88,7 @@ export function ShareAccess({
         ),
       );
     } catch {
-      setError(true);
+      setError(invitationFailure);
     } finally {
       setBusy(false);
     }
@@ -77,48 +96,44 @@ export function ShareAccess({
 
   return (
     <section aria-labelledby="share-heading">
-      <h3 id="share-heading">Record a named access request</h3>
+      <h3 id="share-heading">Share report access</h3>
       <p>
-        This synthetic demo records the intended recipient and scope. It does
-        not send an email or create a provider delivery claim.
+        Create access for one named person. They can only open the same report
+        version and modules available to you.
       </p>
       <form
         className={styles.form}
         onSubmit={(event) => {
           event.preventDefault();
-          void recordInvitation();
+          const email = new FormData(event.currentTarget).get("email");
+          if (typeof email === "string") void recordInvitation(email);
         }}
       >
         <label htmlFor="share-email">Recipient email address</label>
         <input
           id="share-email"
-          onChange={(event) => setEmail(event.currentTarget.value)}
+          name="email"
+          placeholder="buyer@example.com"
           required
           type="email"
-          value={email}
         />
+        <p>For this public demo, use an email ending in @example.com.</p>
         <p>
           <strong>Access expiry:</strong> {expiry}. The invitation cannot extend
           your access or module scope.
         </p>
-        <label className={styles.checkbox}>
-          <input required type="checkbox" />
-          <span>
-            I confirm the named recipient and expiry before recording.
-          </span>
-        </label>
-        <button disabled={busy} type="submit">
-          Record named access request
+        <button disabled={!hydrated || busy} type="submit">
+          {busy ? "Creating invitation" : "Create access invitation"}
         </button>
       </form>
-      {error ? (
+      {error !== null ? (
         <p className={styles.status} role="alert">
-          The invitation could not be changed. Refresh and try again.
+          {error}
         </p>
       ) : null}
-      <h4>Invitation activity</h4>
+      <h4>Access invitations</h4>
       {invitations.length === 0 ? (
-        <p>No named access requests have been recorded from this grant.</p>
+        <p>No access invitations have been created.</p>
       ) : (
         <ul className={styles.statusList} aria-label="Invitation activity">
           {invitations.map((invitation) => (
@@ -135,7 +150,7 @@ export function ShareAccess({
                   onClick={() => void revokeInvitation(invitation.invitationId)}
                   type="button"
                 >
-                  Revoke recorded request
+                  Revoke invitation
                 </button>
               ) : null}
             </li>

@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 case_id: H10
 split: holdout
 locked_holdout: true
@@ -22,7 +22,8 @@ expected:
     - "correction provenance"
   allowed_uncertainties:
     - "uncertain trade term"
-  forbidden_claims:
+  forbidden_claims: []
+  system_scenario_codes:
     - "silent_transcript_rewrite"
   inspector_decision: "inspector reviews uncertainty"
   verifier: pass

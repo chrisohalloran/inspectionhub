@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 case_id: H03
 split: holdout
 locked_holdout: true

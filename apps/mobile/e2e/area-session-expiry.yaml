@@ -1,23 +1,96 @@
 appId: co.inspectionhub.field
 name: Area change and cached-job capture after session expiry
 ---
-- launchApp
+- launchApp:
+    clearState: true
+- openLink: "exp+inspectionhub-field://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8081"
+- tapOn:
+    text: "InspectionHub Field, http://.*"
+    optional: true
 - tapOn:
     text: "Continue"
     optional: true
 - tapOn:
     text: "Close"
     optional: true
-- assertVisible: "Protected local storage ready."
+- assertVisible: ".*Storage ready.*"
 - tapOn: "Start investigation"
 - assertVisible: ".*Investigation started — capture remains private until inspector review.*"
+- scrollUntilVisible:
+    element:
+      text: "Change area"
+    direction: DOWN
+    visibilityPercentage: 50
+    centerElement: false
+- swipe:
+    start: 2%, 55%
+    end: 2%, 25%
+    duration: 500
+- scrollUntilVisible:
+    element:
+      text: "Change area"
+    direction: UP
+    speed: 20
+    visibilityPercentage: 50
+    centerElement: false
 - tapOn: "Change area"
-- assertVisible: "Second floor / Adjacent bedroom selected — active investigation retained."
+- assertVisible: "Select area"
+- scrollUntilVisible:
+    element:
+      text: "Second floor / Adjacent bedroom"
+    direction: DOWN
+    visibilityPercentage: 100
+    centerElement: true
+- tapOn: "Second floor / Adjacent bedroom"
+- assertVisible: ".*Second floor / Adjacent bedroom selected — active investigation retained.*"
 - stopApp
 - launchApp
-- assertVisible: "Protected local storage ready."
+- tapOn:
+    text: "Close"
+    optional: true
+- assertVisible: ".*Storage ready.*"
 - assertVisible: ".*Investigation active. Voice note ready.*"
+- scrollUntilVisible:
+    element:
+      text: "Review & issue"
+    direction: UP
+    centerElement: false
+- tapOn: "Review & issue"
+- scrollUntilVisible:
+    element:
+      text: "Inspection · Finish the open investigation before approval or packaging."
+    direction: DOWN
+    centerElement: true
+- assertVisible: "Inspection · Finish the open investigation before approval or packaging."
+- tapOn: "Inspection · Finish the open investigation before approval or packaging."
+- scrollUntilVisible:
+    element:
+      text: "Review & issue"
+    direction: UP
+    centerElement: false
+- scrollUntilVisible:
+    element:
+      text: "Show test tools"
+    direction: UP
+    centerElement: true
+- tapOn: "Show test tools"
+- scrollUntilVisible:
+    element:
+      text: "Test: expire session"
+    direction: DOWN
+    centerElement: true
 - tapOn: "Test: expire session"
-- assertVisible: "Session expired — the open cached job can still capture; sync and approval require sign-in.*"
+- scrollUntilVisible:
+    element:
+      text: "Hide test tools"
+    direction: UP
+    centerElement: true
+- tapOn: "Hide test tools"
+- scrollUntilVisible:
+    element:
+      text: "Sign-in required later"
+    direction: UP
+    centerElement: true
+- assertVisible: "Sign-in required later"
 - tapOn: "Take photo"
 - assertVisible: ".*Photo saved locally and linked to the active investigation — queued for sync.*"

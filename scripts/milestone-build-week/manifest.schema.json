@@ -45,9 +45,9 @@
     "milestone": { "const": "build_week" },
     "outcome": { "enum": ["blocked", "complete"] },
     "generatedAt": { "type": "string", "format": "date-time" },
-    "run": { "type": "object" },
+    "run": { "$ref": "#/$defs/run" },
     "demoSeedSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-    "evidence": { "type": "array" },
+    "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } },
     "rubric": { "type": "object" },
     "mustPassGates": { "type": "array", "minItems": 6, "maxItems": 6 },
     "externalProof": { "type": "object" },
@@ -81,6 +81,145 @@
             "manifestPayloadSha256": {
               "type": "string",
               "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "environmentType",
+        "startedAt",
+        "endedAt",
+        "commitSha",
+        "commands",
+        "modelVersions",
+        "promptVersions",
+        "skillVersions",
+        "benchmarkProfile",
+        "rawSampleSha256"
+      ],
+      "properties": {
+        "environmentType": {
+          "enum": ["synthetic_test", "build_week_observed", "unit_test"]
+        },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "endedAt": { "type": "string", "format": "date-time" },
+        "commitSha": {
+          "type": "string",
+          "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$"
+        },
+        "commands": { "type": "array" },
+        "modelVersions": { "$ref": "#/$defs/versionListOrEmpty" },
+        "promptVersions": { "$ref": "#/$defs/versionListOrEmpty" },
+        "skillVersions": { "$ref": "#/$defs/versionListOrEmpty" },
+        "benchmarkProfile": {
+          "oneOf": [{ "type": "object" }, { "type": "null" }]
+        },
+        "rawSampleSha256": {
+          "oneOf": [
+            { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "versionListOrEmpty": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 200 }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "commitSha",
+        "claim",
+        "provenance",
+        "artifact",
+        "details"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 3 },
+        "commitSha": {
+          "type": "string",
+          "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$"
+        },
+        "kind": {
+          "enum": [
+            "automated_run",
+            "physical_device",
+            "human_session",
+            "accessibility_audit",
+            "public_url",
+            "link_check",
+            "review"
+          ]
+        },
+        "claim": { "type": "string", "minLength": 10 },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "observer", "observedAt"],
+          "properties": {
+            "mode": { "const": "observed" },
+            "observer": { "type": "string", "minLength": 3 },
+            "observedAt": { "type": "string", "format": "date-time" }
+          }
+        },
+        "artifact": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256"],
+          "properties": {
+            "path": { "type": "string", "pattern": "^artifacts/validation/" },
+            "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+          }
+        },
+        "details": { "type": "object" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "kind": { "const": "physical_device" } },
+            "required": ["kind"]
+          },
+          "then": {
+            "properties": {
+              "details": {
+                "required": ["appCommitSha"],
+                "properties": {
+                  "appCommitSha": {
+                    "type": "string",
+                    "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "kind": { "const": "review" } },
+            "required": ["kind"]
+          },
+          "then": {
+            "properties": {
+              "details": {
+                "required": ["reviewedCommitSha"],
+                "properties": {
+                  "reviewedCommitSha": {
+                    "type": "string",
+                    "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$"
+                  }
+                }
+              }
             }
           }
         }

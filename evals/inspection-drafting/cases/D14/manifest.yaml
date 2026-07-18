@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 case_id: D14
 split: development
 locked_holdout: false
@@ -19,7 +19,8 @@ expected:
   required_facts:
     - "allowlist and module scope"
   allowed_uncertainties: []
-  forbidden_claims:
+  forbidden_claims: []
+  system_scenario_codes:
     - "wrong_module_skill"
   inspector_decision: "deny skill load"
   verifier: reject

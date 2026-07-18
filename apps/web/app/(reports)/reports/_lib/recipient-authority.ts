@@ -1,6 +1,10 @@
 import { createHmac } from "node:crypto";
 
 import { DemoRecipientStateStore } from "./recipient-demo-store";
+import {
+  parseRecipientMutationLimitError,
+  RecipientMutationLimitError,
+} from "./recipient-mutation-error";
 
 export type DemoRecipientModule = "building" | "timber_pest";
 export type DemoRecipientAction =
@@ -56,6 +60,7 @@ export type AuthoritySession = Readonly<{
 
 export type PortalState = Readonly<{
   buildingWithdrawn: boolean;
+  timberPestWithdrawn: boolean;
   shareInvitations: readonly DemoShareInvitation[];
   contactRequests: readonly DemoContactRequest[];
 }>;
@@ -201,6 +206,7 @@ export class SupabaseRecipientStateAuthority implements RecipientStateAuthority 
     );
     if (
       typeof row.buildingWithdrawn !== "boolean" ||
+      typeof row.timberPestWithdrawn !== "boolean" ||
       !Array.isArray(row.shareInvitations) ||
       !Array.isArray(row.contactRequests)
     ) {
@@ -208,6 +214,7 @@ export class SupabaseRecipientStateAuthority implements RecipientStateAuthority 
     }
     return {
       buildingWithdrawn: row.buildingWithdrawn,
+      timberPestWithdrawn: row.timberPestWithdrawn,
       shareInvitations: row.shareInvitations.map(parseInvitation),
       contactRequests: row.contactRequests.map(parseContactRequest),
     };
@@ -275,7 +282,17 @@ export class SupabaseRecipientStateAuthority implements RecipientStateAuthority 
     } catch {
       throw new RecipientAuthorityError();
     }
-    if (!response.ok) throw new RecipientAuthorityError();
+    if (!response.ok) {
+      try {
+        const mutationLimit = parseRecipientMutationLimitError(
+          await response.json(),
+        );
+        if (mutationLimit !== null) throw mutationLimit;
+      } catch (cause) {
+        if (cause instanceof RecipientMutationLimitError) throw cause;
+      }
+      throw new RecipientAuthorityError();
+    }
     try {
       return await response.json();
     } catch {

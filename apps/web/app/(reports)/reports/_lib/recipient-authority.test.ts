@@ -8,6 +8,7 @@ import {
   SupabaseRecipientStateAuthority,
   type AuthoritySession,
 } from "./recipient-authority";
+import { RecipientMutationLimitError } from "./recipient-mutation-error";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -74,6 +75,49 @@ describe("Supabase recipient authority boundary", () => {
       target_finding_reference: "finding_cracked_tiles",
       target_module: "building",
     });
+  });
+
+  it("returns independent Building and Timber Pest withdrawal state", async () => {
+    const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
+    const authority = boundary(requests, {
+      buildingWithdrawn: false,
+      timberPestWithdrawn: true,
+      shareInvitations: [],
+      contactRequests: [],
+    });
+
+    await expect(authority.portalState(SESSION)).resolves.toMatchObject({
+      buildingWithdrawn: false,
+      timberPestWithdrawn: true,
+    });
+    expect(requests[0]?.url).toMatch(
+      /\/rest\/v1\/rpc\/command_recipient_demo_portal_state$/u,
+    );
+  });
+
+  it("preserves a typed SQL mutation-limit outcome", async () => {
+    const authority = new SupabaseRecipientStateAuthority({
+      supabaseUrl: "https://example.supabase.co",
+      serviceRoleKey: "service-role-key-long-enough",
+      hashSecret: HASH_SECRET,
+      fetcher: () =>
+        Promise.resolve({
+          ok: false,
+          json: () =>
+            Promise.resolve({
+              code: "P0001",
+              message: "grant_mutation_limit_reached",
+            }),
+        }),
+    });
+
+    await expect(
+      authority.recordContactRequest({
+        session: SESSION,
+        findingReference: null,
+        module: null,
+      }),
+    ).rejects.toBeInstanceOf(RecipientMutationLimitError);
   });
 
   it("round-trips a SQL microsecond expiry without making it grant identity", async () => {

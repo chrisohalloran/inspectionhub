@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 case_id: D01
 split: development
 locked_holdout: false
@@ -8,6 +8,13 @@ fixed_trials: 3
 modules:
   - building
 scenario: "Cracked second-floor bathroom tiles with a concealed subfloor and possible membrane damage."
+model_input:
+  observations:
+    - observation_id: source-d01-1
+      text: "Cracking is present in several tiles across the shower base and main floor of the second-floor bathroom. The concealed floor construction was not visually confirmed. The inspector recorded the condition as a major defect."
+  unknowns:
+    - "possible subfloor movement"
+    - "membrane may be damaged"
 packet_manifest:
   fixture_kind: redacted_manifest
   manifest_ref: packet-d01-v1
@@ -26,8 +33,14 @@ expected:
   forbidden_claims:
     - "purchase_advice"
     - "repair_cost"
-  inspector_decision: "major defect recorded by inspector"
-  verifier: pass
+output_oracle:
+  decision: major_defect_attributed
+  verifier:
+    expected: pass
+    required_issue_codes: []
+    forbidden_issue_codes: []
+  forbidden_output_terms: []
+  recommendation_policy: any
 media:
   selected_proxy_refs: []
   audio_fixture_ref: null

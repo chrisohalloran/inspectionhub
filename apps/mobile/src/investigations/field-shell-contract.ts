@@ -1,7 +1,16 @@
 import { theme } from "@inspection/theme/tokens";
 import type { InvestigationStatus } from "@inspection/domain/inspection/types";
 
-export type VoiceControlState = "idle" | "recording" | "saving" | "unavailable";
+export type VoiceControlState =
+  "idle" | "starting" | "recording" | "saving" | "unavailable";
+export type DockOperationState =
+  | "field_status"
+  | "needs_review"
+  | "not_saved"
+  | "ready"
+  | "recording"
+  | "saved"
+  | "saving";
 
 export const investigationFieldControls = {
   photo: {
@@ -12,6 +21,7 @@ export const investigationFieldControls = {
   },
   voice: {
     label: "Record voice note",
+    startingLabel: "Starting voice note",
     activeLabel: "Stop voice note",
     hint: "Tap to start or stop a voice note without changing camera mode",
     minimumTargetSize: theme.target.minimum,
@@ -58,6 +68,7 @@ export const investigationShellAccessibilityContract = {
   statusUsesText: true,
   supportsDynamicType: true,
   controlsMayWrapAtLargeText: true,
+  voiceCaptureBlocksInvestigationCompletion: true,
   voiceRecordingBlocksPhotoShutter: false,
 } as const;
 
@@ -78,17 +89,16 @@ export function deriveInvestigationShellView(input: {
   readonly recentCaptureCount: number;
   readonly voiceState: VoiceControlState;
 }): InvestigationShellView {
-  const activeOrPaused =
-    input.investigationStatus === "active" ||
-    input.investigationStatus === "paused";
   return {
     currentAreaLabel: input.currentAreaLabel,
     investigationStatusLabel: statusLabel(input.investigationStatus),
     photoEnabled: true,
     voiceLabel:
-      input.voiceState === "recording"
-        ? investigationFieldControls.voice.activeLabel
-        : investigationFieldControls.voice.label,
+      input.voiceState === "starting"
+        ? investigationFieldControls.voice.startingLabel
+        : input.voiceState === "recording"
+          ? investigationFieldControls.voice.activeLabel
+          : investigationFieldControls.voice.label,
     voiceStateLabel: voiceStateLabel(input.voiceState),
     investigationActionLabel:
       input.investigationStatus === "paused"
@@ -97,11 +107,62 @@ export function deriveInvestigationShellView(input: {
           ? investigationFieldControls.pause.label
           : investigationFieldControls.investigation.label,
     attachRecentLabel:
-      activeOrPaused && input.recentCaptureCount > 0
+      input.investigationStatus === "active" && input.recentCaptureCount > 0
         ? `${investigationFieldControls.attachRecent.label} (${input.recentCaptureCount})`
         : null,
-    finishAvailable: input.investigationStatus === "active",
+    finishAvailable:
+      input.investigationStatus === "active" &&
+      investigationCompletionVoiceBlock(input.voiceState) === null,
   };
+}
+
+export function investigationCompletionVoiceBlock(
+  voiceState: VoiceControlState,
+): string | null {
+  switch (voiceState) {
+    case "starting":
+      return "Wait for the voice note to finish starting before finishing the investigation.";
+    case "recording":
+      return "Stop the voice note before finishing the investigation.";
+    case "saving":
+      return "Wait until the voice note is saved locally before finishing the investigation.";
+    case "idle":
+    case "unavailable":
+      return null;
+  }
+}
+
+export function compactOperationStatus(status: DockOperationState): string {
+  switch (status) {
+    case "ready":
+      return "Storage ready";
+    case "recording":
+      return "Voice recording";
+    case "saving":
+      return "Saving locally";
+    case "saved":
+      return "Saved locally";
+    case "not_saved":
+      return "Not saved — retry";
+    case "needs_review":
+      return "Needs review";
+    case "field_status":
+      return "Field status updated";
+  }
+}
+
+export function durabilityAnnouncement(
+  status: DockOperationState,
+  detail: string,
+): string | null {
+  if (
+    status !== "saved" &&
+    status !== "not_saved" &&
+    status !== "needs_review"
+  ) {
+    return null;
+  }
+  return `${compactOperationStatus(status)}. ${detail}`;
 }
 
 function statusLabel(status: InvestigationStatus | "none"): string {
@@ -123,6 +184,8 @@ function voiceStateLabel(state: VoiceControlState): string {
   switch (state) {
     case "idle":
       return "Voice note ready";
+    case "starting":
+      return "Voice note starting; photo capture remains available";
     case "recording":
       return "Voice note recording; photo capture remains available";
     case "saving":

@@ -26,7 +26,7 @@
     },
     "./web": {
       "types": "./src/web.ts",
-      "development": "./dist/web.js",
+      "development": "./src/web.ts",
       "import": "./dist/web.js"
     }
   },

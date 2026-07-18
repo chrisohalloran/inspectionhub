@@ -142,6 +142,41 @@ describe("investigation-scoped review", () => {
     expect(confirmed.inspectorAttribution).toEqual(inspector);
   });
 
+  it("rejects duplicate authorship and provenance source identities", () => {
+    const current = review();
+    const source = current.finding.authorship.sourceArtifactReferences[0]!;
+    const duplicateAuthorship = ProvisionalFindingSchema.parse({
+      ...current.finding,
+      authorship: {
+        ...current.finding.authorship,
+        sourceArtifactReferences: [source, source],
+      },
+    });
+    expect(() =>
+      createInvestigationReviewItem({
+        reviewId: current.reviewId,
+        investigationId: current.investigationId,
+        finding: duplicateAuthorship,
+        provenance: {
+          ...current.provenance,
+          sourceArtifactIds: [ids.artifact, ids.artifact],
+        },
+      }),
+    ).toThrow("exact draft packet and selected sources");
+
+    expect(() =>
+      createInvestigationReviewItem({
+        reviewId: current.reviewId,
+        investigationId: current.investigationId,
+        finding: current.finding,
+        provenance: {
+          ...current.provenance,
+          sourceArtifactIds: [ids.artifact, ids.artifact],
+        },
+      }),
+    ).toThrow("exact draft packet and selected sources");
+  });
+
   it("requires blocking investigation checks to be resolved", () => {
     const item = review({ blockingCheck: true });
     expect(() => acceptReviewItem(item)).toThrow(
@@ -220,10 +255,48 @@ describe("investigation-scoped review", () => {
     expect(() => confirmAcceptedReviewItem(rejected, inspector)).toThrow(
       "Only an accepted current review version",
     );
+    expect(
+      reviewActions(rejected).find(({ id }) => id === "edit"),
+    ).toMatchObject({ enabled: true, label: "Write replacement" });
+    const replacement = editReviewItem(rejected, {
+      content: {
+        ...content,
+        observation: "Inspector wrote a replacement observation.",
+      },
+      newVersionId: ids.editedVersion,
+      newContentHash: "d".repeat(64),
+      pathway: "convert_to_human",
+    });
+    expect(replacement).toMatchObject({
+      status: "awaiting_decision",
+      rejectionReason: null,
+      finding: {
+        authorship: { origin: "human" },
+        verifier: { status: "not_required" },
+      },
+    });
+    expect(() =>
+      editReviewItem(rejected, {
+        content,
+        newVersionId: ids.editedVersion,
+        newContentHash: "e".repeat(64),
+        pathway: "reverify_ai",
+      }),
+    ).toThrow("cannot take that edit pathway");
 
     const stale = markReviewItemStale(review(), ids.editedVersion);
     expect(stale.finding.verifier.status).toBe("stale");
-    expect(reviewActions(stale).every(({ enabled }) => !enabled)).toBe(true);
+    expect(
+      reviewActions(stale).find(({ id }) => id === "return_to_capture"),
+    ).toMatchObject({
+      enabled: true,
+      label: "Capture replacement evidence",
+    });
+    expect(
+      reviewActions(stale)
+        .filter(({ id }) => id !== "return_to_capture")
+        .every(({ enabled }) => !enabled),
+    ).toBe(true);
     expect(() => acceptReviewItem(stale)).toThrow("stale");
   });
 
@@ -246,7 +319,10 @@ describe("investigation-scoped review", () => {
     });
 
     expect(loaded.status).toBe("stale");
-    expect(reviewActions(loaded).every(({ enabled }) => !enabled)).toBe(true);
+    expect(
+      reviewActions(loaded).find(({ id }) => id === "return_to_capture")
+        ?.enabled,
+    ).toBe(true);
   });
 
   it("cannot edit a Building review into Timber Pest taxonomy", () => {

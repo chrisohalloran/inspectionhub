@@ -12,6 +12,8 @@ import {
 } from "./admin-model";
 import styles from "./admin.module.css";
 
+const INITIAL_PRICE_EFFECTIVE_DATE = "2026-08-01";
+
 export function AdminConfiguration({
   permissionDenied,
 }: {
@@ -26,14 +28,21 @@ export function AdminConfiguration({
   const [timberPestPrice, setTimberPestPrice] = useState(
     current.timberPestCents / 100,
   );
-  const [effectiveDate, setEffectiveDate] = useState("2026-08-01");
+  const [effectiveDate, setEffectiveDate] = useState(
+    INITIAL_PRICE_EFFECTIVE_DATE,
+  );
   const [priceReview, setPriceReview] = useState(false);
   const [publishedVersion, setPublishedVersion] = useState<PriceVersion | null>(
     null,
   );
+  const [priceBaseline, setPriceBaseline] = useState<PriceVersion>(() => ({
+    ...current,
+    effectiveDate: INITIAL_PRICE_EFFECTIVE_DATE,
+  }));
   const [availabilitySaved, setAvailabilitySaved] = useState(false);
   const [bufferMinutes, setBufferMinutes] = useState(45);
   const [eligibilityReview, setEligibilityReview] = useState(false);
+  const [eligibilitySaved, setEligibilitySaved] = useState(false);
   const [credentialStatus, setCredentialStatus] = useState<
     "active" | "revoked"
   >("active");
@@ -45,9 +54,9 @@ export function AdminConfiguration({
   );
 
   const unsavedPricing =
-    buildingPrice !== current.buildingCents / 100 ||
-    timberPestPrice !== current.timberPestCents / 100 ||
-    effectiveDate !== "2026-08-01";
+    buildingPrice !== priceBaseline.buildingCents / 100 ||
+    timberPestPrice !== priceBaseline.timberPestCents / 100 ||
+    effectiveDate !== priceBaseline.effectiveDate;
   const authority = useMemo(
     () =>
       credentialAuthority({
@@ -61,12 +70,12 @@ export function AdminConfiguration({
 
   useEffect(() => {
     function warnBeforeLeaving(event: BeforeUnloadEvent) {
-      if (!unsavedPricing || publishedVersion) return;
+      if (!unsavedPricing) return;
       event.preventDefault();
     }
     window.addEventListener("beforeunload", warnBeforeLeaving);
     return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
-  }, [publishedVersion, unsavedPricing]);
+  }, [unsavedPricing]);
 
   return (
     <section aria-labelledby="configuration-heading">
@@ -74,8 +83,7 @@ export function AdminConfiguration({
         <p className={styles.eyebrow}>Launch administration</p>
         <h1 id="configuration-heading">Configuration</h1>
         <p>
-          Seeded controls and version history for the Build Week test
-          environment.
+          Manage services, availability, inspector authority and integrations.
         </p>
       </div>
 
@@ -83,8 +91,8 @@ export function AdminConfiguration({
         <div className={styles.errorNotice} role="alert">
           <strong>Permission denied</strong>
           <p>
-            This test actor can read configuration history but cannot publish or
-            operate provider controls.
+            You can view configuration history but cannot publish changes or
+            operate integrations.
           </p>
         </div>
       ) : null}
@@ -113,9 +121,10 @@ export function AdminConfiguration({
               Building inspection (AUD including GST)
               <input
                 min="1"
-                onChange={(event) =>
-                  setBuildingPrice(event.target.valueAsNumber)
-                }
+                onChange={(event) => {
+                  setBuildingPrice(event.target.valueAsNumber);
+                  setPublishedVersion(null);
+                }}
                 type="number"
                 value={buildingPrice}
               />
@@ -124,9 +133,10 @@ export function AdminConfiguration({
               Timber Pest inspection (AUD including GST)
               <input
                 min="1"
-                onChange={(event) =>
-                  setTimberPestPrice(event.target.valueAsNumber)
-                }
+                onChange={(event) => {
+                  setTimberPestPrice(event.target.valueAsNumber);
+                  setPublishedVersion(null);
+                }}
                 type="number"
                 value={timberPestPrice}
               />
@@ -134,20 +144,23 @@ export function AdminConfiguration({
             <label>
               Effective date
               <input
-                onChange={(event) => setEffectiveDate(event.target.value)}
+                onChange={(event) => {
+                  setEffectiveDate(event.target.value);
+                  setPublishedVersion(null);
+                }}
                 type="date"
                 value={effectiveDate}
               />
             </label>
           </div>
-          {unsavedPricing && !publishedVersion ? (
+          {unsavedPricing ? (
             <p className={styles.unsaved} role="status">
               Unsaved pricing draft. Leaving this page will warn you.
             </p>
           ) : null}
-          {priceReview && !publishedVersion ? (
+          {priceReview ? (
             <div className={styles.reviewBox} role="status">
-              <strong>Publish confirmation</strong>
+              <strong>Demo price-version confirmation</strong>
               <p>
                 New quotes from {effectiveDate} will use Building $
                 {buildingPrice.toFixed(2)} and Timber Pest $
@@ -163,27 +176,27 @@ export function AdminConfiguration({
                 </button>
                 <button
                   onClick={() => {
-                    setPublishedVersion(
-                      createNextPriceVersion({
-                        buildingCents: Math.round(buildingPrice * 100),
-                        effectiveDate,
-                        timberPestCents: Math.round(timberPestPrice * 100),
-                      }),
-                    );
+                    const nextVersion = createNextPriceVersion({
+                      buildingCents: Math.round(buildingPrice * 100),
+                      effectiveDate,
+                      timberPestCents: Math.round(timberPestPrice * 100),
+                    });
+                    setPublishedVersion(nextVersion);
+                    setPriceBaseline(nextVersion);
                     setPriceReview(false);
                   }}
                   type="button"
                 >
-                  Confirm version publish
+                  Confirm demo price version
                 </button>
               </div>
             </div>
           ) : null}
           {publishedVersion ? (
             <p className={styles.successNotice} role="status">
-              {publishedVersion.version} published for{" "}
-              {publishedVersion.effectiveDate}. Existing quote{" "}
-              {seededExistingQuote.quoteId} remains unchanged.
+              {publishedVersion.version} prepared in this demo for{" "}
+              {publishedVersion.effectiveDate}. No live pricing was changed.
+              Existing quote {seededExistingQuote.quoteId} remains unchanged.
             </p>
           ) : null}
           <div className={styles.actions}>
@@ -196,7 +209,7 @@ export function AdminConfiguration({
             </button>
           </div>
           <details className={styles.history}>
-            <summary>Read prior price versions</summary>
+            <summary>Price history</summary>
             <table>
               <caption>Published price history</caption>
               <thead>
@@ -264,7 +277,7 @@ export function AdminConfiguration({
             <h3>Conflict preview</h3>
             <ul>
               <li>
-                15 July, 9:00 am — blocked by existing booking and{" "}
+                22 July, 9:00 am — blocked by existing booking and{" "}
                 {bufferMinutes}-minute travel buffer
               </li>
               <li>20 July — removed by blackout date</li>
@@ -272,8 +285,8 @@ export function AdminConfiguration({
           </div>
           {availabilitySaved ? (
             <p className={styles.successNotice} role="status">
-              Availability version AVAIL-2026.07-test saved. Audit event
-              recorded.
+              Availability version AVAIL-2026.07-test saved in this demo. No
+              calendar or audit provider was updated.
             </p>
           ) : null}
           <div className={styles.actions}>
@@ -285,7 +298,7 @@ export function AdminConfiguration({
               Retry calendar preview
             </button>
             <button onClick={() => setAvailabilitySaved(true)} type="button">
-              Save availability version
+              Save demo availability
             </button>
           </div>
         </article>
@@ -396,10 +409,22 @@ export function AdminConfiguration({
             >
               Preview credential revocation
             </button>
-            <button type="button">Publish eligibility version</button>
+            <button
+              onClick={() => {
+                setEligibilitySaved(true);
+              }}
+              type="button"
+            >
+              Save eligibility version
+            </button>
           </div>
+          {eligibilitySaved ? (
+            <p className={styles.successNotice} role="status">
+              Eligibility version saved in this demo.
+            </p>
+          ) : null}
           <details className={styles.history}>
-            <summary>Read audited credential history</summary>
+            <summary>Credential history</summary>
             <p>
               14 July 2026, 8:45 am — credential CRED-2026.07 published by Test
               Administrator.
@@ -449,12 +474,12 @@ export function AdminConfiguration({
             <button
               onClick={() =>
                 setIntegrationResult(
-                  "Integration test completed with a redacted result. No secret value was returned.",
+                  "Demo integration check completed locally. No provider was contacted and no secret value was returned.",
                 )
               }
               type="button"
             >
-              Run safe integration test
+              Run demo integration check
             </button>
           </div>
         </article>

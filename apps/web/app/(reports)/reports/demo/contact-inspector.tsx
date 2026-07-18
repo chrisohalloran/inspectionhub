@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import styles from "./report.module.css";
+import { recipientMutationFailureMessage } from "./recipient-mutation-feedback";
 
 type ContactRequest = Readonly<{
   contactRequestId: string;
@@ -10,17 +11,28 @@ type ContactRequest = Readonly<{
   recordedAt: number;
   state: "recorded";
 }>;
+const contactFailure =
+  "The question reference could not be recorded. Refresh and try again.";
 
 export function ContactInspector({
+  availableModules,
   initialRequests,
-}: Readonly<{ initialRequests: readonly ContactRequest[] }>) {
+}: Readonly<{
+  availableModules: readonly ("building" | "timber_pest")[];
+  initialRequests: readonly ContactRequest[];
+}>) {
   const [requests, setRequests] = useState(initialRequests);
+  const [hydrated, setHydrated] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   async function recordRequest(form: HTMLFormElement) {
     setBusy(true);
-    setError(false);
+    setError(null);
     try {
       const data = new FormData(form);
       const response = await fetch("/reports/demo/access/contact", {
@@ -31,14 +43,20 @@ export function ContactInspector({
           message: data.get("message"),
         }),
       });
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        setError(
+          (await recipientMutationFailureMessage(response, "question")) ??
+            contactFailure,
+        );
+        return;
+      }
       const result = (await response.json()) as {
         contactRequest: ContactRequest;
       };
       setRequests((current) => [result.contactRequest, ...current]);
       form.reset();
     } catch {
-      setError(true);
+      setError(contactFailure);
     } finally {
       setBusy(false);
     }
@@ -46,10 +64,10 @@ export function ContactInspector({
 
   return (
     <section aria-labelledby="contact-heading">
-      <h3 id="contact-heading">Contact the inspector</h3>
+      <h3 id="contact-heading">Ask the inspector</h3>
       <p>
-        The handoff identifies report version 2 and, if selected, one finding.
-        Report content and evidence are not copied into the notification.
+        Choose a finding so the inspector can see what your question relates to.
+        Private evidence is not copied into the message.
       </p>
       <form
         className={styles.form}
@@ -61,28 +79,31 @@ export function ContactInspector({
         <label htmlFor="finding-reference">Finding reference (optional)</label>
         <select id="finding-reference" name="findingReference">
           <option value="">Whole report</option>
-          <option value="finding_cracked_tiles">
-            Cracked shower and bathroom floor tiles
-          </option>
-          <option value="finding_garden_bed">
-            Garden bed against external wall
-          </option>
+          {availableModules.includes("building") ? (
+            <option value="finding_cracked_tiles">
+              Cracked shower and bathroom floor tiles
+            </option>
+          ) : null}
+          {availableModules.includes("timber_pest") ? (
+            <option value="finding_garden_bed">
+              Garden bed against external wall
+            </option>
+          ) : null}
         </select>
         <label htmlFor="contact-message">Your question</label>
         <textarea id="contact-message" name="message" required />
-        <button disabled={busy} type="submit">
-          Record question reference
+        <button disabled={!hydrated || busy} type="submit">
+          {busy ? "Saving question" : "Save question"}
         </button>
       </form>
-      {error ? (
+      {error !== null ? (
         <p className={styles.status} role="alert">
-          The question reference could not be recorded. Refresh and try again.
+          {error}
         </p>
       ) : null}
       {requests.length > 0 ? (
         <p className={styles.status} role="status">
-          Question reference recorded in the synthetic portal. No notification
-          was sent and no report content was copied. Reference{" "}
+          Question saved in this demo. No notification was sent. Reference{" "}
           {requests[0]?.contactRequestId}.
         </p>
       ) : null}

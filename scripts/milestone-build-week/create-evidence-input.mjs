@@ -92,11 +92,26 @@ async function addObservedLocalEvidence(input, { now, artifactDirectory }) {
   const repositoryStatus = Number(
     extractRequired(/HTTP\s+(\d{3})/u, repositoryText, "repository status"),
   );
+  const repositoryCommitSha = extractRequired(
+    /Commit:\s+`([a-f0-9]{40})`/u,
+    repositoryText,
+    "repository commit SHA",
+  );
   const reviewedCommitSha = extractRequired(
     /Reviewed commit:\s+`([a-f0-9]{40})`/u,
     reviewText,
     "reviewed commit SHA",
   );
+  for (const [label, observedCommitSha] of [
+    ["repository", repositoryCommitSha],
+    ["review", reviewedCommitSha],
+  ]) {
+    if (observedCommitSha !== input.run.commitSha) {
+      throw new Error(
+        `Observed ${label} commit ${observedCommitSha} does not match run commit ${input.run.commitSha}`,
+      );
+    }
+  }
   requireSourceClaim(
     /reachable without GitHub authentication/u,
     repositoryText,
@@ -132,6 +147,7 @@ async function addObservedLocalEvidence(input, { now, artifactDirectory }) {
     {
       id: "logged-out-public-repository",
       kind: "link_check",
+      commitSha: repositoryCommitSha,
       claim:
         "The public source repository was reachable logged out at the recorded commit; no product demo claim is made.",
       provenance,
@@ -143,11 +159,13 @@ async function addObservedLocalEvidence(input, { now, artifactDirectory }) {
         loggedOut: true,
         status: repositoryStatus,
         expectedContentPresent: true,
+        observedCommitSha: repositoryCommitSha,
       },
     },
     {
       id: "parallel-model-assisted-review",
       kind: "review",
+      commitSha: reviewedCommitSha,
       claim:
         "Separate Codex reviewers completed implementation, security and document review with no unresolved P0 or P1; this is not an external human audit.",
       provenance,
@@ -179,6 +197,22 @@ async function commitSha() {
   }
 }
 
+async function requireCleanWorktree() {
+  const { stdout } = await execFileAsync(
+    "git",
+    ["status", "--porcelain=v1", "--untracked-files=normal"],
+    {
+      cwd: repositoryRoot,
+      encoding: "utf8",
+    },
+  );
+  if (stdout.trim().length > 0) {
+    throw new Error(
+      "Observed evidence requires a clean Git worktree so runtime source exactly matches HEAD",
+    );
+  }
+}
+
 try {
   const args = parseArguments(process.argv.slice(2));
   const now = new Date().toISOString();
@@ -194,6 +228,7 @@ try {
     evidenceIds: [],
   }));
   if (args.observedLocal) {
+    await requireCleanWorktree();
     await addObservedLocalEvidence(input, {
       now,
       artifactDirectory: safeArtifactDirectory(args.artifactDirectory, now),

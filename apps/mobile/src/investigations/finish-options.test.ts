@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createFindingCandidateChoice,
   createNoReportableFindingChoice,
+  deriveInvestigationFinishActionView,
   investigationFinishOptions,
 } from "./finish-options.js";
 
@@ -25,6 +26,7 @@ describe("finish investigation choices", () => {
             module: "building",
             moduleId: "module-building",
             sourceArtifactIds: ["photo-1"],
+            sourceObservationIds: ["observation-1"],
           },
         ],
       }),
@@ -37,5 +39,29 @@ describe("finish investigation choices", () => {
         (option) => option.minimumTargetSize >= 48,
       ),
     ).toBe(true);
+  });
+
+  it("disables every completion action while voice capture can still attach evidence", () => {
+    for (const voiceState of ["starting", "recording", "saving"] as const) {
+      expect(
+        deriveInvestigationFinishActionView({ busy: false, voiceState }),
+      ).toMatchObject({
+        finishDisabled: true,
+        noReportableFindingDisabled: true,
+        saveFindingCandidateDisabled: true,
+      });
+    }
+
+    expect(
+      deriveInvestigationFinishActionView({
+        busy: false,
+        voiceState: "idle",
+      }),
+    ).toMatchObject({
+      blockedReason: null,
+      finishDisabled: false,
+      noReportableFindingDisabled: false,
+      saveFindingCandidateDisabled: false,
+    });
   });
 });

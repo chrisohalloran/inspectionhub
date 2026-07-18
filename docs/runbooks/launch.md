@@ -56,14 +56,29 @@ it ever enters a local file, shell history, log or evidence artifact.
 
 ## 3. Deploy the frozen artifacts
 
-1. Deploy the web commit to the Vercel production project in `syd1`.
-2. Deploy the durable production worker to Fly `syd` with graceful SIGTERM and
+1. Apply every Supabase migration from the exact frozen commit before deploying
+   any web or worker artifact. Read back the applied migration state; do not
+   treat a submitted migration command as success.
+2. Using the protected service credential in the deployment environment, run
+   `pnpm deployment:preflight:recipient`. It must observe
+   `recipient-demo-public-bounds-v2`. A missing, stale or unreachable contract
+   is a hard stop: the application must never be deployed first because that
+   would disable recipient mutations against the older database contract. The
+   configured Vercel build wrapper enforces the same check for `production` and
+   rejects a missing or unknown `VERCEL_ENV`; `preview` and `development` builds
+   remain credential-independent and skip the production database preflight.
+3. Exercise one authorised synthetic grant through portal state, independent
+   Building/Timber Pest withdrawal, share and contact RPCs, then remove or
+   revoke it. Preserve only redacted observations and contract/version hashes.
+4. Deploy the web commit to the Vercel production project in `syd1` only after
+   the database-first preflight passes.
+5. Deploy the durable production worker to Fly `syd` with graceful SIGTERM and
    rolling replacement. Confirm the current worker no longer rejects live mode
    and that Postgres/private-object-store adapters, fenced leases and egress
    control are active before recording success.
-3. Produce App Store/TestFlight and Play Store/internal-test builds from the
+6. Produce App Store/TestFlight and Play Store/internal-test builds from the
    exact EAS production profile using remote credentials.
-4. Read back the actual deployment/build identifiers and bind them to the
+7. Read back the actual deployment/build identifiers and bind them to the
    release input. A platform build log is not user-facing proof.
 
 ## 4. Prove restore before enabling egress

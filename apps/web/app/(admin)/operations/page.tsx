@@ -33,8 +33,7 @@ export default function OperationsPage() {
           <h1>Recovery queue</h1>
         </div>
         <p className={styles.notice} role="status">
-          Demo-only projection. Report text, media, mailbox details and provider
-          payloads are never displayed here.
+          Demo view. Report content, media and recipient details are not shown.
         </p>
       </header>
       <section className={styles.grid} aria-label="Operational state summary">
@@ -48,11 +47,10 @@ export default function OperationsPage() {
       </section>
       <section className={styles.blocked} aria-labelledby="restore-heading">
         <div>
-          <h2 id="restore-heading">Restore egress</h2>
+          <h2 id="restore-heading">Resume outbound delivery</h2>
           <p>
-            Blocked until checksums, event replay, grants, deletions, sessions,
-            package pointers, provider truth and environment-bound secrets
-            reconcile.
+            Delivery stays blocked until stored evidence, access grants,
+            packages and provider state match.
           </p>
         </div>
         <strong>Blocked</strong>

@@ -44,11 +44,11 @@ pnpm test:e2e:mobile
 pnpm --filter @inspection/mobile build
 ```
 
-Focused mobile result after the durable investigation/review/package workflow and restart reconciliation were added:
+Deterministic mobile contract result after the durable investigation/review/package workflow, exact-source lineage and restart reconciliation were added:
 
 ```text
-Test Files  29 passed (29)
-Tests       105 passed (105)
+Test Files  44 passed (44)
+Tests       180 passed (180)
 ```
 
 The signed native simulator runtime gate also passed in strict sequence on the dedicated iPhone 16 Pro simulator (`iOS 26.3`, UDID `DF3F2D11-DD01-4F8F-8567-14E559B3747A`):
@@ -59,21 +59,20 @@ MAESTRO_DEVICE_ID=DF3F2D11-DD01-4F8F-8567-14E559B3747A \
 MAESTRO_DRIVER_STARTUP_TIMEOUT=120000 \
 pnpm test:e2e:mobile
 
-Test Files  29 passed (29)
-Tests       105 passed (105)
-Maestro     4 flows passed sequentially
-Targeted    revised active-investigation stop/relaunch flow passed
+Test Files  44 passed (44)
+Tests       180 passed (180)
+Maestro     6 flows passed sequentially from explicit clean states
 ```
 
-The four 2026-07-16 runtime flows proved atomic-rename termination and same-identity startup adoption, local photo plus voice capture with offline queueing, a seeded synthetic review packet with independent Building and Timber Pest approval controls, persisted approval/package state across a process stop and relaunch, an active investigation retained across area change, and cached-job capture after session expiry. After the startup reconciliation fix, the revised area/session flow was also rerun separately from a clean install and proved an active investigation plus area restored after an explicit process stop/relaunch before capture continued. The final photo was durably linked to that active investigation and restored workflow pointers were checksum-checked against the local investigation aggregate. These runs did not prove that new captures entered the pre-seeded review packet or that a live provider sent a report. The recovery ledger has an explicit `acknowledged` intent state, so a valid normal capture is not repeatedly misreported as interrupted on later launches.
+The final explicit-clean-state six-flow run on 2026-07-17 proved atomic-rename termination and same-identity startup adoption; local photo, voice and manual-note capture with offline queueing; an active investigation retained across area change and process relaunch; cached-job capture after session expiry; explicit revision-bound source selection; and a freshly generated Building review whose protected source packet bound two selected evidence items and one inspector observation. The independent journeys clear app state at their boundary; the field-investigation and fresh-recipient journeys deliberately share only their required persisted state. A separate clean-state seeded journey exercises review, independent approval and delivery transitions. The suite retained an independently persisted synthetic Timber Pest fixture, accepted and approved the modules separately, rendered a recipient-safe overview with Building and Timber Pest source counts, preserved package state across relaunch, and exercised valid synthetic evidence-durability and provider-state transitions. The final photo was durably linked to the active investigation and restored workflow pointers were checksum-checked against the local investigation aggregate. These runs do not prove a live model call, live server durability, a live provider send or physical-device durability. The recovery ledger has an explicit `acknowledged` intent state, so a valid normal capture is not repeatedly misreported as interrupted on later launches.
 
 The Debug simulator app was built with Xcode 26.3 using local signing. Its simulated Mach-O entitlement section contains the expanded application identifier and private keychain access group generated from `$(AppIdentifierPrefix)$(CFBundleIdentifier)`; Expo SecureStore opened successfully in runtime. The previous build with signing disabled correctly failed closed with `A required entitlement isn't present`, which is retained as setup evidence rather than counted as a product pass.
 
 `pnpm native:validate` found the local module through Expo autolinking on Apple and Android, accepted the podspec, and parsed the Swift source. Mobile lint and strict TypeScript passed. The Expo iOS export bundled 688 modules into a 1.7 MB Hermes bundle. `pnpm design:lint` reported zero errors and zero warnings against the root `DESIGN.md`.
 
-`pnpm test:e2e:mobile` validates all committed Maestro YAML and runs deterministic substitutes by default. Its passing default result is not a simulator or device claim. Set `MOBILE_E2E_RUN_MAESTRO=1` only when a fresh development build compiled with `EXPO_PUBLIC_MOBILE_E2E_MODE=1` is installed and Maestro is available. The runtime harness executes flows sequentially because the termination oracle deliberately kills the app; production builds cannot expose the controls.
+`pnpm test:contract:mobile` validates all committed Maestro YAML and runs deterministic substitutes, and explicitly makes no simulator or device claim. `pnpm test:e2e:mobile` requires Maestro runtime execution against a development build compiled with `EXPO_PUBLIC_MOBILE_E2E_MODE=1`. The runtime harness executes flows sequentially because the termination oracle deliberately kills the app; production builds cannot expose the controls.
 
-On this workstation, native autolinking, podspec syntax, Swift parsing, TypeScript compilation, unit/component tests, the Expo iOS JavaScript export, a signed Debug simulator build and the sequential Maestro runtime journey can be checked. CocoaPods 1.17.0 installed the linked workspace successfully with 105 declared dependencies and 104 pods. The official Maestro CLI 2.6.1 runs with the Homebrew OpenJDK `JAVA_HOME`. The paired physical iPhone 16 Pro runs iOS 26.5.2 (`23F84`) with Developer Mode enabled and is now partially declared in `benchmarks/launch-profile.yaml`, but CoreDevice reports it offline/unavailable, its tunnel and developer-disk-image services are unavailable, and Xcode omits it from selectable destinations. Installed Xcode 26.3 (`17C529`) exposes only the iOS 26.2 SDK (`23C57`). One valid Apple Development signing identity is present; provisioning/account authentication cannot be tested until the phone is reachable. Consequently, the physical installed-build, durability-oracle and latency journey cannot be represented as passing evidence here. A simulator is not accepted as the KTD3 durability oracle.
+On this workstation, native autolinking, podspec syntax, Swift parsing, TypeScript compilation, unit/component tests, the Expo iOS JavaScript export, a signed Debug simulator build and the sequential Maestro runtime journey can be checked. CocoaPods 1.17.0 installed the linked workspace successfully with 105 declared dependencies and 104 pods. The official Maestro CLI 2.6.1 runs with the Homebrew OpenJDK `JAVA_HOME`. The paired physical iPhone 16 Pro runs iOS 26.5.2 (`23F84`) with Developer Mode enabled and is partially declared in `benchmarks/launch-profile.yaml`. On 17 July it was reachable through CoreDevice, the developer disk image mounted and Xcode exposed it as a destination. The current-workspace Debug build then reached automatic provisioning but failed with Xcode exit 65 because no matching Apple developer account was signed in and no iOS App Development provisioning profile existed for `co.inspectionhub.field`. Consequently, no app from this source state was installed and the physical durability-oracle, latency and field journey remain unproven. A simulator is not accepted as the KTD3 durability oracle.
 
 ## Physical Build Week iPhone gate
 

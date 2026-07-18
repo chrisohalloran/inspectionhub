@@ -1,13 +1,32 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  compactOperationStatus,
   deriveInvestigationShellView,
+  durabilityAnnouncement,
+  investigationCompletionVoiceBlock,
   investigationFieldControls,
   investigationShellAccessibilityContract,
 } from "./field-shell-contract.js";
 import { selectRecentJobCaptures } from "./recent-captures.js";
 
 describe("single capture shell investigation contract", () => {
+  it("keeps concise visible durability status without hiding the full area path", () => {
+    expect(compactOperationStatus("saved")).toBe("Saved locally");
+    expect(compactOperationStatus("needs_review")).toBe("Needs review");
+    expect(compactOperationStatus("not_saved")).toBe("Not saved — retry");
+  });
+
+  it("builds one explicit announcement for saved and failed durability states", () => {
+    expect(durabilityAnnouncement("ready", "Storage ready.")).toBeNull();
+    expect(
+      durabilityAnnouncement(
+        "not_saved",
+        "Photo not acknowledged — retry capture.",
+      ),
+    ).toBe("Not saved — retry. Photo not acknowledged — retry capture.");
+  });
+
   it("starts an investigation in one action and keeps all primary targets at least 48 pixels", () => {
     expect(investigationFieldControls.investigation.activationActions).toBe(1);
     for (const control of Object.values(investigationFieldControls)) {
@@ -18,7 +37,7 @@ describe("single capture shell investigation contract", () => {
   });
 
   it("keeps the photo shutter enabled while voice recording or saving", () => {
-    for (const voiceState of ["recording", "saving"] as const) {
+    for (const voiceState of ["starting", "recording", "saving"] as const) {
       const view = deriveInvestigationShellView({
         currentAreaLabel: "Second floor / Main bathroom",
         investigationStatus: "active",
@@ -27,10 +46,25 @@ describe("single capture shell investigation contract", () => {
       });
       expect(view.photoEnabled).toBe(true);
       expect(view.voiceStateLabel).toContain("photo capture remains available");
+      expect(view.finishAvailable).toBe(false);
     }
     expect(
       investigationShellAccessibilityContract.voiceRecordingBlocksPhotoShutter,
     ).toBe(false);
+  });
+
+  it("blocks completion until voice capture is stopped and durably saved", () => {
+    expect(investigationCompletionVoiceBlock("starting")).toContain(
+      "finish starting",
+    );
+    expect(investigationCompletionVoiceBlock("recording")).toContain(
+      "Stop the voice note",
+    );
+    expect(investigationCompletionVoiceBlock("saving")).toContain(
+      "saved locally",
+    );
+    expect(investigationCompletionVoiceBlock("idle")).toBeNull();
+    expect(investigationCompletionVoiceBlock("unavailable")).toBeNull();
   });
 
   it("exposes explicit pause, resume, attach-recent, finish, and no-finding status text", () => {

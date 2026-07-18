@@ -47,9 +47,11 @@ export class DemoRecipientAuthError extends Error {
 
 export function demoRecipientAuthEnabled(): boolean {
   if (process.env.NODE_ENV !== "production") return true;
+  if (process.env.RECIPIENT_DEMO_ACCESS_ENABLED !== "true") return false;
+  if (process.env.APP_ENV === "preview") return true;
   return (
-    process.env.BUILD_WEEK_FIXTURES_ENABLED === "true" &&
-    process.env.RECIPIENT_DEMO_ACCESS_ENABLED === "true"
+    process.env.APP_ENV === "test" &&
+    process.env.BUILD_WEEK_FIXTURES_ENABLED === "true"
   );
 }
 
@@ -183,6 +185,7 @@ export async function authorisePortalRequest(
 export async function demoPortalState(session: PortalSession): Promise<
   Readonly<{
     buildingWithdrawn: boolean;
+    timberPestWithdrawn: boolean;
     shareInvitations: readonly DemoShareInvitation[];
     contactRequests: readonly DemoContactRequest[];
   }>

@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 case_id: H07
 split: holdout
 locked_holdout: true
@@ -19,7 +19,8 @@ expected:
   required_facts:
     - "schema rejection"
   allowed_uncertainties: []
-  forbidden_claims:
+  forbidden_claims: []
+  system_scenario_codes:
     - "malformed_output_persisted"
   inspector_decision: "reject before persistence"
   verifier: reject

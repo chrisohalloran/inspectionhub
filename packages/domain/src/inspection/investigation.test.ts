@@ -181,8 +181,18 @@ describe("investigation evidence thread", () => {
       expectedRevision: 2,
       resumedAt: "2026-07-14T08:07:00.000+10:00",
     });
-    state = finishInvestigation(state, {
+    state = recordInvestigationObservation(state, {
       expectedRevision: 3,
+      observation: {
+        areaId: bathroom,
+        observationId: "observation-building",
+        recordedAt: "2026-07-14T08:07:30.000+10:00",
+        recordedByInspectorId: inspectorId,
+        text: "Cracked tiles were observed in the main bathroom.",
+      },
+    });
+    state = finishInvestigation(state, {
+      expectedRevision: 4,
       completedAt: "2026-07-14T08:08:00.000+10:00",
       inspectorId,
       draftingDisposition: "queue_ai_asynchronously",
@@ -193,6 +203,7 @@ describe("investigation evidence thread", () => {
           module: "building",
           moduleId: buildingModuleId,
           sourceArtifactIds: ["photo-three"],
+          sourceObservationIds: ["observation-building"],
         },
       ],
     });
@@ -211,8 +222,18 @@ describe("investigation evidence thread", () => {
       inspectorId,
       source: "attached_recent",
     });
-    const completed = finishInvestigation(attached, {
+    const observed = recordInvestigationObservation(attached, {
       expectedRevision: 1,
+      observation: {
+        areaId: bathroom,
+        observationId: "observation-shared",
+        recordedAt: "2026-07-14T08:08:30.000+10:00",
+        recordedByInspectorId: inspectorId,
+        text: "A shared visible condition was recorded for both modules.",
+      },
+    });
+    const completed = finishInvestigation(observed, {
+      expectedRevision: 2,
       completedAt: "2026-07-14T08:09:00.000+10:00",
       inspectorId,
       draftingDisposition: "manual_only",
@@ -223,12 +244,14 @@ describe("investigation evidence thread", () => {
           module: "building",
           moduleId: buildingModuleId,
           sourceArtifactIds: ["photo-three"],
+          sourceObservationIds: ["observation-shared"],
         },
         {
           findingCandidateId: "candidate-timber-pest",
           module: "timber_pest",
           moduleId: pestModuleId,
           sourceArtifactIds: ["photo-three"],
+          sourceObservationIds: ["observation-shared"],
         },
       ],
     });
@@ -239,6 +262,53 @@ describe("investigation evidence thread", () => {
     ).toEqual(["building", "timber_pest"]);
     expect(completed.completion?.moduleLinks[0]?.sourceArtifactIds[0]).toBe(
       completed.completion?.moduleLinks[1]?.sourceArtifactIds[0],
+    );
+  });
+
+  it("rejects missing, duplicate, and unrecorded candidate observations", () => {
+    const attached = attachInvestigationEvidence(newInvestigation(), {
+      expectedRevision: 0,
+      artifacts: [recentArtifacts[0]!],
+      attachedAt: "2026-07-14T08:05:01.000+10:00",
+      inspectorId,
+      source: "attached_recent",
+    });
+    const observed = recordInvestigationObservation(attached, {
+      expectedRevision: 1,
+      observation: {
+        areaId: bathroom,
+        observationId: "observation-recorded",
+        recordedAt: "2026-07-14T08:05:30.000+10:00",
+        recordedByInspectorId: inspectorId,
+        text: "A visible condition was recorded.",
+      },
+    });
+    const finishWithObservations = (sourceObservationIds: readonly string[]) =>
+      finishInvestigation(observed, {
+        expectedRevision: 2,
+        completedAt: "2026-07-14T08:09:00.000+10:00",
+        inspectorId,
+        draftingDisposition: "queue_ai_asynchronously",
+        outcome: "finding_candidates",
+        moduleLinks: [
+          {
+            findingCandidateId: "candidate-building",
+            module: "building",
+            moduleId: buildingModuleId,
+            sourceArtifactIds: ["photo-three"],
+            sourceObservationIds,
+          },
+        ],
+      });
+
+    expect(() => finishWithObservations([])).toThrow(
+      "must select at least one source observation",
+    );
+    expect(() =>
+      finishWithObservations(["observation-recorded", "observation-recorded"]),
+    ).toThrow("cannot repeat a source observation");
+    expect(() => finishWithObservations(["observation-not-recorded"])).toThrow(
+      "only observations recorded in its investigation",
     );
   });
 
@@ -291,5 +361,36 @@ describe("investigation evidence thread", () => {
         pausedAt: "2026-07-14T08:07:00.000+10:00",
       }),
     ).toThrowError(DomainConflictError);
+  });
+
+  it("rejects physically invalid structured measurements in the domain", () => {
+    const invalidMeasurements = [
+      {
+        kind: "crack_width" as const,
+        unit: "millimetres" as const,
+        value: -0.1,
+      },
+      {
+        kind: "moisture_reading" as const,
+        unit: "percent" as const,
+        value: 101,
+      },
+    ];
+
+    for (const [index, invalid] of invalidMeasurements.entries()) {
+      expect(() =>
+        recordInvestigationMeasurement(newInvestigation(), {
+          expectedRevision: 0,
+          measurement: {
+            areaId: bathroom,
+            measuredAt: "2026-07-14T08:06:00.000+10:00",
+            measuredByInspectorId: inspectorId,
+            measurementId: `measurement-invalid-${index}`,
+            note: null,
+            ...invalid,
+          },
+        }),
+      ).toThrowError(DomainConflictError);
+    }
   });
 });

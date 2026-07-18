@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 case_id: D03
 split: development
 locked_holdout: false
@@ -8,11 +8,39 @@ fixed_trials: 3
 modules:
   - building
 scenario: "Visual staining conflicts with a dry moisture reading."
+model_input:
+  evidence:
+    - artifact_id: source-d03-photo
+      artifact_kind: photo
+    - artifact_id: source-d03-meter-photo
+      artifact_kind: photo
+  observations:
+    - observation_id: source-d03-1
+      text: "Visible staining was observed at the internal wall finish."
+  measurements:
+    - measurement_id: source-d03-moisture
+      kind: moisture_reading
+      value: 12
+      unit: relative_scale
+      note: "Dry reading recorded at the stained area."
+  contradictions:
+    - contradiction_id: contradiction-d03-1
+      description: "Visible staining conflicts with the dry moisture reading recorded at the same area."
+      resolution: null
+      source_artifact_ids:
+        - source-d03-photo
+        - source-d03-meter-photo
+      status: unresolved
+  unknowns:
+    - "historic or intermittent moisture possible"
 packet_manifest:
   fixture_kind: redacted_manifest
   manifest_ref: packet-d03-v1
   selected_source_refs:
+    - source-d03-photo
+    - source-d03-meter-photo
     - source-d03-1
+    - source-d03-moisture
   protected_artifact_refs: []
   fixture_status: complete
 expected:
@@ -24,8 +52,14 @@ expected:
     - "historic or intermittent moisture possible"
   forbidden_claims:
     - "confirmed_leak"
-  inspector_decision: "no final mechanism classification"
-  verifier: pass
+output_oracle:
+  decision: unresolved_mechanism_unclassified
+  verifier:
+    expected: pass
+    required_issue_codes: []
+    forbidden_issue_codes: []
+  forbidden_output_terms: []
+  recommendation_policy: any
 media:
   selected_proxy_refs: []
   audio_fixture_ref: null

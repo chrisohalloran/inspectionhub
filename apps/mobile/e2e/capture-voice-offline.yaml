@@ -1,17 +1,65 @@
 appId: co.inspectionhub.field
 name: Local photo, voice and offline queue
 ---
-- launchApp
+- launchApp:
+    clearState: true
+- openLink: "exp+inspectionhub-field://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8081"
+- tapOn:
+    text: "InspectionHub Field, http://.*"
+    optional: true
+- tapOn:
+    text: "Continue"
+    optional: true
+- tapOn:
+    text: "Close"
+    optional: true
 - assertVisible: "Synthetic assigned inspection"
 - assertVisible: "Take photo"
 - tapOn: "Take photo"
 - assertVisible: ".*Photo saved locally as private coverage evidence — queued for sync.*"
+- scrollUntilVisible:
+    element:
+      text: "Show test tools"
+    direction: UP
+    centerElement: true
+- tapOn: "Show test tools"
+- scrollUntilVisible:
+    element:
+      text: "Test: return after partial sync"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Test: return after partial sync"
+- scrollUntilVisible:
+    element:
+      text: "Hide test tools"
+    direction: UP
+    centerElement: true
+- tapOn: "Hide test tools"
+- tapOn: "Take photo"
+- assertVisible: ".*Not saved — retry.*"
 - tapOn: "Record voice note"
 - assertVisible: ".*Voice note recording — photo capture remains available.*"
 - assertVisible: "Take photo"
 - tapOn: "Stop voice note"
 - assertVisible: ".*Voice note saved locally — queued independently for sync.*"
+- scrollUntilVisible:
+    element:
+      text: "Show test tools"
+    direction: UP
+    centerElement: false
+- tapOn: "Show test tools"
+- scrollUntilVisible:
+    element:
+      text: "Test: go offline"
+    direction: DOWN
+    centerElement: true
 - tapOn: "Test: go offline"
-- assertVisible: "Offline — local capture remains available.*"
+- assertVisible: ".*Offline — saving locally.*"
+- scrollUntilVisible:
+    element:
+      text: "Hide test tools"
+    direction: UP
+    centerElement: true
+- tapOn: "Hide test tools"
 - tapOn: "Take photo"
 - assertVisible: ".*Photo saved locally as private coverage evidence — queued for sync.*"

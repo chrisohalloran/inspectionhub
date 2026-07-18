@@ -23,15 +23,16 @@ async function authenticate(page: import("@playwright/test").Page) {
   const invitationCode = `demo-invite-${Date.now().toString()}-${Math.random().toString(16).slice(2)}`;
   await page.goto("/auth/invitation");
   await page.getByLabel("Invitation code").fill(invitationCode);
-  await page.getByLabel("Invited email address").fill("recipient@example.com");
-  await page
-    .getByRole("button", { name: "Continue to mailbox verification" })
-    .click();
+  await page.getByLabel("Email address").fill("recipient@example.com");
+  await page.getByRole("button", { name: "Continue" }).click();
   await expect(
-    page.getByRole("heading", { name: "Enter the six-digit email code" }),
+    page.getByRole("heading", { name: "Enter the demo verification code" }),
   ).toBeVisible();
-  await page.getByRole("textbox", { name: "Email code" }).fill("482913");
-  await page.getByRole("button", { name: "Verify and open report" }).click();
+  await expect(
+    page.getByText("No email is sent from this public demo", { exact: false }),
+  ).toBeVisible();
+  await page.getByRole("textbox", { name: "Verification code" }).fill("482913");
+  await page.getByRole("button", { name: "Open report" }).click();
   await expect(
     page.getByRole("heading", { name: /12 Example Street/u }),
   ).toBeVisible();
@@ -45,12 +46,8 @@ test.describe("recipient report", () => {
     await page.goto("/reports/demo");
     await expect(page).toHaveURL(/\/auth\/invitation$/u);
     await page.getByLabel("Invitation code").fill("demo-invite-wrong-mailbox");
-    await page
-      .getByLabel("Invited email address")
-      .fill("forwarded@example.com");
-    await page
-      .getByRole("button", { name: "Continue to mailbox verification" })
-      .click();
+    await page.getByLabel("Email address").fill("forwarded@example.com");
+    await page.getByRole("button", { name: "Continue" }).click();
     await expect(
       page.getByRole("alert").filter({
         hasText: "unavailable, expired, revoked, or already used",
@@ -59,12 +56,8 @@ test.describe("recipient report", () => {
     const invitationCode = await authenticate(page);
     await page.goto("/auth/invitation");
     await page.getByLabel("Invitation code").fill(invitationCode);
-    await page
-      .getByLabel("Invited email address")
-      .fill("recipient@example.com");
-    await page
-      .getByRole("button", { name: "Continue to mailbox verification" })
-      .click();
+    await page.getByLabel("Email address").fill("recipient@example.com");
+    await page.getByRole("button", { name: "Continue" }).click();
     await expect(
       page.getByRole("alert").filter({
         hasText: "unavailable, expired, revoked, or already used",
@@ -76,7 +69,9 @@ test.describe("recipient report", () => {
     page,
   }) => {
     await authenticate(page);
-    const overview = page.getByRole("region", { name: "Condition overview" });
+    const overview = page.getByRole("region", {
+      name: "Your 30-second summary",
+    });
     await expect(overview).toContainText("1 major Building defect identified");
     await expect(overview).toContainText(
       "Cracked shower and bathroom floor tiles",
@@ -87,18 +82,18 @@ test.describe("recipient report", () => {
     );
     await expect(overview).toContainText("Material limitations");
     await expect(
-      page.getByRole("heading", { name: "Building condition" }),
+      page.getByRole("heading", { name: "Building findings" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Timber Pest condition" }),
+      page.getByRole("heading", { name: "Timber Pest findings" }),
     ).toBeVisible();
     await expect(
-      page.getByText("Inspector-confirmed classification: Major defect", {
+      page.getByLabel("Inspector-confirmed classification: Major defect", {
         exact: true,
       }),
     ).toBeVisible();
     await expect(
-      page.getByText("Inspector-confirmed category: Conducive condition", {
+      page.getByLabel("Inspector-confirmed category: Conducive condition", {
         exact: true,
       }),
     ).toBeVisible();
@@ -150,23 +145,22 @@ test.describe("recipient report", () => {
   }) => {
     await authenticate(page);
     await expect(
-      page.getByRole("region", { name: "Access and questions" }),
+      page.getByRole("region", { name: "Questions and report access" }),
     ).toContainText("Access expiry:");
+    await page.getByText("Build Week demo actions", { exact: true }).click();
     await page.getByLabel("Recipient email address").fill("buyer@example.com");
     await page
-      .getByLabel("I confirm the named recipient and expiry before recording")
-      .check();
-    await page
-      .getByRole("button", { name: "Record named access request" })
+      .getByRole("button", { name: "Create access invitation" })
       .click();
     await expect(
       page.getByRole("status").filter({ hasText: "buyer@example.com" }),
     ).toContainText("recorded");
-    await page.getByRole("button", { name: "Revoke recorded request" }).click();
+    await page.getByRole("button", { name: "Revoke invitation" }).click();
     await expect(
       page.getByRole("status").filter({ hasText: "buyer@example.com" }),
     ).toContainText("revoked");
     await page.reload();
+    await page.getByText("Build Week demo actions", { exact: true }).click();
     await expect(
       page.getByRole("status").filter({ hasText: "buyer@example.com" }),
     ).toContainText("revoked");
@@ -176,26 +170,34 @@ test.describe("recipient report", () => {
     page,
   }) => {
     await authenticate(page);
+    await page.getByText("Build Week demo actions", { exact: true }).click();
     await page
       .getByLabel("Finding reference (optional)")
       .selectOption("finding_cracked_tiles");
     await page
       .getByLabel("Your question")
       .fill("Please clarify the observed extent.");
-    await page
-      .getByRole("button", { name: "Record question reference" })
-      .click();
+    await page.getByRole("button", { name: "Save question" }).click();
     await expect(
       page
         .getByRole("status")
-        .filter({ hasText: "Question reference recorded" }),
+        .filter({ hasText: "Question saved in this demo" }),
     ).toBeVisible();
     await page.reload();
+    await page.getByText("Build Week demo actions", { exact: true }).click();
     await expect(
       page
         .getByRole("status")
-        .filter({ hasText: "Question reference recorded" }),
+        .filter({ hasText: "Question saved in this demo" }),
     ).toBeVisible();
+  });
+
+  test("lets a recipient explicitly end report access", async ({ page }) => {
+    await authenticate(page);
+    await page.getByRole("button", { name: "Sign out of this report" }).click();
+    await expect(page).toHaveURL(/\/auth\/invitation$/u);
+    await page.goto("/reports/demo");
+    await expect(page).toHaveURL(/\/auth\/invitation$/u);
   });
 
   test("shows immutable amendment history and ignores forged withdrawal query authority", async ({
@@ -205,6 +207,7 @@ test.describe("recipient report", () => {
     await expect(
       page.getByRole("heading", { name: "Amendment notice" }),
     ).toBeVisible();
+    await page.getByText("Version history", { exact: true }).click();
     const history = page.getByRole("table", { name: "Report version history" });
     await expect(history).toContainText("Current delivered version");
     await expect(history).toContainText("Superseded, retained");
@@ -215,10 +218,10 @@ test.describe("recipient report", () => {
       page.getByRole("heading", { name: "Building report withdrawn" }),
     ).toHaveCount(0);
     await expect(
-      page.getByRole("heading", { name: "Building condition" }),
+      page.getByRole("heading", { name: "Building findings" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Timber Pest condition" }),
+      page.getByRole("heading", { name: "Timber Pest findings" }),
     ).toBeVisible();
     await expect(
       page.getByRole("link", { name: /Building report PDF/u }),

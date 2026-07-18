@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 case_id: D17
 split: development
 locked_holdout: false
@@ -20,7 +20,8 @@ expected:
     - "original run superseded"
     - "new packet required"
   allowed_uncertainties: []
-  forbidden_claims:
+  forbidden_claims: []
+  system_scenario_codes:
     - "stale_draft_reviewable"
   inspector_decision: "reject stale result"
   verifier: reject

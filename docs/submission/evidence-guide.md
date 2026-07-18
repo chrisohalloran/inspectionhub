@@ -14,7 +14,8 @@ manifest to change its outcome; create a new input and run the validator.
 1. Save raw logs, screenshots, recordings, probes and review reports beneath a
    unique `artifacts/validation/<run-id>/` directory.
 2. Record the observer, exact UTC observation time, bounded claim, relative
-   artifact path and lowercase SHA-256.
+   artifact path, lowercase SHA-256 and exact source commit for every evidence
+   record. The evidence commit must equal the milestone `run.commitSha`.
 3. Do not place media, transcript, report prose, names, email addresses, street
    addresses, tokens or secrets in the manifest.
 4. Use pseudonymous participant hashes for human sessions. Keep consent and
@@ -24,6 +25,10 @@ manifest to change its outcome; create a new input and run the validator.
 6. Never reuse a Build Week output path. The validator writes with exclusive
    creation and a later Revenue Activation run must reference, not overwrite,
    Build Week evidence.
+7. Physical-device evidence records both the human-readable app build and the
+   exact installed `appCommitSha`; review evidence records
+   `reviewedCommitSha`. Both must equal `run.commitSha`. A passing observation
+   from an earlier commit is historical context, not proof for a later build.
 
 ## Required observed groups
 
@@ -62,3 +67,9 @@ node scripts/milestone-build-week/run.mjs \
 Exit 0 and `build_week.milestone.completed` appear only after every requirement
 is proven. Exit 4 is a valid, truthful blocked result. Exit 2 means the evidence
 input itself is invalid.
+
+The dedicated iOS simulator may be used to debug and capture local UI evidence,
+but its six-flow result cannot populate the `physical_device` evidence kind.
+Likewise, the deterministic ten-case OpenAI request preflight cannot populate a
+live development or blinded-holdout result. Record those boundaries literally
+when assembling evidence.

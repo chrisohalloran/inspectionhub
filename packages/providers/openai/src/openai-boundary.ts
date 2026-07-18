@@ -52,6 +52,13 @@ export interface MinimizedAiPacket {
     module: "building" | "timber_pest";
     moduleId: string;
   }>[];
+  readonly findingCandidates: readonly Readonly<{
+    findingCandidateId: string;
+    module: "building" | "timber_pest";
+    moduleId: string;
+    sourceArtifactIds: readonly string[];
+    sourceObservationIds: readonly string[];
+  }>[];
   readonly selectedSafeProxies: readonly SelectedSafeProxy[];
   readonly redactedSources: readonly RedactedAiPacketSource[];
   readonly redactedContradictions: readonly string[];
@@ -180,6 +187,7 @@ export async function prepareOpenAiRequest(input: {
     packetHash: input.packet.packetHash,
     packetRevision: input.packet.packetRevision,
     modules: input.packet.modules,
+    findingCandidates: input.packet.findingCandidates,
     safeProxyImages: verifiedImages,
     redactedSources: input.packet.redactedSources,
     redactedContradictions: input.packet.redactedContradictions,
@@ -362,6 +370,33 @@ function validateMinimizedPacket(packet: MinimizedAiPacket): void {
     }
     sourceKeys.add(key);
   }
+  const moduleIds = new Map(
+    packet.modules.map((module) => [module.module, module.moduleId]),
+  );
+  const candidateIds = new Set<string>();
+  const candidateModules = new Set<string>();
+  for (const candidate of packet.findingCandidates) {
+    if (
+      candidate.findingCandidateId.trim().length === 0 ||
+      candidateIds.has(candidate.findingCandidateId) ||
+      candidateModules.has(candidate.module) ||
+      moduleIds.get(candidate.module) !== candidate.moduleId ||
+      new Set(candidate.sourceArtifactIds).size !==
+        candidate.sourceArtifactIds.length ||
+      new Set(candidate.sourceObservationIds).size !==
+        candidate.sourceObservationIds.length ||
+      candidate.sourceArtifactIds.some(
+        (sourceId) => !sourceKeys.has(`artifact:${sourceId}`),
+      ) ||
+      candidate.sourceObservationIds.some(
+        (sourceId) => !sourceKeys.has(`observation:${sourceId}`),
+      )
+    ) {
+      throw new Error("AI packet contains an invalid finding candidate scope");
+    }
+    candidateIds.add(candidate.findingCandidateId);
+    candidateModules.add(candidate.module);
+  }
 }
 
 function validateProxyManifest(proxy: SelectedSafeProxy): void {
@@ -450,6 +485,17 @@ function deepFreezePacket(packet: PreparedAiPacket): PreparedAiPacket {
     ...packet,
     modules: Object.freeze(
       packet.modules.map((module) => Object.freeze({ ...module })),
+    ),
+    findingCandidates: Object.freeze(
+      packet.findingCandidates.map((candidate) =>
+        Object.freeze({
+          ...candidate,
+          sourceArtifactIds: Object.freeze([...candidate.sourceArtifactIds]),
+          sourceObservationIds: Object.freeze([
+            ...candidate.sourceObservationIds,
+          ]),
+        }),
+      ),
     ),
     safeProxyImages: Object.freeze(
       packet.safeProxyImages.map((image) => Object.freeze({ ...image })),

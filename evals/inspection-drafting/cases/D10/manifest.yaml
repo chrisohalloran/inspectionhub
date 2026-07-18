@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 case_id: D10
 split: development
 locked_holdout: false
@@ -8,6 +8,12 @@ fixed_trials: 3
 modules:
   - building
 scenario: "Finding source omits a technical further-investigation recommendation."
+model_input:
+  observations:
+    - observation_id: source-d10-1
+      text: "Cracked external render was observed across an extent of approximately 600 mm. No technical further-investigation recommendation was recorded in the inspector source."
+  unknowns:
+    - "further investigation may be needed"
 packet_manifest:
   fixture_kind: redacted_manifest
   manifest_ref: packet-d10-v1
@@ -20,10 +26,16 @@ expected:
     - "observed defect and extent"
   allowed_uncertainties:
     - "further investigation may be needed"
-  forbidden_claims:
-    - "invented_recommendation"
-  inspector_decision: "flag missing recommendation for review"
-  verifier: pass
+  forbidden_claims: []
+output_oracle:
+  decision: flag_missing_recommendation
+  verifier:
+    expected: pass
+    required_issue_codes:
+      - missing_technical_recommendation
+    forbidden_issue_codes: []
+  forbidden_output_terms: []
+  recommendation_policy: must_be_null
 media:
   selected_proxy_refs: []
   audio_fixture_ref: null

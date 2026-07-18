@@ -15,6 +15,18 @@ export function crackedTilePacket(): InvestigationPacket {
     investigationId: "investigation-1",
     investigationRevision: 4,
     modules: [{ module: "building", moduleId: "module-building" }],
+    findingCandidates: [
+      {
+        findingCandidateId: "candidate-cracked-tiles",
+        module: "building",
+        moduleId: "module-building",
+        sourceArtifactIds: ["photo-cracked-tiles", "voice-cracked-tiles"],
+        sourceObservationIds: [
+          "observation-cracked-tiles",
+          "observation-construction-unknown",
+        ],
+      },
+    ],
     moduleSchemas: [
       {
         module: "building",

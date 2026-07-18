@@ -7,14 +7,17 @@ import type {
   FieldSessionSnapshot,
   LocalCaptureEvent,
   ManualNote,
+  ManualNoteDigest,
   QueueLane,
 } from "../capture/types";
+import { assertManualNoteIdentity } from "../capture/manual-note-content";
 import { transitionQueueState, type QueueEvent } from "../sync/queue-machine";
-import { cloneFieldSession } from "./field-workflow";
+import { cloneFieldSession, parseFieldSession } from "./field-workflow";
 import type { CaptureLedger } from "./ports";
 
 type InMemoryCaptureLedgerOptions = {
   failNextCommit?: boolean;
+  manualNoteDigest?: ManualNoteDigest;
 };
 
 function cloneIntent(intent: CaptureIntent): CaptureIntent {
@@ -27,6 +30,10 @@ function cloneArtifact(artifact: DurableArtifact): DurableArtifact {
 
 function cloneQueueItem(item: CaptureQueueItem): CaptureQueueItem {
   return { ...item };
+}
+
+function cloneManualNote(note: ManualNote): ManualNote {
+  return { ...note };
 }
 
 function assertArtifactIdentity(artifact: DurableArtifact): void {
@@ -58,9 +65,11 @@ export class InMemoryCaptureLedger implements CaptureLedger {
   readonly #queue = new Map<string, CaptureQueueItem>();
   #fieldSession: FieldSessionSnapshot | undefined;
   #failNextCommit: boolean;
+  readonly #manualNoteDigest: ManualNoteDigest | undefined;
 
   constructor(options: InMemoryCaptureLedgerOptions = {}) {
     this.#failNextCommit = options.failNextCommit ?? false;
+    this.#manualNoteDigest = options.manualNoteDigest;
   }
 
   #appendEvent(event: Omit<LocalCaptureEvent, "ordinal">): void {
@@ -144,6 +153,11 @@ export class InMemoryCaptureLedger implements CaptureLedger {
     return intent === undefined ? undefined : cloneIntent(intent);
   }
 
+  getManualNote(noteId: string): ManualNote | undefined {
+    const note = this.#manualNotes.get(noteId);
+    return note === undefined ? undefined : cloneManualNote(note);
+  }
+
   getQueue(captureId: string): CaptureQueueItem | undefined {
     const item = this.#queue.get(captureId);
     return item === undefined ? undefined : cloneQueueItem(item);
@@ -159,6 +173,10 @@ export class InMemoryCaptureLedger implements CaptureLedger {
 
   listIntents(): readonly CaptureIntent[] {
     return [...this.#intents.values()].map(cloneIntent);
+  }
+
+  listManualNotes(): readonly ManualNote[] {
+    return [...this.#manualNotes.values()].map(cloneManualNote);
   }
 
   listPerformanceSamples(): readonly CapturePerformanceSample[] {
@@ -214,14 +232,27 @@ export class InMemoryCaptureLedger implements CaptureLedger {
     return Promise.resolve();
   }
 
-  recordManualNote(note: ManualNote): Promise<void> {
-    if (note.text.trim().length === 0) {
-      throw new Error("Manual note text is required");
-    }
+  async recordManualNote(note: ManualNote): Promise<void> {
     if (this.#manualNotes.has(note.noteId)) {
       throw new Error(`Manual note identity already exists: ${note.noteId}`);
     }
-    this.#manualNotes.set(note.noteId, { ...note });
+    if (
+      this.#artifacts.has(note.noteId) ||
+      this.#intents.has(note.noteId) ||
+      this.#queue.has(note.noteId)
+    ) {
+      throw new Error(
+        `Manual note identity conflicts with capture identity: ${note.noteId}`,
+      );
+    }
+    if (this.#manualNoteDigest === undefined) {
+      throw new Error("Manual note digest is unavailable");
+    }
+    const verified = await assertManualNoteIdentity(
+      note,
+      this.#manualNoteDigest,
+    );
+    this.#manualNotes.set(verified.noteId, cloneManualNote(verified));
     this.#queue.set(note.noteId, {
       captureId: note.noteId,
       lane: "manual_note_sync",
@@ -232,7 +263,6 @@ export class InMemoryCaptureLedger implements CaptureLedger {
       type: "manual_note_recorded",
     });
     this.#appendEvent({ captureId: note.noteId, type: "queue_enqueued" });
-    return Promise.resolve();
   }
 
   recordPerformanceSample(sample: CapturePerformanceSample): Promise<void> {
@@ -256,14 +286,9 @@ export class InMemoryCaptureLedger implements CaptureLedger {
   }
 
   saveFieldSession(snapshot: FieldSessionSnapshot): Promise<void> {
-    if (
-      snapshot.nextSequence < 1 ||
-      !Number.isSafeInteger(snapshot.nextSequence)
-    ) {
-      throw new Error("Field session next sequence must be a positive integer");
-    }
+    const validated = parseFieldSession(snapshot);
     const currentWorkflow = this.#fieldSession?.workflow;
-    const nextWorkflow = snapshot.workflow;
+    const nextWorkflow = validated.workflow;
     if (currentWorkflow !== undefined && nextWorkflow === undefined) {
       throw new Error("A protected field workflow cannot be removed");
     }
@@ -280,7 +305,7 @@ export class InMemoryCaptureLedger implements CaptureLedger {
         "Field workflow transitions must append exactly one immutable revision",
       );
     }
-    this.#fieldSession = cloneFieldSession(snapshot);
+    this.#fieldSession = cloneFieldSession(validated);
     return Promise.resolve();
   }
 }

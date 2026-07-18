@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 case_id: D19
 split: development
 locked_holdout: false
@@ -19,7 +19,8 @@ expected:
   required_facts:
     - "exact draft and packet hash"
   allowed_uncertainties: []
-  forbidden_claims:
+  forbidden_claims: []
+  system_scenario_codes:
     - "old_verifier_reused"
   inspector_decision: "reject stale verdict"
   verifier: reject

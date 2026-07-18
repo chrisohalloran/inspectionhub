@@ -97,6 +97,7 @@ pnpm test
 pnpm build
 pnpm test:integration
 pnpm test:e2e:web
+pnpm test:contract:mobile
 pnpm test:e2e:mobile
 pnpm test:soak
 pnpm test:eval
@@ -104,6 +105,10 @@ pnpm test:pdf
 pnpm test:security
 pnpm milestone:build-week
 ```
+
+`pnpm test:contract:mobile` is the host-independent CI check. The mobile E2E
+command requires an attached Maestro runtime and never reports a static-only
+pass as E2E proof.
 
 `pnpm milestone:build-week` is expected to fail closed until every automated,
 physical, public and human prerequisite has checksum-linked observed evidence.

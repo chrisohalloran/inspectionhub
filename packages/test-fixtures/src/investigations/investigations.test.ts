@@ -29,6 +29,9 @@ describe("inspection investigation fixtures", () => {
     expect(
       fixture.coverage.limitations.filter((item) => item.status === "active"),
     ).toHaveLength(2);
+    expect(fixture.packet.modules).toEqual(
+      fixture.investigation.commissionedModules,
+    );
   });
 
   it("shares one immutable original across distinct module candidate links", () => {
@@ -39,10 +42,12 @@ describe("inspection investigation fixtures", () => {
       expect.objectContaining({
         module: "building",
         sourceArtifactIds: [fixture.oracle.sharedOriginalId],
+        sourceObservationIds: [fixture.oracle.sharedObservationId],
       }),
       expect.objectContaining({
         module: "timber_pest",
         sourceArtifactIds: [fixture.oracle.sharedOriginalId],
+        sourceObservationIds: [fixture.oracle.sharedObservationId],
       }),
     ]);
     expect(fixture.oracle.building.schema).not.toBe(

@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 case_id: H09
 split: holdout
 locked_holdout: true
@@ -20,7 +20,8 @@ expected:
     - "manual completion state"
     - "evidence retained"
   allowed_uncertainties: []
-  forbidden_claims:
+  forbidden_claims: []
+  system_scenario_codes:
     - "delivery_without_approval"
   inspector_decision: "manual human-authored route"
   verifier: pass

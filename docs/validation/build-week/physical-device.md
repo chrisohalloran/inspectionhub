@@ -6,8 +6,9 @@ or a unit test.
 Record before the run:
 
 - run ID and UTC start time;
-- physical iPhone model, iOS version, app build/runtime and native module
-  version;
+- physical iPhone model, iOS version, app build/runtime, native module version
+  and the exact installed `appCommitSha`, which must equal the milestone
+  `run.commitSha`;
 - free storage, battery percentage, charging state and thermal state;
 - benchmark profile version and checksum;
 - inspector role attestation and confirmation that the job is
@@ -35,3 +36,22 @@ Observe one continuous field-only journey:
 Save raw samples, device recording and structured result under one unique
 `artifacts/validation/<run-id>/` directory. Compute SHA-256 after capture.
 Failures and assistance remain in the record; do not trim them from the proof.
+
+## Current signing blocker (17 July 2026)
+
+The connected iPhone 16 Pro is visible to Xcode with Developer Mode enabled,
+and the developer-disk-image service mounts. A Debug build of the current
+workspace was attempted with automatic signing for the configured development
+team and reached provisioning. Xcode then failed with exit 65:
+
+```text
+No Accounts: Add a new account in Accounts settings.
+No profiles for 'co.inspectionhub.field' were found.
+```
+
+No app from this source state was installed on the physical phone, so no
+physical-device journey, timing, accessibility or recovery proof is claimed.
+The next authorised run must first sign in the matching Apple developer account
+and create/download an iOS App Development profile for
+`co.inspectionhub.field`; it must then execute the complete protocol above
+against the exact final commit.

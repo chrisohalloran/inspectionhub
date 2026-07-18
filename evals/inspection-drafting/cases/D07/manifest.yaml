@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 case_id: D07
 split: development
 locked_holdout: false
@@ -8,6 +8,12 @@ fixed_trials: 3
 modules:
   - building
 scenario: "Inspector suspects timber joists but the floor construction is concealed."
+model_input:
+  observations:
+    - observation_id: source-d07-1
+      text: "The floor construction was concealed and was not visually confirmed. Timber joists are an inspector assumption rather than an observed construction fact."
+  unknowns:
+    - "timber joists are an assumption"
 packet_manifest:
   fixture_kind: redacted_manifest
   manifest_ref: packet-d07-v1
@@ -22,8 +28,14 @@ expected:
     - "timber joists are an assumption"
   forbidden_claims:
     - "assumption_as_fact"
-  inspector_decision: "qualified hypothesis only"
-  verifier: pass
+output_oracle:
+  decision: qualified_construction_hypothesis
+  verifier:
+    expected: pass
+    required_issue_codes: []
+    forbidden_issue_codes: []
+  forbidden_output_terms: []
+  recommendation_policy: any
 media:
   selected_proxy_refs: []
   audio_fixture_ref: null

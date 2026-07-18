@@ -27,14 +27,16 @@ export default async function AdminConfigurationPage({
         </div>
         <nav aria-label="Administration">
           <a aria-current="page" href="#services">
-            Configuration
+            Services
           </a>
+          <a href="#availability">Availability</a>
+          <a href="#eligibility">Inspectors</a>
           <a href="#integrations">Integrations</a>
         </nav>
       </header>
       <AdminConfiguration permissionDenied={permissionDenied} />
-      <aside className={styles.releaseBoundary}>
-        <h2>Launch configuration boundary</h2>
+      <details className={styles.releaseBoundary}>
+        <summary>Demo administration controls</summary>
         <p>
           Agreement, notification, and report-presentation templates remain
           reviewed release artifacts. This launch surface does not expose broad
@@ -48,10 +50,10 @@ export default async function AdminConfigurationPage({
           }
         >
           {permissionDenied
-            ? "Return to authorised test view"
-            : "View permission-denied fixture"}
+            ? "Return to authorised view"
+            : "Preview permission-denied state"}
         </Link>
-      </aside>
+      </details>
     </main>
   );
 }

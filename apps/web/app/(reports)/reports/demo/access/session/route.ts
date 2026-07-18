@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 
 import {
-  authorisePortalRequest,
   readPortalSession,
   recipientCookieOptions,
   RECIPIENT_SESSION_COOKIE,
@@ -11,25 +10,18 @@ import {
 export async function DELETE(request: Request) {
   if (!sameOrigin(request)) return denied();
   const session = await readPortalSession();
-  for (const module of ["building", "timber_pest"] as const) {
-    try {
-      const authorised = await authorisePortalRequest(session, {
-        reportVersionId: "report_demo_v2",
-        module,
-        action: "read_report",
-      });
-      await revokeCurrentDemoGrant(authorised);
-      const response = new NextResponse(null, { status: 204 });
-      response.cookies.set(RECIPIENT_SESSION_COOKIE, "", {
-        ...recipientCookieOptions(0),
-        expires: new Date(0),
-      });
-      return response;
-    } catch {
-      // Try the remaining delivered module before denying the request.
-    }
+  try {
+    if (session === null) return denied();
+    await revokeCurrentDemoGrant(session);
+    const response = new NextResponse(null, { status: 204 });
+    response.cookies.set(RECIPIENT_SESSION_COOKIE, "", {
+      ...recipientCookieOptions(0),
+      expires: new Date(0),
+    });
+    return response;
+  } catch {
+    return denied();
   }
-  return denied();
 }
 
 function sameOrigin(request: Request): boolean {

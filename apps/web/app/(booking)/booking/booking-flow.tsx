@@ -4,6 +4,7 @@ import { useId, useMemo, useState } from "react";
 
 import {
   formatAud,
+  launchQuoteExpiryLabel,
   launchServices,
   launchSlots,
   quoteTotal,
@@ -14,19 +15,13 @@ import {
 } from "./booking-model";
 import styles from "./booking.module.css";
 
-type Step = 1 | 2 | 3 | 4 | 5;
+type Step = 1 | 2 | 3 | 4;
 
-const stepNames = [
-  "Service",
-  "Property and people",
-  "Appointment",
-  "Agreement",
-  "Readiness",
-];
+const stepNames = ["Inspection & details", "Time & access", "Review"];
 
 function initialStep(scenario: BookingScenario): Step {
-  if (scenario === "payment-declined") return 5;
-  if (scenario === "slot-conflict" || scenario === "slot-expired") return 3;
+  if (scenario === "payment-declined") return 4;
+  if (scenario === "slot-conflict" || scenario === "slot-expired") return 2;
   return 1;
 }
 
@@ -71,8 +66,11 @@ export function BookingFlow({ scenario }: { scenario: BookingScenario }) {
   );
   const [clientName, setClientName] = useState("Alex Morgan");
   const [clientEmail, setClientEmail] = useState("alex@example.test");
+  const [clientPhone, setClientPhone] = useState("0400 000 000");
   const [recipientEmail, setRecipientEmail] = useState("alex@example.test");
-  const [invoiceEmail, setInvoiceEmail] = useState("accounts@example.test");
+  const [invoiceEmail, setInvoiceEmail] = useState("alex@example.test");
+  const [differentContacts, setDifferentContacts] = useState(false);
+  const [accessMode, setAccessMode] = useState<"client" | "contact">("contact");
   const [accessName, setAccessName] = useState("Taylor Lee");
   const [accessPhone, setAccessPhone] = useState("0400 000 001");
   const [selectedSlot, setSelectedSlot] = useState("slot-0900");
@@ -108,34 +106,33 @@ export function BookingFlow({ scenario }: { scenario: BookingScenario }) {
   }
 
   function confirmSlot() {
+    setNotice("Appointment confirmed. Your entered details were retained.");
     setReadiness((current) => ({
       ...current,
+      access: accessMode === "client" ? "confirmed" : "required",
       calendar: "confirmed",
       slot: "confirmed",
     }));
-    setNotice(
-      "Appointment confirmed in the test calendar. Your entered details were retained.",
-    );
     if (scenario === "slot-conflict" || scenario === "slot-expired") return;
-    goToStep(4, false);
+    goToStep(3, false);
   }
 
   function signAgreement() {
     setReadiness((current) => ({ ...current, agreement: "signed" }));
     setNotice(
-      "Agreement version AG-2026.07-test signed. A test record is now available.",
+      "Agreement version AG-2026.07-test signed. Your signed record is available.",
     );
-    goToStep(5, false);
+    goToStep(4, false);
   }
 
   function completePayment() {
     setReadiness((current) => ({ ...current, payment: "succeeded" }));
-    setNotice("Test payment succeeded. No card was charged.");
+    setNotice("Demo payment confirmed. No card was charged.");
   }
 
-  function confirmAccess() {
+  function confirmAccessForDemo() {
     setReadiness((current) => ({ ...current, access: "confirmed" }));
-    setNotice("Property access confirmed by the test access contact.");
+    setNotice("Property access confirmed by the access contact.");
   }
 
   const scenarioMessage =
@@ -150,16 +147,22 @@ export function BookingFlow({ scenario }: { scenario: BookingScenario }) {
   return (
     <section className={styles.bookingShell} aria-labelledby={headingId}>
       <div className={styles.progress}>
-        <p className={styles.eyebrow}>Quote to ready</p>
-        <p>
-          Step {step} of {stepNames.length}:{" "}
-          <strong>{stepNames[step - 1]}</strong>
-        </p>
+        <p className={styles.eyebrow}>Book online</p>
+        {step === 4 ? (
+          <p>
+            Booking status: <strong>{projection.label}</strong>
+          </p>
+        ) : (
+          <p>
+            Step {step} of {stepNames.length}:{" "}
+            <strong>{stepNames[step - 1]}</strong>
+          </p>
+        )}
         <ol aria-label="Booking progress">
           {stepNames.map((name, index) => {
             const position = index + 1;
             const state =
-              position < step
+              step === 4 || position < step
                 ? "Completed"
                 : position === step
                   ? "Current"
@@ -179,11 +182,10 @@ export function BookingFlow({ scenario }: { scenario: BookingScenario }) {
 
       <div className={styles.content}>
         <h1 className={styles.focusHeading} id={headingId} tabIndex={-1}>
-          {step === 1 && "Choose the inspection service"}
-          {step === 2 && "Tell us about the property and people"}
-          {step === 3 && "Choose an appointment"}
-          {step === 4 && "Review the inspection scope"}
-          {step === 5 && "Finish the required actions"}
+          {step === 1 && "Book your inspection"}
+          {step === 2 && "Choose a time and access"}
+          {step === 3 && "Review and accept"}
+          {step === 4 && "Booking status"}
         </h1>
 
         {scenarioMessage ? (
@@ -210,10 +212,10 @@ export function BookingFlow({ scenario }: { scenario: BookingScenario }) {
             }}
           >
             <fieldset className={styles.cleanFieldset}>
-              <legend>Select one or both professional modules</legend>
+              <legend>Inspection services</legend>
               <p className={styles.helper}>
-                A combined booking still produces separate Building and Timber
-                Pest reports.
+                Choose one or both. Building and Timber Pest remain separate
+                reports.
               </p>
               <div className={styles.serviceGrid}>
                 {launchServices.map((service) => (
@@ -243,25 +245,6 @@ export function BookingFlow({ scenario }: { scenario: BookingScenario }) {
                 Select at least one inspection module to continue.
               </p>
             ) : null}
-            <QuoteSummary
-              selectedModules={selectedModules}
-              totalCents={totalCents}
-            />
-            <div className={styles.actions}>
-              <button disabled={selectedModules.size === 0} type="submit">
-                Continue to property details
-              </button>
-            </div>
-          </form>
-        ) : null}
-
-        {step === 2 ? (
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              goToStep(3);
-            }}
-          >
             <div className={styles.formSections}>
               <fieldset>
                 <legend>Property</legend>
@@ -276,7 +259,7 @@ export function BookingFlow({ scenario }: { scenario: BookingScenario }) {
                 </label>
               </fieldset>
               <fieldset>
-                <legend>Client</legend>
+                <legend>Your details</legend>
                 <label>
                   Full name
                   <input
@@ -290,20 +273,41 @@ export function BookingFlow({ scenario }: { scenario: BookingScenario }) {
                   Email
                   <input
                     autoComplete="email"
-                    onChange={(event) => setClientEmail(event.target.value)}
+                    onChange={(event) => {
+                      const nextEmail = event.target.value;
+                      if (!differentContacts) {
+                        setRecipientEmail(nextEmail);
+                        setInvoiceEmail(nextEmail);
+                      }
+                      setClientEmail(nextEmail);
+                    }}
                     required
                     type="email"
                     value={clientEmail}
                   />
                 </label>
+                <label>
+                  Mobile number
+                  <input
+                    autoComplete="tel"
+                    onChange={(event) => setClientPhone(event.target.value)}
+                    required
+                    type="tel"
+                    value={clientPhone}
+                  />
+                </label>
               </fieldset>
-              <fieldset>
-                <legend>Report and invoice contacts</legend>
+            </div>
+            <details className={styles.optionalDetails}>
+              <summary>Use different report or invoice contacts</summary>
+              <div className={styles.optionalFields}>
                 <label>
                   Report recipient email
                   <input
-                    onChange={(event) => setRecipientEmail(event.target.value)}
-                    required
+                    onChange={(event) => {
+                      setDifferentContacts(true);
+                      setRecipientEmail(event.target.value);
+                    }}
                     type="email"
                     value={recipientEmail}
                   />
@@ -311,52 +315,29 @@ export function BookingFlow({ scenario }: { scenario: BookingScenario }) {
                 <label>
                   Invoice contact email
                   <input
-                    onChange={(event) => setInvoiceEmail(event.target.value)}
-                    required
+                    onChange={(event) => {
+                      setDifferentContacts(true);
+                      setInvoiceEmail(event.target.value);
+                    }}
                     type="email"
                     value={invoiceEmail}
                   />
                 </label>
-              </fieldset>
-              <fieldset>
-                <legend>Property access contact</legend>
-                <p className={styles.helper}>
-                  This contact receives access messages only, never report data.
-                </p>
-                <label>
-                  Full name
-                  <input
-                    onChange={(event) => setAccessName(event.target.value)}
-                    required
-                    value={accessName}
-                  />
-                </label>
-                <label>
-                  Mobile number
-                  <input
-                    autoComplete="tel"
-                    onChange={(event) => setAccessPhone(event.target.value)}
-                    required
-                    type="tel"
-                    value={accessPhone}
-                  />
-                </label>
-              </fieldset>
-            </div>
+              </div>
+            </details>
+            <QuoteSummary
+              selectedModules={selectedModules}
+              totalCents={totalCents}
+            />
             <div className={styles.actions}>
-              <button
-                className={styles.secondaryButton}
-                onClick={() => goToStep(1)}
-                type="button"
-              >
-                Back to service
+              <button disabled={selectedModules.size === 0} type="submit">
+                Continue
               </button>
-              <button type="submit">Continue to appointment</button>
             </div>
           </form>
         ) : null}
 
-        {step === 3 ? (
+        {step === 2 ? (
           <form
             onSubmit={(event) => {
               event.preventDefault();
@@ -364,8 +345,8 @@ export function BookingFlow({ scenario }: { scenario: BookingScenario }) {
             }}
           >
             <p className={styles.helper}>
-              Times use Australia/Brisbane (AEST). Availability includes travel
-              buffers and test-calendar conflicts.
+              Times use Australia/Brisbane (AEST). Travel time is already
+              allowed for.
             </p>
             <fieldset className={styles.cleanFieldset}>
               <legend>Available times</legend>
@@ -387,71 +368,170 @@ export function BookingFlow({ scenario }: { scenario: BookingScenario }) {
                 ))}
               </div>
             </fieldset>
+            <fieldset className={styles.cleanFieldset}>
+              <legend>Who can provide access?</legend>
+              <div className={styles.slotGrid}>
+                <label className={styles.slotCard}>
+                  <input
+                    checked={accessMode === "client"}
+                    name="access-mode"
+                    onChange={() => setAccessMode("client")}
+                    type="radio"
+                  />
+                  <span>
+                    <strong>I can provide access</strong>
+                    <small>
+                      Use {clientName} · {clientPhone}
+                    </small>
+                  </span>
+                </label>
+                <label className={styles.slotCard}>
+                  <input
+                    checked={accessMode === "contact"}
+                    name="access-mode"
+                    onChange={() => setAccessMode("contact")}
+                    type="radio"
+                  />
+                  <span>
+                    <strong>Contact the agent or owner</strong>
+                    <small>They receive access messages only.</small>
+                  </span>
+                </label>
+              </div>
+            </fieldset>
+            {accessMode === "contact" ? (
+              <div className={styles.formSections}>
+                <fieldset>
+                  <legend>Access contact</legend>
+                  <label>
+                    Full name
+                    <input
+                      onChange={(event) => setAccessName(event.target.value)}
+                      required
+                      value={accessName}
+                    />
+                  </label>
+                  <label>
+                    Mobile number
+                    <input
+                      autoComplete="tel"
+                      onChange={(event) => setAccessPhone(event.target.value)}
+                      required
+                      type="tel"
+                      value={accessPhone}
+                    />
+                  </label>
+                </fieldset>
+              </div>
+            ) : null}
             <div className={styles.actions}>
               <button
                 className={styles.secondaryButton}
-                onClick={() => goToStep(2)}
+                onClick={() => goToStep(1)}
                 type="button"
               >
-                Back to details
+                Back
               </button>
               <button type="submit">
                 {scenario === "standard"
-                  ? "Confirm test appointment"
-                  : "Confirm replacement appointment"}
+                  ? "Continue to review"
+                  : "Confirm replacement time"}
               </button>
             </div>
             {scenario !== "standard" && readiness.slot === "confirmed" ? (
               <div className={styles.recoveryNext}>
-                <p>
-                  Test replacement appointment confirmed. The superseded test
-                  hold is no longer valid.
-                </p>
-                <button onClick={() => goToStep(4)} type="button">
-                  Continue to agreement
+                <p>Replacement time confirmed. Your details were retained.</p>
+                <button onClick={() => goToStep(3)} type="button">
+                  Continue to review
                 </button>
               </div>
             ) : null}
           </form>
         ) : null}
 
-        {step === 4 ? (
+        {step === 3 ? (
           <form
             onSubmit={(event) => {
               event.preventDefault();
               if (agreementAccepted) signAgreement();
             }}
           >
+            <section
+              className={styles.reviewSummary}
+              aria-labelledby="review-summary"
+            >
+              <h2 id="review-summary">Your booking</h2>
+              <dl>
+                <div>
+                  <dt>Property</dt>
+                  <dd>{property}</dd>
+                </div>
+                <div>
+                  <dt>Inspection</dt>
+                  <dd>
+                    {launchServices
+                      .filter((service) => selectedModules.has(service.code))
+                      .map((service) => service.label)
+                      .join(" and ")}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Appointment</dt>
+                  <dd>
+                    {
+                      launchSlots.find((slot) => slot.id === selectedSlot)
+                        ?.label
+                    }
+                  </dd>
+                </div>
+                <div>
+                  <dt>Property access</dt>
+                  <dd>
+                    {accessMode === "client"
+                      ? `${clientName} will provide access`
+                      : `Confirmation required from ${accessName}`}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Total including GST</dt>
+                  <dd>{formatAud(totalCents)}</dd>
+                </div>
+              </dl>
+            </section>
             <div className={styles.agreement}>
               <p className={styles.versionLabel}>
-                Agreement version AG-2026.07-test · synthetic content
+                Agreement version AG-2026.07-test
               </p>
-              <section aria-labelledby="building-scope">
-                <p className={styles.moduleLabel} data-module="building">
-                  Building module
-                </p>
-                <h2 id="building-scope">
-                  Visual pre-purchase Building inspection
-                </h2>
-                <p>
-                  The Building report records the condition apparent in
-                  accessible areas at the inspection time, including
-                  inspector-classified major and minor defects and material
-                  limitations.
-                </p>
-              </section>
-              <section aria-labelledby="pest-scope">
-                <p className={styles.moduleLabel} data-module="timber-pest">
-                  Timber Pest module
-                </p>
-                <h2 id="pest-scope">Visual Timber Pest inspection</h2>
-                <p>
-                  The Timber Pest report remains separate, uses its own
-                  categories, and records accessible-area observations and
-                  material limitations. This journey makes no guarantee about
-                  concealed conditions.
-                </p>
-              </section>
+              {selectedModules.has("building") ? (
+                <section aria-labelledby="building-scope">
+                  <p className={styles.moduleLabel} data-module="building">
+                    Building module
+                  </p>
+                  <h2 id="building-scope">
+                    Visual pre-purchase Building inspection
+                  </h2>
+                  <p>
+                    The Building report records the condition apparent in
+                    accessible areas at the inspection time, including
+                    inspector-classified major and minor defects and material
+                    limitations.
+                  </p>
+                </section>
+              ) : null}
+              {selectedModules.has("timber-pest") ? (
+                <section aria-labelledby="pest-scope">
+                  <p className={styles.moduleLabel} data-module="timber-pest">
+                    Timber Pest module
+                  </p>
+                  <h2 id="pest-scope">Visual Timber Pest inspection</h2>
+                  <p>
+                    The Timber Pest report remains separate, uses its own
+                    categories, and records accessible-area observations and
+                    material limitations. This journey makes no guarantee about
+                    concealed conditions.
+                  </p>
+                </section>
+              ) : null}
               <section aria-labelledby="limits-heading">
                 <h2 id="limits-heading">Material scope limits</h2>
                 <p>
@@ -468,28 +548,28 @@ export function BookingFlow({ scenario }: { scenario: BookingScenario }) {
                 type="checkbox"
               />
               <span>
-                I am Alex Morgan and I accept this versioned test agreement.
+                I am {clientName} and I accept this inspection agreement.
               </span>
             </label>
             <div className={styles.actions}>
               <button
                 className={styles.secondaryButton}
-                onClick={() => goToStep(3)}
+                onClick={() => goToStep(2)}
                 type="button"
               >
-                Back to appointment
+                Back
               </button>
               <button disabled={!agreementAccepted} type="submit">
-                Sign test agreement
+                Accept agreement and continue
               </button>
             </div>
           </form>
         ) : null}
 
-        {step === 5 ? (
+        {step === 4 ? (
           <div>
             <div className={styles.bookingReference}>
-              <p className={styles.eyebrow}>Test booking SI-1042</p>
+              <p className={styles.eyebrow}>Booking SI-1042</p>
               <h2>{property}</h2>
               <p>
                 Client: {clientName} · Report recipient: {recipientEmail}
@@ -500,7 +580,7 @@ export function BookingFlow({ scenario }: { scenario: BookingScenario }) {
               className={styles.readiness}
             >
               <div>
-                <p className={styles.eyebrow}>Readiness projection</p>
+                <p className={styles.eyebrow}>Booking status</p>
                 <h2 id="readiness-heading">{projection.label}</h2>
                 {projection.outstanding.length > 0 ? (
                   <p>
@@ -511,7 +591,7 @@ export function BookingFlow({ scenario }: { scenario: BookingScenario }) {
                     .
                   </p>
                 ) : (
-                  <p>Every required test state has an observed confirmation.</p>
+                  <p>Everything required has been confirmed.</p>
                 )}
               </div>
               <ReadinessRow
@@ -519,36 +599,32 @@ export function BookingFlow({ scenario }: { scenario: BookingScenario }) {
                 state={
                   readiness.slot === "confirmed" &&
                   readiness.calendar === "confirmed"
-                    ? "Test state: confirmed"
-                    : "Test state: pending"
+                    ? "Confirmed"
+                    : "Pending"
                 }
               />
               <ReadinessRow
                 label="Signed agreement"
-                state={
-                  readiness.agreement === "signed"
-                    ? "Test record: signed"
-                    : "Test state: required"
-                }
+                state={readiness.agreement === "signed" ? "Signed" : "Required"}
               />
               <ReadinessRow
-                label="Test payment"
+                label="Payment"
                 state={
                   readiness.payment === "succeeded"
-                    ? "Test state: succeeded"
+                    ? "Confirmed"
                     : readiness.payment === "declined"
-                      ? "Test state: declined — retry available"
-                      : "Test state: required"
+                      ? "Declined — retry available"
+                      : "Required"
                 }
               />
               <ReadinessRow
                 label="Property access"
                 state={
                   readiness.access === "confirmed"
-                    ? "Test state: confirmed"
+                    ? "Confirmed"
                     : readiness.access === "requested"
-                      ? "Test state: confirmation requested"
-                      : "Test state: required"
+                      ? "Confirmation requested"
+                      : "Required"
                 }
               />
             </section>
@@ -557,8 +633,8 @@ export function BookingFlow({ scenario }: { scenario: BookingScenario }) {
                 <section aria-labelledby="payment-action">
                   <h3 id="payment-action">
                     {readiness.payment === "declined"
-                      ? "Retry test payment"
-                      : "Complete test payment"}
+                      ? "Retry payment"
+                      : "Complete payment"}
                   </h3>
                   <p>
                     No card details are collected and no real charge is made in
@@ -566,8 +642,8 @@ export function BookingFlow({ scenario }: { scenario: BookingScenario }) {
                   </p>
                   <button onClick={completePayment} type="button">
                     {readiness.payment === "declined"
-                      ? "Retry test payment"
-                      : "Complete test payment"}
+                      ? "Retry payment"
+                      : "Complete payment"}
                   </button>
                 </section>
               ) : null}
@@ -579,9 +655,18 @@ export function BookingFlow({ scenario }: { scenario: BookingScenario }) {
                     confirmation request.
                   </p>
                   {readiness.access === "requested" ? (
-                    <button onClick={confirmAccess} type="button">
-                      Mark access confirmed (test)
-                    </button>
+                    <>
+                      <p className={styles.waitingMessage} role="status">
+                        Waiting for {accessName} to confirm. You do not need to
+                        do anything.
+                      </p>
+                      <details className={styles.demoControl}>
+                        <summary>Demo control</summary>
+                        <button onClick={confirmAccessForDemo} type="button">
+                          Simulate contact confirmation
+                        </button>
+                      </details>
+                    </>
                   ) : (
                     <button
                       onClick={() => {
@@ -590,12 +675,12 @@ export function BookingFlow({ scenario }: { scenario: BookingScenario }) {
                           access: "requested",
                         }));
                         setNotice(
-                          "Access-only confirmation sent in test mode. No report data was included.",
+                          "Access-only confirmation sent. No report data was included.",
                         );
                       }}
                       type="button"
                     >
-                      Send test access request
+                      Send access request
                     </button>
                   )}
                 </section>
@@ -607,15 +692,15 @@ export function BookingFlow({ scenario }: { scenario: BookingScenario }) {
                     The exact agreement version must be signed before this
                     booking can be ready.
                   </p>
-                  <button onClick={() => goToStep(4)} type="button">
+                  <button onClick={() => goToStep(3)} type="button">
                     Review agreement
                   </button>
                 </section>
               ) : null}
             </div>
             <div className={styles.changeLinks}>
-              <a href="/booking/reschedule">Reschedule this test booking</a>
-              <a href="/booking/cancel">Cancel this test booking</a>
+              <a href="/booking/reschedule">Reschedule booking</a>
+              <a href="/booking/cancel">Cancel booking</a>
             </div>
           </div>
         ) : null}
@@ -652,8 +737,8 @@ function QuoteSummary({
         </div>
       </dl>
       <p className={styles.quoteExpiry}>
-        Quote Q-1042-test · version PRICE-2026.07 · expires 12:15 pm AEST, 14
-        July 2026
+        Quote Q-1042-test · version PRICE-2026.07 · expires{" "}
+        {launchQuoteExpiryLabel}
       </p>
     </section>
   );

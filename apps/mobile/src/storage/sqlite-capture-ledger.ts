@@ -7,10 +7,20 @@ import type {
   FieldSessionSnapshot,
   LocalCaptureEvent,
   ManualNote,
+  ManualNoteDigest,
   QueueLane,
 } from "../capture/types";
+import {
+  assertManualNoteIdentity,
+  canonicalManualNoteContent,
+  hashManualNoteContent,
+} from "../capture/manual-note-content";
 import { transitionQueueState, type QueueEvent } from "../sync/queue-machine";
-import { cloneFieldSession, parseFieldWorkflow } from "./field-workflow";
+import {
+  cloneFieldSession,
+  parseFieldSession,
+  parseFieldWorkflow,
+} from "./field-workflow";
 import type { CaptureLedger } from "./ports";
 
 export type SQLiteValue = null | number | string;
@@ -87,6 +97,33 @@ CREATE TABLE IF NOT EXISTS manual_notes (
   recorded_at TEXT NOT NULL,
   note_text TEXT NOT NULL CHECK (length(trim(note_text)) > 0)
 );
+
+-- Content identities are a sidecar so databases created by the first launch
+-- schema can be upgraded without rewriting immutable manual-note rows.
+CREATE TABLE IF NOT EXISTS manual_note_content_identities (
+  note_id TEXT PRIMARY KEY REFERENCES manual_notes(note_id),
+  schema_version TEXT NOT NULL CHECK (schema_version = 'manual-note-v1'),
+  content_hash TEXT NOT NULL CHECK (
+    length(content_hash) = 64
+    AND content_hash NOT GLOB '*[^a-f0-9]*'
+  )
+);
+
+CREATE TRIGGER IF NOT EXISTS manual_notes_no_update
+BEFORE UPDATE ON manual_notes
+BEGIN SELECT RAISE(ABORT, 'manual notes are append-only'); END;
+
+CREATE TRIGGER IF NOT EXISTS manual_notes_no_delete
+BEFORE DELETE ON manual_notes
+BEGIN SELECT RAISE(ABORT, 'manual notes are append-only'); END;
+
+CREATE TRIGGER IF NOT EXISTS manual_note_content_identities_no_update
+BEFORE UPDATE ON manual_note_content_identities
+BEGIN SELECT RAISE(ABORT, 'manual note content identities are append-only'); END;
+
+CREATE TRIGGER IF NOT EXISTS manual_note_content_identities_no_delete
+BEFORE DELETE ON manual_note_content_identities
+BEGIN SELECT RAISE(ABORT, 'manual note content identities are append-only'); END;
 
 CREATE TABLE IF NOT EXISTS local_capture_events (
   ordinal INTEGER PRIMARY KEY,
@@ -183,6 +220,16 @@ type EventRow = {
   ordinal: number;
 };
 
+type ManualNoteRow = {
+  area_id: string;
+  content_hash: string | null;
+  job_id: string;
+  note_id: string;
+  note_text: string;
+  recorded_at: string;
+  schema_version: string | null;
+};
+
 type PerformanceSampleRow = {
   capture_id: string;
   interaction_latency_ms: number;
@@ -211,6 +258,10 @@ function cloneQueue(value: CaptureQueueItem): CaptureQueueItem {
   return { ...value };
 }
 
+function cloneManualNote(value: ManualNote): ManualNote {
+  return { ...value };
+}
+
 function assertArtifact(artifact: DurableArtifact): void {
   if (
     !artifact.immutable ||
@@ -224,48 +275,23 @@ function assertArtifact(artifact: DurableArtifact): void {
 }
 
 function parseSession(value: string): FieldSessionSnapshot {
-  const parsed: unknown = JSON.parse(value);
-  if (typeof parsed !== "object" || parsed === null) {
-    throw new Error("Stored field session is invalid");
-  }
-  const candidate = parsed as Partial<FieldSessionSnapshot>;
-  if (
-    (candidate.activeInvestigationId !== undefined &&
-      typeof candidate.activeInvestigationId !== "string") ||
-    typeof candidate.areaId !== "string" ||
-    !Array.isArray(candidate.cachedAssignedJobIds) ||
-    !candidate.cachedAssignedJobIds.every((item) => typeof item === "string") ||
-    typeof candidate.deviceId !== "string" ||
-    !["enrolled", "lost", "revoked"].includes(candidate.deviceState ?? "") ||
-    typeof candidate.jobId !== "string" ||
-    (candidate.lastInvestigationId !== undefined &&
-      typeof candidate.lastInvestigationId !== "string") ||
-    !Number.isSafeInteger(candidate.nextSequence) ||
-    !["expired", "valid"].includes(candidate.session ?? "") ||
-    typeof candidate.updatedAt !== "string"
-  ) {
-    throw new Error("Stored field session is invalid");
-  }
-  const session = candidate as FieldSessionSnapshot;
-  return cloneFieldSession({
-    ...session,
-    ...(candidate.workflow === undefined
-      ? {}
-      : { workflow: parseFieldWorkflow(candidate.workflow) }),
-  });
+  return parseFieldSession(JSON.parse(value) as unknown);
 }
 
 export class SQLiteCaptureLedger implements CaptureLedger {
   readonly #database: SQLiteCaptureConnection;
+  readonly #digest: ManualNoteDigest;
   readonly #artifacts = new Map<string, DurableArtifact>();
   readonly #events: LocalCaptureEvent[] = [];
   readonly #intents = new Map<string, CaptureIntent>();
+  readonly #manualNotes = new Map<string, ManualNote>();
   readonly #performanceSamples = new Map<string, CapturePerformanceSample>();
   readonly #queue = new Map<string, CaptureQueueItem>();
   #fieldSession: FieldSessionSnapshot | undefined;
 
-  constructor(database: SQLiteCaptureConnection) {
+  constructor(database: SQLiteCaptureConnection, digest: ManualNoteDigest) {
     this.#database = database;
+    this.#digest = digest;
   }
 
   async hydrate(): Promise<void> {
@@ -274,6 +300,7 @@ export class SQLiteCaptureLedger implements CaptureLedger {
       artifacts,
       acknowledgements,
       queue,
+      manualNotes,
       events,
       performanceSamples,
       sessions,
@@ -290,6 +317,14 @@ export class SQLiteCaptureLedger implements CaptureLedger {
       ),
       this.#database.getAllAsync<QueueRow>(
         "SELECT * FROM capture_queue ORDER BY capture_id",
+      ),
+      this.#database.getAllAsync<ManualNoteRow>(
+        `SELECT note.note_id, note.job_id, note.area_id, note.recorded_at,
+                note.note_text, identity.schema_version, identity.content_hash
+         FROM manual_notes note
+         LEFT JOIN manual_note_content_identities identity
+           ON identity.note_id = note.note_id
+         ORDER BY note.recorded_at, note.note_id`,
       ),
       this.#database.getAllAsync<EventRow>(
         "SELECT * FROM local_capture_events ORDER BY ordinal",
@@ -341,6 +376,27 @@ export class SQLiteCaptureLedger implements CaptureLedger {
         lane: row.lane,
         state: row.state,
       });
+    }
+    for (const row of manualNotes) {
+      if (
+        row.schema_version !== "manual-note-v1" ||
+        row.content_hash === null
+      ) {
+        throw new Error("Manual note content identity is unavailable");
+      }
+      const verified = await assertManualNoteIdentity(
+        {
+          areaId: row.area_id,
+          contentHash: row.content_hash,
+          jobId: row.job_id,
+          noteId: row.note_id,
+          recordedAt: row.recorded_at,
+          schemaVersion: row.schema_version,
+          text: row.note_text,
+        },
+        this.#digest,
+      );
+      this.#manualNotes.set(verified.noteId, verified);
     }
     this.#events.push(
       ...events.map((row) => ({
@@ -509,6 +565,11 @@ export class SQLiteCaptureLedger implements CaptureLedger {
     return value === undefined ? undefined : cloneIntent(value);
   }
 
+  getManualNote(noteId: string): ManualNote | undefined {
+    const value = this.#manualNotes.get(noteId);
+    return value === undefined ? undefined : cloneManualNote(value);
+  }
+
   getQueue(captureId: string): CaptureQueueItem | undefined {
     const value = this.#queue.get(captureId);
     return value === undefined ? undefined : cloneQueue(value);
@@ -524,6 +585,10 @@ export class SQLiteCaptureLedger implements CaptureLedger {
 
   listIntents(): readonly CaptureIntent[] {
     return [...this.#intents.values()].map(cloneIntent);
+  }
+
+  listManualNotes(): readonly ManualNote[] {
+    return [...this.#manualNotes.values()].map(cloneManualNote);
   }
 
   listPerformanceSamples(): readonly CapturePerformanceSample[] {
@@ -598,17 +663,34 @@ export class SQLiteCaptureLedger implements CaptureLedger {
   }
 
   async recordManualNote(note: ManualNote): Promise<void> {
-    if (note.text.trim().length === 0)
-      throw new Error("Manual note text is required");
+    if (this.#manualNotes.has(note.noteId)) {
+      throw new Error(`Manual note identity already exists: ${note.noteId}`);
+    }
+    if (
+      this.#artifacts.has(note.noteId) ||
+      this.#intents.has(note.noteId) ||
+      this.#queue.has(note.noteId)
+    ) {
+      throw new Error(
+        `Manual note identity conflicts with capture identity: ${note.noteId}`,
+      );
+    }
+    const verified = await assertManualNoteIdentity(note, this.#digest);
     const appended: LocalCaptureEvent[] = [];
     await this.#database.withExclusiveTransactionAsync(async (transaction) => {
       await transaction.runAsync(
         "INSERT INTO manual_notes (note_id, job_id, area_id, recorded_at, note_text) VALUES (?, ?, ?, ?, ?)",
-        note.noteId,
-        note.jobId,
-        note.areaId,
-        note.recordedAt,
-        note.text,
+        verified.noteId,
+        verified.jobId,
+        verified.areaId,
+        verified.recordedAt,
+        verified.text,
+      );
+      await transaction.runAsync(
+        "INSERT INTO manual_note_content_identities (note_id, schema_version, content_hash) VALUES (?, ?, ?)",
+        verified.noteId,
+        verified.schemaVersion,
+        verified.contentHash,
       );
       await transaction.runAsync(
         "INSERT INTO capture_queue (capture_id, lane, state) VALUES (?, 'manual_note_sync', 'pending')",
@@ -627,6 +709,7 @@ export class SQLiteCaptureLedger implements CaptureLedger {
         }),
       );
     });
+    this.#manualNotes.set(verified.noteId, cloneManualNote(verified));
     this.#queue.set(note.noteId, {
       captureId: note.noteId,
       lane: "manual_note_sync",
@@ -668,14 +751,9 @@ export class SQLiteCaptureLedger implements CaptureLedger {
   }
 
   async saveFieldSession(snapshot: FieldSessionSnapshot): Promise<void> {
-    if (
-      snapshot.nextSequence < 1 ||
-      !Number.isSafeInteger(snapshot.nextSequence)
-    ) {
-      throw new Error("Field session next sequence must be a positive integer");
-    }
+    const validated = parseFieldSession(snapshot);
     const currentWorkflow = this.#fieldSession?.workflow;
-    const nextWorkflow = snapshot.workflow;
+    const nextWorkflow = validated.workflow;
     if (currentWorkflow !== undefined && nextWorkflow === undefined) {
       throw new Error("A protected field workflow cannot be removed");
     }
@@ -694,7 +772,7 @@ export class SQLiteCaptureLedger implements CaptureLedger {
         "Field workflow transitions must append exactly one immutable revision",
       );
     }
-    const serialised = JSON.stringify(snapshot);
+    const serialised = JSON.stringify(validated);
     await this.#database.withExclusiveTransactionAsync(async (transaction) => {
       await transaction.runAsync(
         "INSERT INTO field_session (singleton, snapshot_json) VALUES (1, ?) ON CONFLICT(singleton) DO UPDATE SET snapshot_json = excluded.snapshot_json",
@@ -703,7 +781,7 @@ export class SQLiteCaptureLedger implements CaptureLedger {
       if (workflowChanged && nextWorkflow !== undefined) {
         await transaction.runAsync(
           "INSERT INTO field_workflow_events (job_id, revision, transition_type, recorded_at, workflow_json) VALUES (?, ?, ?, ?, ?)",
-          snapshot.jobId,
+          validated.jobId,
           nextWorkflow.revision,
           nextWorkflow.lastTransition,
           nextWorkflow.updatedAt,
@@ -711,15 +789,58 @@ export class SQLiteCaptureLedger implements CaptureLedger {
         );
       }
     });
-    this.#fieldSession = cloneFieldSession(snapshot);
+    this.#fieldSession = cloneFieldSession(validated);
   }
 }
 
 export async function createSQLiteCaptureLedger(
   database: SQLiteCaptureConnection,
+  digest: ManualNoteDigest,
 ): Promise<SQLiteCaptureLedger> {
   await database.execAsync(captureLedgerSchemaSql);
-  const ledger = new SQLiteCaptureLedger(database);
+  await backfillManualNoteContentIdentities(database, digest);
+  const ledger = new SQLiteCaptureLedger(database, digest);
   await ledger.hydrate();
   return ledger;
+}
+
+async function backfillManualNoteContentIdentities(
+  database: SQLiteCaptureConnection,
+  digest: ManualNoteDigest,
+): Promise<void> {
+  const legacyNotes = await database.getAllAsync<ManualNoteRow>(
+    `SELECT note.note_id, note.job_id, note.area_id, note.recorded_at,
+            note.note_text, identity.schema_version, identity.content_hash
+     FROM manual_notes note
+     LEFT JOIN manual_note_content_identities identity
+       ON identity.note_id = note.note_id
+     WHERE identity.note_id IS NULL
+     ORDER BY note.recorded_at, note.note_id`,
+  );
+  if (legacyNotes.length === 0) return;
+  const identities = await Promise.all(
+    legacyNotes.map(async (row) => {
+      const content = canonicalManualNoteContent({
+        areaId: row.area_id,
+        jobId: row.job_id,
+        recordedAt: row.recorded_at,
+        text: row.note_text,
+      });
+      return {
+        contentHash: await hashManualNoteContent(content, digest),
+        noteId: row.note_id,
+        schemaVersion: content.schemaVersion,
+      };
+    }),
+  );
+  await database.withExclusiveTransactionAsync(async (transaction) => {
+    for (const identity of identities) {
+      await transaction.runAsync(
+        "INSERT INTO manual_note_content_identities (note_id, schema_version, content_hash) VALUES (?, ?, ?)",
+        identity.noteId,
+        identity.schemaVersion,
+        identity.contentHash,
+      );
+    }
+  });
 }

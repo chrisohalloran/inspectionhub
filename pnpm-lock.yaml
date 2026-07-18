@@ -46,6 +46,9 @@ importers:
       jsdom:
         specifier: 29.1.1
         version: 29.1.1
+      openai:
+        specifier: 6.47.0
+        version: 6.47.0(ws@8.21.0)(zod@4.4.3)
       prettier:
         specifier: 3.9.5
         version: 3.9.5

@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 case_id: D18
 split: development
 locked_holdout: false
@@ -19,7 +19,8 @@ expected:
   required_facts:
     - "single immutable draft identity"
   allowed_uncertainties: []
-  forbidden_claims:
+  forbidden_claims: []
+  system_scenario_codes:
     - "duplicate_reviewable_version"
   inspector_decision: "compare-and-set loser rejected"
   verifier: reject

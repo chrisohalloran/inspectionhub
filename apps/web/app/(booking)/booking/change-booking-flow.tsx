@@ -16,29 +16,14 @@ export function RescheduleFlow() {
 
   return (
     <section className={styles.content} aria-labelledby="reschedule-heading">
-      <p className={styles.eyebrow}>Test booking SI-1042</p>
+      <p className={styles.eyebrow}>Booking SI-1042</p>
       <h1 id="reschedule-heading">Reschedule the inspection</h1>
       <p className={styles.helper}>
-        The current appointment remains authoritative until the replacement
-        calendar event is observed.
+        Your current time stays confirmed until the new time is accepted.
       </p>
-      <LiteralStates
-        states={[
-          ["Booking change", bookingState],
-          ["Calendar event", calendarState],
-          [
-            "Old access link",
-            bookingState === "rescheduled" ? "invalidated" : "still current",
-          ],
-          [
-            "Old reminders",
-            bookingState === "rescheduled" ? "cancelled" : "still scheduled",
-          ],
-        ]}
-      />
       <div className={styles.bookingReference}>
         <h2>Current appointment</h2>
-        <p>Wednesday 15 July, 9:00 am AEST</p>
+        <p>Monday 20 July, 9:00 am AEST</p>
       </div>
       {bookingState === "confirmed" ? (
         <form
@@ -72,7 +57,7 @@ export function RescheduleFlow() {
             <a className={styles.secondaryLink} href="/booking">
               Keep current appointment
             </a>
-            <button type="submit">Request test reschedule</button>
+            <button type="submit">Confirm new time</button>
           </div>
         </form>
       ) : null}
@@ -80,33 +65,49 @@ export function RescheduleFlow() {
         <div className={styles.errorNotice} role="status">
           <strong>Reschedule pending</strong>
           <p>
-            The replacement calendar result is not yet observed. The old slot
-            has not been released and repeating the request will not create
-            another change.
+            We are confirming the new time. Your existing appointment remains
+            booked until this finishes.
           </p>
-          <button
-            onClick={() => {
-              setBookingState("rescheduled");
-              setCalendarState("replaced");
-            }}
-            type="button"
-          >
-            Observe successful test result
-          </button>
+          <details className={styles.demoControl}>
+            <summary>Demo control</summary>
+            <button
+              onClick={() => {
+                setBookingState("rescheduled");
+                setCalendarState("replaced");
+              }}
+              type="button"
+            >
+              Complete demo update
+            </button>
+          </details>
         </div>
       ) : null}
       {bookingState === "rescheduled" ? (
         <div className={styles.successNotice} role="status">
-          <strong>Test inspection rescheduled</strong>
+          <strong>Inspection rescheduled</strong>
           <p>
-            The new test slot is confirmed. The old test slot, access link, and
-            reminders are now superseded.
+            The new time is confirmed. The earlier appointment and reminders
+            have been replaced.
           </p>
           <a href="/booking?scenario=payment-declined">
-            Return to booking readiness
+            Return to booking status
           </a>
         </div>
       ) : null}
+      <TechnicalBookingStates
+        states={[
+          ["Booking change", bookingState],
+          ["Calendar event", calendarState],
+          [
+            "Old access link",
+            bookingState === "rescheduled" ? "invalidated" : "still current",
+          ],
+          [
+            "Old reminders",
+            bookingState === "rescheduled" ? "cancelled" : "still scheduled",
+          ],
+        ]}
+      />
     </section>
   );
 }
@@ -125,20 +126,12 @@ export function CancellationFlow() {
 
   return (
     <section className={styles.content} aria-labelledby="cancel-heading">
-      <p className={styles.eyebrow}>Test booking SI-1042</p>
+      <p className={styles.eyebrow}>Booking SI-1042</p>
       <h1 id="cancel-heading">Cancel the inspection</h1>
       <p className={styles.helper}>
-        Cancellation, refund, and calendar truth remain separate so an
-        incomplete provider action is visible.
+        Cancelling updates the appointment, access link and any applicable
+        refund.
       </p>
-      <LiteralStates
-        states={[
-          ["Booking", bookingState],
-          ["Refund", refundState],
-          ["Calendar", calendarState],
-          ["Access link", bookingState === "cancelled" ? "revoked" : "active"],
-        ]}
-      />
       {bookingState === "confirmed" ? (
         <form
           onSubmit={(event) => {
@@ -165,7 +158,7 @@ export function CancellationFlow() {
               Keep this booking
             </a>
             <button disabled={!confirmed} type="submit">
-              Request test cancellation
+              Cancel inspection
             </button>
           </div>
         </form>
@@ -174,48 +167,62 @@ export function CancellationFlow() {
         <div className={styles.errorNotice} role="status">
           <strong>Cancellation and refund pending</strong>
           <p>
-            The intent is recorded once. Refreshing or repeating this action
-            will reconcile the same request instead of creating another refund.
+            We recorded your request. The appointment and any applicable refund
+            are being updated.
           </p>
-          <button
-            onClick={() => {
-              setBookingState("cancelled");
-              setRefundState("succeeded");
-              setCalendarState("cancelled");
-            }}
-            type="button"
-          >
-            Observe provider results (test)
-          </button>
+          <details className={styles.demoControl}>
+            <summary>Demo control</summary>
+            <button
+              onClick={() => {
+                setBookingState("cancelled");
+                setRefundState("succeeded");
+                setCalendarState("cancelled");
+              }}
+              type="button"
+            >
+              Complete demo cancellation
+            </button>
+          </details>
         </div>
       ) : null}
       {bookingState === "cancelled" ? (
         <div className={styles.successNotice} role="status">
-          <strong>Test booking cancelled</strong>
+          <strong>Booking cancelled</strong>
           <p>
-            The test refund succeeded, the calendar event was cancelled, and the
-            access link was revoked.
+            The appointment is cancelled, the access link is closed and the
+            refund is confirmed.
           </p>
-          <a href="/booking">Start another test booking</a>
+          <a href="/booking">Book another inspection</a>
         </div>
       ) : null}
+      <TechnicalBookingStates
+        states={[
+          ["Booking", bookingState],
+          ["Refund", refundState],
+          ["Calendar", calendarState],
+          ["Access link", bookingState === "cancelled" ? "revoked" : "active"],
+        ]}
+      />
     </section>
   );
 }
 
-function LiteralStates({
+function TechnicalBookingStates({
   states,
 }: {
   states: ReadonlyArray<readonly [string, string]>;
 }) {
   return (
-    <dl className={styles.literalStates} aria-label="Current booking states">
-      {states.map(([label, state]) => (
-        <div key={label}>
-          <dt>{label}</dt>
-          <dd>Test state: {state}</dd>
-        </div>
-      ))}
-    </dl>
+    <details className={styles.technicalDetails}>
+      <summary>Technical status</summary>
+      <dl className={styles.literalStates} aria-label="Current booking states">
+        {states.map(([label, state]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{state}</dd>
+          </div>
+        ))}
+      </dl>
+    </details>
   );
 }

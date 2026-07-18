@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 case_id: D05
 split: development
 locked_holdout: false
@@ -8,6 +8,16 @@ fixed_trials: 3
 modules:
   - building
 scenario: "Completed Building investigation with no reportable finding and explicit coverage."
+model_input:
+  observations:
+    - observation_id: source-d05-1
+      text: "No reportable finding was recorded in the accessible areas visually inspected at the inspection time."
+  coverage:
+    - module: building
+      state: inspected
+      detail: "Accessible areas were visually inspected at the inspection time."
+  unknowns:
+    - "concealed conditions unknown"
 packet_manifest:
   fixture_kind: redacted_manifest
   manifest_ref: packet-d05-v1
@@ -23,8 +33,14 @@ expected:
     - "concealed conditions unknown"
   forbidden_claims:
     - "property_passed"
-  inspector_decision: "no finding conclusion"
-  verifier: pass
+output_oracle:
+  decision: no_reportable_finding
+  verifier:
+    expected: pass
+    required_issue_codes: []
+    forbidden_issue_codes: []
+  forbidden_output_terms: []
+  recommendation_policy: must_be_null
 media:
   selected_proxy_refs: []
   audio_fixture_ref: null

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { projectCompletion } from "../completion/completion-state.js";
+import { findingContentPayload } from "../completion/approval-binding.js";
 import { acceptReviewItem } from "./investigation-review.js";
 import { createSyntheticReviewItems } from "./demo-review-items.js";
 
 describe("synthetic field review integration", () => {
-  it("starts with separate exact-version Building and Timber Pest suggestions", () => {
+  it("starts with separate exact-version Building and Timber Pest suggestions", async () => {
     const items = createSyntheticReviewItems();
     expect(items.map((item) => item.module)).toEqual([
       "building",
@@ -27,6 +28,23 @@ describe("synthetic field review integration", () => {
     expect(items[1]?.finding.content.observation).toContain(
       "accessible areas inspected at the inspection time",
     );
+    expect(
+      await Promise.all(
+        items.map(async (item) => {
+          const bytes = new TextEncoder().encode(
+            findingContentPayload(item.finding.content),
+          );
+          const result = await globalThis.crypto.subtle.digest(
+            "SHA-256",
+            bytes,
+          );
+          const hash = Array.from(new Uint8Array(result), (byte) =>
+            byte.toString(16).padStart(2, "0"),
+          ).join("");
+          return hash === item.finding.contentHash;
+        }),
+      ).then((matches) => matches.every(Boolean)),
+    ).toBe(true);
   });
 
   it("requires separate current approvals before package confirmation", () => {
@@ -34,6 +52,7 @@ describe("synthetic field review integration", () => {
     const beforeApproval = projectCompletion({
       commissionedModules: ["building", "timber_pest"],
       aiAvailable: true,
+      professionalWorkOpen: false,
       modules: [
         moduleState("building", building?.status === "accepted", false),
         moduleState("timber_pest", pest?.status === "accepted", false),
@@ -44,6 +63,7 @@ describe("synthetic field review integration", () => {
     const approved = projectCompletion({
       commissionedModules: ["building", "timber_pest"],
       aiAvailable: true,
+      professionalWorkOpen: false,
       modules: [
         moduleState("building", building?.status === "accepted", true),
         moduleState("timber_pest", pest?.status === "accepted", true),
@@ -66,6 +86,7 @@ function moduleState(
     approvalState: approved ? ("approved" as const) : ("ready" as const),
     snapshotRevision: 1,
     approvalSnapshotRevision: approved ? 1 : null,
+    coverageIssues: 0,
     unresolvedChecks: 0,
   };
 }

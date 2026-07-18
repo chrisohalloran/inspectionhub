@@ -7,6 +7,8 @@ test.describe("launch administration configuration", () => {
   }) => {
     await page.goto("/admin/configuration");
 
+    await expect(page.getByText("Unsaved pricing draft")).toHaveCount(0);
+
     await page
       .getByLabel("Building inspection (AUD including GST)")
       .fill("510");
@@ -19,11 +21,16 @@ test.describe("launch administration configuration", () => {
     await expect(
       page.getByText("Existing quotes will not change"),
     ).toBeVisible();
-    await page.getByRole("button", { name: "Confirm version publish" }).click();
+    await page
+      .getByRole("button", { name: "Confirm demo price version" })
+      .click();
     await expect(page.getByRole("status")).toContainText(
       "Existing quote Q-1042-test remains unchanged",
     );
-    await page.getByText("Read prior price versions").click();
+    await expect(page.getByRole("status")).toContainText(
+      "No live pricing was changed",
+    );
+    await page.getByText("Price history", { exact: true }).click();
     await expect(
       page.getByRole("table", { name: "Published price history" }),
     ).toBeVisible();
@@ -38,12 +45,16 @@ test.describe("launch administration configuration", () => {
     await expect(page.getByText(/blocked by existing booking/)).toBeVisible();
     await page.getByLabel("Credential expiry").fill("2026-07-13");
     await expect(page.getByText("Not eligible")).toHaveCount(2);
-    await page
-      .getByRole("button", { name: "Run safe integration test" })
-      .click();
+    await page.getByRole("button", { name: "Save demo availability" }).click();
     await expect(page.getByRole("status")).toContainText(
-      "No secret value was returned",
+      "No calendar or audit provider was updated",
     );
+    await page
+      .getByRole("button", { name: "Run demo integration check" })
+      .click();
+    await expect(
+      page.getByRole("status").filter({ hasText: "No provider was contacted" }),
+    ).toBeVisible();
     await expect(page.locator("body")).not.toContainText(/sk_[a-z0-9]/i);
   });
 

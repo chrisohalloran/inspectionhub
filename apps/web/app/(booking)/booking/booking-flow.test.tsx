@@ -11,7 +11,10 @@ describe("booking flow UI contract", () => {
     expect(html).toContain("Timber Pest inspection");
     expect(html).toContain("Total including GST");
     expect(html).toContain("$715.00");
-    expect(html).toContain("Step 1 of 5");
+    expect(html).toContain("Tuesday 21 July 2026");
+    expect(html).toContain("Step 1 of 3");
+    expect(html).toContain("Property address");
+    expect(html).toContain("Use different report or invoice contacts");
     expect(html).not.toContain("property score");
   });
 
@@ -23,8 +26,9 @@ describe("booking flow UI contract", () => {
     expect(html).toContain("The test payment was declined");
     expect(html).toContain("18 Example Street, Southport QLD 4215");
     expect(html).toContain("alex@example.test");
-    expect(html).toContain("Retry test payment");
+    expect(html).toContain("Retry payment");
     expect(html).toContain("Property access");
+    expect(html).not.toContain("Booking confirmed");
   });
 
   it("names slot conflict recovery and retains the replacement action", () => {
@@ -33,7 +37,7 @@ describe("booking flow UI contract", () => {
     expect(html).toContain(
       "Another test client confirmed the original slot first",
     );
-    expect(html).toContain("Confirm replacement appointment");
+    expect(html).toContain("Confirm replacement time");
     expect(html).toContain("Taylor Lee");
   });
 });

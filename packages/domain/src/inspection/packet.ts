@@ -38,6 +38,17 @@ export function createInvestigationPacket(input: {
       "Investigation and coverage must belong to the same organisation and job",
     );
   }
+  if (
+    !sameExactModuleSet(
+      investigation.commissionedModules,
+      coverageLedger.commissionedModules,
+    )
+  ) {
+    throw new DomainConflictError(
+      "packet_commission_mismatch",
+      "Investigation and coverage must preserve the exact commissioned professional modules",
+    );
+  }
   if (input.packetRevision < 1 || !Number.isInteger(input.packetRevision)) {
     throw new DomainConflictError(
       "invalid_packet_revision",
@@ -60,14 +71,44 @@ export function createInvestigationPacket(input: {
       "A packet may contain only inspector-selected evidence attached to the investigation",
     );
   }
-  const modules =
+  const findingCandidates =
     investigation.completion?.outcome === "finding_candidates"
-      ? investigation.completion.moduleLinks.map((link) => ({
-          module: link.module,
-          moduleId: link.moduleId,
-        }))
-      : investigation.commissionedModules;
+      ? investigation.completion.moduleLinks
+      : [];
+  const candidateArtifactIds = new Set(
+    findingCandidates.flatMap((candidate) => candidate.sourceArtifactIds),
+  );
+  if (
+    findingCandidates.length > 0 &&
+    (candidateArtifactIds.size !== selected.size ||
+      [...candidateArtifactIds].some((artifactId) => !selected.has(artifactId)))
+  ) {
+    throw new DomainConflictError(
+      "packet_candidate_evidence_mismatch",
+      "A finding packet must contain exactly the inspector-selected candidate evidence",
+    );
+  }
+  const candidateObservationIds = new Set(
+    findingCandidates.flatMap((candidate) => candidate.sourceObservationIds),
+  );
+  const observations =
+    findingCandidates.length === 0
+      ? investigation.observations
+      : investigation.observations.filter((observation) =>
+          candidateObservationIds.has(observation.observationId),
+        );
+  if (
+    findingCandidates.length > 0 &&
+    observations.length !== candidateObservationIds.size
+  ) {
+    throw new DomainConflictError(
+      "packet_candidate_observation_mismatch",
+      "A finding packet must preserve every inspector-selected candidate observation",
+    );
+  }
+  const modules = investigation.commissionedModules;
   validatePacketContext({
+    findingCandidates,
     selectedArtifactIds: selected,
     modules,
     moduleSchemas: input.moduleSchemas,
@@ -88,12 +129,13 @@ export function createInvestigationPacket(input: {
     investigationId: investigation.investigationId,
     investigationRevision: investigation.revision,
     modules,
+    findingCandidates,
     moduleSchemas: input.moduleSchemas,
     versionPins: input.versionPins,
     areaHistory: investigation.areaVisits,
     evidence,
     measurements: investigation.measurements,
-    observations: investigation.observations,
+    observations,
     transcriptSpans: input.transcriptSpans ?? [],
     contradictions: input.contradictions ?? [],
     priorInspectorFeedback: input.priorInspectorFeedback ?? [],
@@ -105,7 +147,29 @@ export function createInvestigationPacket(input: {
   return deepFreeze({ ...content, canonicalHash: sha256(content) });
 }
 
+function sameExactModuleSet(
+  left: Investigation["commissionedModules"],
+  right: CoverageLedger["commissionedModules"],
+): boolean {
+  const leftKeys = left.map(moduleIdentity).sort();
+  const rightKeys = right.map(moduleIdentity).sort();
+  return (
+    new Set(leftKeys).size === leftKeys.length &&
+    new Set(rightKeys).size === rightKeys.length &&
+    leftKeys.length === rightKeys.length &&
+    leftKeys.every((key, index) => key === rightKeys[index])
+  );
+}
+
+function moduleIdentity(reference: {
+  readonly module: string;
+  readonly moduleId: string;
+}): string {
+  return JSON.stringify([reference.module, reference.moduleId]);
+}
+
 function validatePacketContext(input: {
+  readonly findingCandidates: InvestigationPacket["findingCandidates"];
   readonly selectedArtifactIds: ReadonlySet<string>;
   readonly modules: InvestigationPacket["modules"];
   readonly moduleSchemas: InvestigationPacket["moduleSchemas"];
@@ -122,6 +186,29 @@ function validatePacketContext(input: {
   const moduleKeys = new Set(
     input.modules.map((module) => `${module.module}:${module.moduleId}`),
   );
+  const candidateIds = new Set<string>();
+  for (const candidate of input.findingCandidates) {
+    const moduleKey = `${candidate.module}:${candidate.moduleId}`;
+    if (
+      candidateIds.has(candidate.findingCandidateId) ||
+      !moduleKeys.has(moduleKey) ||
+      candidate.sourceArtifactIds.length === 0 ||
+      candidate.sourceObservationIds.length === 0 ||
+      new Set(candidate.sourceArtifactIds).size !==
+        candidate.sourceArtifactIds.length ||
+      new Set(candidate.sourceObservationIds).size !==
+        candidate.sourceObservationIds.length ||
+      candidate.sourceArtifactIds.some(
+        (artifactId) => !input.selectedArtifactIds.has(artifactId),
+      )
+    ) {
+      throw new DomainConflictError(
+        "invalid_packet_finding_candidate",
+        "Packet finding candidates must preserve unique module-bound inspector source selections",
+      );
+    }
+    candidateIds.add(candidate.findingCandidateId);
+  }
   const schemaKeys = new Set<string>();
   for (const schema of input.moduleSchemas) {
     assertNonBlank(schema.schemaVersion, "module schema version");

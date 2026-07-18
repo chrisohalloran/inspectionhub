@@ -18,33 +18,25 @@ export default async function BookingPage({ searchParams }: BookingPageProps) {
         <Link className={styles.brand} href="/">
           See It Inspections
         </Link>
-        <p className={styles.environment}>
-          Synthetic Build Week journey · no real booking or charge
-        </p>
+        <p className={styles.environment}>Build Week demo</p>
       </header>
       <BookingFlow scenario={scenario} />
-      <aside
-        className={styles.scenarioPanel}
-        aria-labelledby="scenario-heading"
-      >
-        <div>
-          <p className={styles.eyebrow}>Recovery fixtures</p>
-          <h2 id="scenario-heading">
-            Check the paths that usually cause phone calls
-          </h2>
+      <details className={styles.scenarioPanel}>
+        <summary>Demo recovery scenarios</summary>
+        <div className={styles.scenarioContent}>
           <p>
-            Each link loads the same de-identified details into a recoverable
-            state so input preservation is visible.
+            Check how the booking recovers from the issues that usually cause a
+            phone call. Entered details remain available in every scenario.
           </p>
+          <nav aria-label="Synthetic booking scenarios">
+            <Link href="/booking?scenario=payment-declined">
+              Payment declined
+            </Link>
+            <Link href="/booking?scenario=slot-expired">Slot expired</Link>
+            <Link href="/booking?scenario=slot-conflict">Slot conflict</Link>
+          </nav>
         </div>
-        <nav aria-label="Synthetic booking scenarios">
-          <Link href="/booking?scenario=payment-declined">
-            Payment declined
-          </Link>
-          <Link href="/booking?scenario=slot-expired">Slot expired</Link>
-          <Link href="/booking?scenario=slot-conflict">Slot conflict</Link>
-        </nav>
-      </aside>
+      </details>
     </main>
   );
 }

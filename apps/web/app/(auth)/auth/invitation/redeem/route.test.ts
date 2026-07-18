@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createInvitationRedemptionHandler } from "./route";
+import { createInvitationRedemptionHandler } from "./handler";
 
 describe("recipient invitation redemption rate limit", () => {
   it("consumes the fixed recipient bucket before invitation state is written", async () => {
@@ -41,9 +41,11 @@ describe("recipient invitation redemption rate limit", () => {
 
     const response = await post(redemptionRequest("demo-invite-arbitrary"));
 
-    expect(response.status).toBe(429);
+    expect(response.status).toBe(303);
     expect(response.headers.get("retry-after")).toBe("17");
-    await expect(response.json()).resolves.toEqual({ error: "rate_limited" });
+    expect(response.headers.get("location")).toBe(
+      "/auth/invitation?error=rate-limited",
+    );
     expect(beginInvitation).not.toHaveBeenCalled();
   });
 
@@ -56,10 +58,10 @@ describe("recipient invitation redemption rate limit", () => {
 
     const response = await post(redemptionRequest("demo-invite-arbitrary"));
 
-    expect(response.status).toBe(503);
-    await expect(response.json()).resolves.toEqual({
-      error: "security_boundary_unavailable",
-    });
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(
+      "/auth/invitation?error=temporarily-unavailable",
+    );
     expect(beginInvitation).not.toHaveBeenCalled();
   });
 });

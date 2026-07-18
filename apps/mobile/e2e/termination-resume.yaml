@@ -1,7 +1,12 @@
 appId: co.inspectionhub.field
 name: Atomic-rename termination and startup recovery
 ---
-- launchApp
+- launchApp:
+    clearState: true
+- openLink: "exp+inspectionhub-field://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8081"
+- tapOn:
+    text: "InspectionHub Field, http://.*"
+    optional: true
 - tapOn:
     text: "Continue"
     optional: true
@@ -9,13 +14,28 @@ name: Atomic-rename termination and startup recovery
     text: "Close"
     optional: true
 - assertVisible: "Take photo"
-- tapOn: "Test: terminate after rename"
-- assertVisible: ".*Next synthetic capture will terminate after atomic rename.*"
-- tapOn: "Take photo"
-- launchApp
-- assertVisible: ".*Recovery checked 1 interrupted capture boundary.*"
 - scrollUntilVisible:
     element:
-      text: ".*1 photos.*"
+      text: "Show test tools"
+    direction: UP
+    centerElement: false
+- tapOn: "Show test tools"
+- scrollUntilVisible:
+    element:
+      text: "Test: terminate after rename"
     direction: DOWN
-- assertVisible: ".*1 photos.*"
+    centerElement: true
+- tapOn: "Test: terminate after rename"
+- assertVisible: "Test: terminate after rename selected"
+- scrollUntilVisible:
+    element:
+      text: "Hide test tools"
+    direction: UP
+    centerElement: true
+- tapOn: "Hide test tools"
+- tapOn: "Take photo"
+- launchApp
+- tapOn:
+    text: "Close"
+    optional: true
+- assertVisible: ".*Recovery checked 1 interrupted capture boundary. 1 photo ready locally.*"

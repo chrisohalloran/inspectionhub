@@ -26,7 +26,7 @@ describe("booking model", () => {
         slot: "confirmed",
       }),
     ).toEqual({
-      label: "Waiting for required test actions",
+      label: "Actions remaining",
       outstanding: ["Property access confirmation"],
     });
 
@@ -38,7 +38,7 @@ describe("booking model", () => {
         payment: "succeeded",
         slot: "confirmed",
       }),
-    ).toEqual({ label: "Ready for test inspection", outstanding: [] });
+    ).toEqual({ label: "Inspection confirmed", outstanding: [] });
   });
 
   it("accepts only declared recovery fixtures", () => {

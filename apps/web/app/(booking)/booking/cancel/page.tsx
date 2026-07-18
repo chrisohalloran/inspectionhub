@@ -12,9 +12,7 @@ export default function CancelBookingPage() {
         <Link className={styles.brand} href="/booking">
           See It Inspections
         </Link>
-        <p className={styles.environment}>
-          Synthetic Build Week journey · no real cancellation or refund
-        </p>
+        <p className={styles.environment}>Build Week demo</p>
       </header>
       <CancellationFlow />
     </main>

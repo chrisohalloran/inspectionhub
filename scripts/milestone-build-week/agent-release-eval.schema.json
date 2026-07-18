@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://inspectionhub.local/schemas/agent-release-eval.schema.json",
+  "title": "InspectionHub Build Week agent release evaluation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "artifactKind",
+    "observedAt",
+    "releaseBinding",
+    "protocol",
+    "corpus",
+    "adjudication",
+    "trialResults",
+    "outcomes"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "artifactKind": { "const": "inspectionhub.agent_release_eval" },
+    "observedAt": { "type": "string", "format": "date-time" },
+    "releaseBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commitSha", "model", "promptVersions", "skillVersions"],
+      "properties": {
+        "commitSha": {
+          "type": "string",
+          "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$"
+        },
+        "model": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "promptVersions": { "$ref": "#/$defs/versionList" },
+        "skillVersions": { "$ref": "#/$defs/versionList" }
+      }
+    },
+    "protocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "liveModel",
+        "fixedTrialsPerCase",
+        "developmentCaseCount",
+        "lockedHoldoutCaseCount"
+      ],
+      "properties": {
+        "liveModel": { "const": true },
+        "fixedTrialsPerCase": { "const": 3 },
+        "developmentCaseCount": { "const": 10 },
+        "lockedHoldoutCaseCount": { "const": 10 }
+      }
+    },
+    "corpus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protectedCorpusSha256",
+        "developmentCaseIds",
+        "lockedHoldoutCaseIds"
+      ],
+      "properties": {
+        "protectedCorpusSha256": { "$ref": "#/$defs/sha256" },
+        "developmentCaseIds": { "$ref": "#/$defs/caseIdList" },
+        "lockedHoldoutCaseIds": { "$ref": "#/$defs/caseIdList" }
+      }
+    },
+    "adjudication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lockedHoldoutBlinded", "adjudicatorIdentityHash"],
+      "properties": {
+        "lockedHoldoutBlinded": { "const": true },
+        "adjudicatorIdentityHash": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "trialResults": {
+      "type": "array",
+      "minItems": 120,
+      "maxItems": 120,
+      "items": { "$ref": "#/$defs/trialResult" }
+    },
+    "outcomes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["development", "lockedHoldout", "releaseEligible"],
+      "properties": {
+        "development": { "$ref": "#/$defs/outcome" },
+        "lockedHoldout": { "$ref": "#/$defs/outcome" },
+        "releaseEligible": { "type": "boolean" }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "versionList": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 200 }
+    },
+    "caseIdList": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,99}$"
+      }
+    },
+    "trialResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "split",
+        "caseId",
+        "architecture",
+        "trial",
+        "result",
+        "adjudication"
+      ],
+      "properties": {
+        "split": { "enum": ["development", "locked_holdout"] },
+        "caseId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,99}$"
+        },
+        "architecture": { "enum": ["agents_sdk", "thin_responses"] },
+        "trial": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["criticalFailures", "outputSha256"],
+          "properties": {
+            "criticalFailures": { "type": "integer", "minimum": 0 },
+            "outputSha256": { "$ref": "#/$defs/sha256" }
+          }
+        },
+        "adjudication": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["passed", "criticalFailures", "evidenceSha256"],
+          "properties": {
+            "passed": { "type": "boolean" },
+            "criticalFailures": { "type": "integer", "minimum": 0 },
+            "evidenceSha256": { "$ref": "#/$defs/sha256" }
+          }
+        }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passed", "criticalFailures"],
+      "properties": {
+        "passed": { "type": "boolean" },
+        "criticalFailures": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

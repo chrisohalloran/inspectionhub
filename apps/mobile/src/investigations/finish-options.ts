@@ -4,6 +4,11 @@ import type {
   InvestigationModuleLink,
 } from "@inspection/domain/inspection/mobile";
 
+import {
+  investigationCompletionVoiceBlock,
+  type VoiceControlState,
+} from "./field-shell-contract";
+
 export const investigationFinishOptions = {
   findingCandidates: {
     label: "Create finding candidate",
@@ -33,6 +38,27 @@ export type FinishInvestigationChoice =
       readonly draftingDisposition: InvestigationDraftingDisposition;
       readonly moduleLinks: readonly InvestigationModuleLink[];
     };
+
+export type InvestigationFinishActionView = Readonly<{
+  blockedReason: string | null;
+  finishDisabled: boolean;
+  noReportableFindingDisabled: boolean;
+  saveFindingCandidateDisabled: boolean;
+}>;
+
+export function deriveInvestigationFinishActionView(input: {
+  readonly busy: boolean;
+  readonly voiceState: VoiceControlState;
+}): InvestigationFinishActionView {
+  const blockedReason = investigationCompletionVoiceBlock(input.voiceState);
+  const disabled = input.busy || blockedReason !== null;
+  return {
+    blockedReason,
+    finishDisabled: disabled,
+    noReportableFindingDisabled: disabled,
+    saveFindingCandidateDisabled: disabled,
+  };
+}
 
 export function createNoReportableFindingChoice(): FinishInvestigationChoice {
   return {

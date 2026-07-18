@@ -344,7 +344,8 @@
 }
 
 .formSections input,
-.adminInput {
+.adminInput,
+.optionalFields input {
   background: var(--color-surface);
   border: 2px solid var(--color-border);
   border-radius: var(--radius-medium);
@@ -357,6 +358,7 @@
 
 .formSections input:focus-visible,
 .adminInput:focus-visible,
+.optionalFields input:focus-visible,
 .changeLinks a:focus-visible,
 .scenarioPanel a:focus-visible,
 .brand:focus-visible {
@@ -367,6 +369,39 @@
 
 .slotGrid {
   grid-template-columns: 1fr;
+}
+
+.optionalDetails {
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--space-5);
+  padding-top: var(--space-3);
+}
+
+.optionalDetails summary {
+  color: var(--color-action);
+  cursor: pointer;
+  font-weight: 700;
+  min-height: var(--target-primary);
+  padding-block: var(--space-2);
+}
+
+.optionalDetails summary:focus-visible {
+  border-radius: var(--radius-small);
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.optionalFields {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding-top: var(--space-3);
+}
+
+.optionalFields label {
+  display: grid;
+  font-weight: 700;
+  gap: var(--space-2);
 }
 
 .slotCard {
@@ -401,6 +436,42 @@
 .agreement {
   display: grid;
   gap: var(--space-4);
+}
+
+.reviewSummary {
+  background: var(--color-canvas);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  margin-top: var(--space-5);
+  padding: var(--space-4);
+}
+
+.reviewSummary dl {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: 0;
+}
+
+.reviewSummary dl > div {
+  border-top: 1px solid var(--color-border);
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: minmax(8rem, 0.35fr) minmax(0, 1fr);
+  padding-top: var(--space-2);
+}
+
+.reviewSummary dt {
+  color: var(--color-ink-muted);
+  font-weight: 700;
+}
+
+.reviewSummary dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.waitingMessage {
+  font-weight: 700;
 }
 
 .agreement section {
@@ -487,11 +558,31 @@
 }
 
 .scenarioPanel {
+  padding: var(--space-5);
+}
+
+.scenarioPanel > summary {
+  color: var(--color-action);
+  cursor: pointer;
+  font-weight: 700;
+  min-height: var(--target-primary);
+  padding-block: var(--space-2);
+}
+
+.scenarioPanel > summary:focus-visible {
+  border-radius: var(--radius-small);
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.scenarioContent {
   align-items: center;
+  border-top: 1px solid var(--color-border);
   display: grid;
   gap: var(--space-4);
   grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.6fr);
-  padding: var(--space-5);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
 }
 
 .scenarioPanel nav {
@@ -526,6 +617,33 @@
   overflow-wrap: anywhere;
 }
 
+.technicalDetails,
+.demoControl {
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--space-5);
+  padding-top: var(--space-3);
+}
+
+.technicalDetails summary,
+.demoControl summary {
+  color: var(--color-action);
+  cursor: pointer;
+  font-weight: 700;
+  min-height: var(--target-primary);
+  padding-block: var(--space-2);
+}
+
+.technicalDetails summary:focus-visible,
+.demoControl summary:focus-visible {
+  border-radius: var(--radius-small);
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.demoControl button {
+  margin-top: var(--space-3);
+}
+
 .secondaryLink {
   align-items: center;
   display: inline-flex;
@@ -534,7 +652,7 @@
 
 @media (max-width: 52rem) {
   .bookingShell,
-  .scenarioPanel {
+  .scenarioContent {
     grid-template-columns: 1fr;
   }
 
@@ -543,7 +661,7 @@
   }
 
   .progress ol {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .progress li {
@@ -593,6 +711,7 @@
 
   .serviceGrid,
   .formSections,
+  .optionalFields,
   .actionCards,
   .literalStates {
     grid-template-columns: 1fr;
@@ -629,6 +748,10 @@
 
   .quote dl > div {
     align-items: start;
+  }
+
+  .reviewSummary dl > div {
+    grid-template-columns: 1fr;
   }
 }
 

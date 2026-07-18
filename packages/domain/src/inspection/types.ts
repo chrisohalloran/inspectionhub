@@ -108,6 +108,7 @@ export type InvestigationModuleLink = {
   readonly module: ModuleType;
   readonly moduleId: string;
   readonly sourceArtifactIds: readonly string[];
+  readonly sourceObservationIds: readonly string[];
 };
 
 export type InvestigationCompletion = {
@@ -254,6 +255,7 @@ export type InvestigationPacket = {
   readonly investigationId: string;
   readonly investigationRevision: number;
   readonly modules: readonly ProfessionalModuleReference[];
+  readonly findingCandidates: readonly InvestigationModuleLink[];
   readonly moduleSchemas: readonly InvestigationModuleSchemaReference[];
   readonly versionPins: InvestigationPacketVersionPins;
   readonly areaHistory: readonly InvestigationAreaVisit[];

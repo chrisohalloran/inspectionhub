@@ -17,6 +17,7 @@ const limits = Object.freeze({
   privileged_action: 10,
   provider_callback: 120,
   recipient_access: 30,
+  recipient_demo_global: 300,
 });
 const counts = new Map();
 

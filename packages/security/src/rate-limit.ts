@@ -1,5 +1,6 @@
 export const RATE_LIMIT_POLICIES = [
   "recipient_access",
+  "recipient_demo_global",
   "privileged_action",
   "provider_callback",
   "booking_quote",
@@ -24,6 +25,7 @@ export interface DurableRateLimitStore {
 
 const policyLimits = Object.freeze({
   recipient_access: 30,
+  recipient_demo_global: 300,
   privileged_action: 10,
   provider_callback: 120,
   booking_quote: 20,

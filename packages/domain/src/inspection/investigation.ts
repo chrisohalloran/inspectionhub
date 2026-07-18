@@ -237,11 +237,11 @@ export function recordInvestigationMeasurement(
   },
 ): Investigation {
   assertWritable(state, command.expectedRevision);
-  if (!Number.isFinite(command.measurement.value)) {
-    throw new DomainConflictError(
-      "invalid_measurement",
-      "A measurement value must be finite",
-    );
+  const validationError = investigationMeasurementValidationError(
+    command.measurement,
+  );
+  if (validationError !== null) {
+    throw new DomainConflictError("invalid_measurement", validationError);
   }
   if (
     state.measurements.some(
@@ -265,6 +265,48 @@ export function recordInvestigationMeasurement(
       }),
     ],
   });
+}
+
+const measurementUnits = {
+  crack_width: ["millimetres"],
+  length: ["millimetres", "metres"],
+  level_variation: ["millimetres"],
+  moisture_reading: ["percent", "relative_scale"],
+  other: ["millimetres", "metres", "percent", "relative_scale", "other"],
+} as const satisfies Readonly<
+  Record<
+    InvestigationMeasurement["kind"],
+    readonly InvestigationMeasurement["unit"][]
+  >
+>;
+
+export function investigationMeasurementValidationError(
+  measurement: Pick<InvestigationMeasurement, "kind" | "unit" | "value">,
+): string | null {
+  if (!Number.isFinite(measurement.value)) {
+    return "A measurement value must be finite";
+  }
+  if (!measurementUnits[measurement.kind].includes(measurement.unit as never)) {
+    return "A measurement unit must match its measurement type";
+  }
+  if (
+    (measurement.kind === "crack_width" ||
+      measurement.kind === "length" ||
+      measurement.kind === "level_variation" ||
+      (measurement.kind === "moisture_reading" &&
+        measurement.unit === "relative_scale")) &&
+    measurement.value < 0
+  ) {
+    return "A physical measurement cannot be negative";
+  }
+  if (
+    measurement.kind === "moisture_reading" &&
+    measurement.unit === "percent" &&
+    (measurement.value < 0 || measurement.value > 100)
+  ) {
+    return "A percentage moisture reading must be between 0 and 100";
+  }
+  return null;
 }
 
 export function recordInvestigationObservation(
@@ -421,6 +463,9 @@ function validateModuleLinks(
 ): void {
   const seenModules = new Set<ModuleType>();
   const evidenceIds = new Set(state.evidence.map((item) => item.artifactId));
+  const observationIds = new Set(
+    state.observations.map((item) => item.observationId),
+  );
   for (const link of links) {
     if (
       !state.commissionedModules.some(
@@ -442,6 +487,12 @@ function validateModuleLinks(
       );
     }
     seenModules.add(link.module);
+    if (link.sourceArtifactIds.length === 0) {
+      throw new DomainConflictError(
+        "finding_artifact_required",
+        "A finding candidate must select at least one source artifact",
+      );
+    }
     if (
       new Set(link.sourceArtifactIds).size !== link.sourceArtifactIds.length
     ) {
@@ -456,6 +507,30 @@ function validateModuleLinks(
           "finding_source_not_attached",
           "A finding candidate can reference only evidence attached to its investigation",
           { artifactId },
+        );
+      }
+    }
+    if (link.sourceObservationIds.length === 0) {
+      throw new DomainConflictError(
+        "finding_observation_required",
+        "A finding candidate must select at least one source observation",
+      );
+    }
+    if (
+      new Set(link.sourceObservationIds).size !==
+      link.sourceObservationIds.length
+    ) {
+      throw new DomainConflictError(
+        "duplicate_finding_observation",
+        "A finding candidate cannot repeat a source observation",
+      );
+    }
+    for (const observationId of link.sourceObservationIds) {
+      if (!observationIds.has(observationId)) {
+        throw new DomainConflictError(
+          "finding_observation_not_attached",
+          "A finding candidate can reference only observations recorded in its investigation",
+          { observationId },
         );
       }
     }
