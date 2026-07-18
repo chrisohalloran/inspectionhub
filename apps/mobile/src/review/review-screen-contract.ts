@@ -1,7 +1,13 @@
 import type { InvestigationReviewItem } from "./investigation-review";
 
 export type ReviewAction = Readonly<{
-  id: "accept" | "edit" | "reject" | "reverify" | "continue_human";
+  id:
+    | "accept"
+    | "edit"
+    | "reject"
+    | "reverify"
+    | "continue_human"
+    | "return_to_capture";
   label: string;
   enabled: boolean;
   accessibilityHint: string;
@@ -38,10 +44,12 @@ export function reviewActions(
     },
     {
       id: "edit",
-      label: "Edit",
-      enabled: actionable,
+      label: item.status === "rejected" ? "Write replacement" : "Edit",
+      enabled: actionable || item.status === "rejected",
       accessibilityHint:
-        "Edit the inspector finding text or professional fields",
+        item.status === "rejected"
+          ? "Creates a new inspector-authored finding from the selected evidence"
+          : "Edit the inspector finding text or professional fields",
       minimumTargetPx: 48,
     },
     {
@@ -64,6 +72,14 @@ export function reviewActions(
       enabled: actionable && ai,
       accessibilityHint:
         "Records explicit inspector authorship and removes the AI verification dependency",
+      minimumTargetPx: 48,
+    },
+    {
+      id: "return_to_capture",
+      label: "Capture replacement evidence",
+      enabled: item.status === "stale",
+      accessibilityHint:
+        "Returns to field capture so current evidence can replace this stale finding version",
       minimumTargetPx: 48,
     },
   ];

@@ -3,6 +3,7 @@ name: Area change and cached-job capture after session expiry
 ---
 - launchApp:
     clearState: true
+- openLink: "exp+inspectionhub-field://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8081"
 - tapOn:
     text: "InspectionHub Field, http://.*"
     optional: true
@@ -44,14 +45,17 @@ name: Area change and cached-job capture after session expiry
 - assertVisible: ".*Second floor / Adjacent bedroom selected — active investigation retained.*"
 - stopApp
 - launchApp
+- tapOn:
+    text: "Close"
+    optional: true
 - assertVisible: ".*Storage ready.*"
 - assertVisible: ".*Investigation active. Voice note ready.*"
 - scrollUntilVisible:
     element:
-      text: "Review & complete"
+      text: "Review & issue"
     direction: UP
     centerElement: false
-- tapOn: "Review & complete"
+- tapOn: "Review & issue"
 - scrollUntilVisible:
     element:
       text: "Inspection · Finish the open investigation before approval or packaging."
@@ -61,15 +65,32 @@ name: Area change and cached-job capture after session expiry
 - tapOn: "Inspection · Finish the open investigation before approval or packaging."
 - scrollUntilVisible:
     element:
-      text: "Review & complete"
+      text: "Review & issue"
     direction: UP
     centerElement: false
+- scrollUntilVisible:
+    element:
+      text: "Show test tools"
+    direction: UP
+    centerElement: true
+- tapOn: "Show test tools"
 - scrollUntilVisible:
     element:
       text: "Test: expire session"
     direction: DOWN
     centerElement: true
 - tapOn: "Test: expire session"
-- assertVisible: ".*Session expired — the open cached job can still capture; sync and approval require sign-in.*"
+- scrollUntilVisible:
+    element:
+      text: "Hide test tools"
+    direction: UP
+    centerElement: true
+- tapOn: "Hide test tools"
+- scrollUntilVisible:
+    element:
+      text: "Sign-in required later"
+    direction: UP
+    centerElement: true
+- assertVisible: "Sign-in required later"
 - tapOn: "Take photo"
 - assertVisible: ".*Photo saved locally and linked to the active investigation — queued for sync.*"

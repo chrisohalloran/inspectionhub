@@ -37,6 +37,17 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(import.meta.dirname, "../.."),
   },
+  webpack(config: { resolve: { extensionAlias?: Record<string, string[]> } }) {
+    // Workspace packages are authored with NodeNext-compatible `.js` import
+    // specifiers and consumed from TypeScript source during local web work.
+    // Teach webpack to resolve those emitted specifiers back to their source
+    // files without weakening the packages' runtime ESM contract.
+    config.resolve.extensionAlias = {
+      ".js": [".ts", ".tsx", ".js"],
+      ".jsx": [".tsx", ".jsx"],
+    };
+    return config;
+  },
 };
 
 export default nextConfig;

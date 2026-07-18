@@ -189,7 +189,15 @@ export function editReviewItem(
     pathway: "reverify_ai" | "convert_to_human";
   }>,
 ): InvestigationReviewItem {
-  assertActionable(item);
+  if (
+    item.status !== "awaiting_decision" &&
+    !(item.status === "rejected" && input.pathway === "convert_to_human")
+  ) {
+    throw new ReviewDecisionError(
+      "review_not_actionable",
+      `Review item is ${item.status} and cannot take that edit pathway`,
+    );
+  }
   if (input.content.module !== item.module) {
     throw new ReviewDecisionError(
       "review_module_mismatch",

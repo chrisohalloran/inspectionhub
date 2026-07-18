@@ -336,27 +336,22 @@ begin
 end;
 $test$;
 
-do $test$
-declare
-  context recipient_test_context%rowtype;
-begin
-  select * into context from recipient_test_context;
-  begin
-    perform public.command_recipient_demo_portal_state(
-      context.grant_id,
-      context.grant_revision,
-      context.principal_id,
-      context.verified_email,
-      context.organization_id,
-      context.job_id,
-      context.report_version_id
-    );
-    raise exception 'assertion failed: fully withdrawn portal remained available';
-  exception when insufficient_privilege then
-    raise notice 'ok - portal atomically rejects a fully withdrawn report';
-  end;
-end;
-$test$;
+select pg_temp.assert_true(
+  (
+    select (state ->> 'buildingWithdrawn')::boolean
+      and (state ->> 'timberPestWithdrawn')::boolean
+    from public.command_recipient_demo_portal_state(
+      :'recipient_grant_id'::uuid,
+      :'recipient_grant_revision'::bigint,
+      :'recipient_principal_id',
+      :'recipient_verified_email',
+      :'recipient_organization_id',
+      :'recipient_job_id',
+      :'recipient_report_version_id'
+    ) state
+  ),
+  'fully withdrawn portal retains durable withdrawal notices'
+);
 
 select public.command_recipient_demo_set_module_withdrawal('building', false);
 

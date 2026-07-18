@@ -3,6 +3,7 @@ name: Investigation evidence, measurement, coverage and shared completion
 ---
 - launchApp:
     clearState: true
+- openLink: "exp+inspectionhub-field://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8081"
 - tapOn:
     text: "InspectionHub Field, http://.*"
     optional: true
@@ -57,13 +58,21 @@ name: Investigation evidence, measurement, coverage and shared completion
     centerElement: true
 - tapOn: "Save manual observation"
 - assertVisible: ".*Manual observation saved and linked to the active investigation.*"
-- assertVisible: ".*1 manual notes.*"
 - scrollUntilVisible:
     element:
-      text: "Change area"
+      id: "change-area-control"
     direction: UP
     visibilityPercentage: 50
-- tapOn: "Change area"
+    centerElement: true
+- tapOn:
+    id: "change-area-control"
+    retryTapIfNoChange: true
+- scrollUntilVisible:
+    element:
+      text: "Select area"
+    direction: DOWN
+    visibilityPercentage: 50
+    centerElement: false
 - assertVisible: "Select area"
 - scrollUntilVisible:
     element:
@@ -74,10 +83,21 @@ name: Investigation evidence, measurement, coverage and shared completion
 - assertVisible: ".*Roof void selected — active investigation retained.*"
 - scrollUntilVisible:
     element:
-      text: "Add measurement"
+      text: "More investigation tools"
     direction: UP
     centerElement: true
-- tapOn: "Add measurement"
+- tapOn:
+    id: "investigation-tools-toggle"
+    retryTapIfNoChange: true
+- scrollUntilVisible:
+    element:
+      id: "add-measurement-control"
+    direction: DOWN
+    visibilityPercentage: 75
+    centerElement: true
+- tapOn:
+    text: "Add measurement"
+    retryTapIfNoChange: true
 - scrollUntilVisible:
     element:
       text: "Measurement numeric input"
@@ -94,10 +114,21 @@ name: Investigation evidence, measurement, coverage and shared completion
 - assertVisible: ".*Measurement saved locally in Roof void.*"
 - scrollUntilVisible:
     element:
-      text: "Review evidence areas"
+      text: "More investigation tools"
     direction: UP
     centerElement: true
-- tapOn: "Review evidence areas"
+- tapOn:
+    id: "investigation-tools-toggle"
+    retryTapIfNoChange: true
+- scrollUntilVisible:
+    element:
+      id: "review-evidence-areas-control"
+    direction: DOWN
+    visibilityPercentage: 75
+    centerElement: true
+- tapOn:
+    text: "Review evidence areas"
+    retryTapIfNoChange: true
 - scrollUntilVisible:
     element:
       text: "Correct assigned area"
@@ -110,19 +141,41 @@ name: Investigation evidence, measurement, coverage and shared completion
     direction: DOWN
     centerElement: true
 - tapOn: "Assign to Roof void"
-- assertVisible: ".*original capture area retained.*"
 - scrollUntilVisible:
     element:
-      text: "Close evidence areas"
-    direction: DOWN
-    centerElement: true
-- tapOn: "Close evidence areas"
-- scrollUntilVisible:
-    element:
-      text: "Close out area"
+      text: "Assigned to Roof void"
     direction: UP
     visibilityPercentage: 50
-- tapOn: "Close out area"
+    centerElement: false
+- assertVisible: "Assigned to Roof void"
+- scrollUntilVisible:
+    element:
+      text: "Captured in Second floor / Main bathroom"
+    direction: UP
+    visibilityPercentage: 50
+    centerElement: false
+- assertVisible: "Captured in Second floor / Main bathroom"
+- scrollUntilVisible:
+    element:
+      text: "Done"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Done"
+- scrollUntilVisible:
+    element:
+      id: "close-out-area-control"
+    direction: UP
+    visibilityPercentage: 50
+    centerElement: true
+- tapOn:
+    id: "close-out-area-control"
+    retryTapIfNoChange: true
+- scrollUntilVisible:
+    element:
+      text: "Close out Roof void"
+    direction: DOWN
+    visibilityPercentage: 50
+    centerElement: false
 - assertVisible: "Close out Roof void"
 - scrollUntilVisible:
     element:
@@ -132,7 +185,7 @@ name: Investigation evidence, measurement, coverage and shared completion
 - tapOn:
     text: "Inaccessible"
     retryTapIfNoChange: true
-- assertVisible: "Inaccessible — selected"
+- assertVisible: "Selected: Inaccessible"
 - waitForAnimationToEnd
 - scrollUntilVisible:
     element:
@@ -164,7 +217,19 @@ name: Investigation evidence, measurement, coverage and shared completion
       text: "Finish investigation"
     direction: UP
     visibilityPercentage: 50
-- tapOn: "Finish investigation"
+- swipe:
+    start: 50%, 55%
+    end: 50%, 25%
+    duration: 500
+- tapOn:
+    id: "finish-investigation-control"
+    retryTapIfNoChange: true
+- scrollUntilVisible:
+    element:
+      text: "Finding candidate modules"
+    direction: DOWN
+    visibilityPercentage: 50
+    centerElement: false
 - assertVisible: "Finding candidate modules"
 - scrollUntilVisible:
     element:
@@ -174,36 +239,36 @@ name: Investigation evidence, measurement, coverage and shared completion
 - tapOn: "Building candidate — not selected"
 - scrollUntilVisible:
     element:
+      text: "Change sources"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Change sources"
+- scrollUntilVisible:
+    element:
       id: "candidate-building-evidence-0"
     direction: DOWN
     centerElement: true
-- tapOn:
+- assertVisible:
     id: "candidate-building-evidence-0"
-- assertVisible: ".*Evidence 1: voice note.*selected.*"
 - scrollUntilVisible:
     element:
-      id: "candidate-building-evidence-4"
+      text: "Done changing sources"
     direction: DOWN
+    centerElement: true
+- tapOn: "Done changing sources"
+- scrollUntilVisible:
+    element:
+      text: "Confirm Building linked sources"
+    direction: UP
     centerElement: true
 - tapOn:
-    id: "candidate-building-evidence-4"
-- assertVisible: ".*Evidence 5: manual note.*selected.*"
+    id: "confirm-building-linked-sources"
 - scrollUntilVisible:
     element:
-      id: "candidate-building-observation-0"
-    direction: DOWN
+      text: "Building sources confirmed — 5 evidence items, 1 observation"
+    direction: UP
     centerElement: true
-- tapOn:
-    id: "candidate-building-observation-0"
-- assertVisible: ".*Observation 1: Cracking was observed through several tiles.*selected.*"
-- scrollUntilVisible:
-    element:
-      text: "Confirm Building candidate sources"
-    direction: DOWN
-    centerElement: true
-- tapOn: "Confirm Building candidate sources"
-- assertVisible: ".*Building candidate sources confirmed: 2 evidence items and 1 inspector observation.*"
-- assertVisible: "Building sources confirmed — 2 evidence items, 1 observation"
+- assertVisible: "Building sources confirmed — 5 evidence items, 1 observation"
 - scrollUntilVisible:
     element:
       text: "Save finding candidate"

@@ -15,6 +15,7 @@ describe("admin configuration UI contract", () => {
     expect(html).toContain("Integrations");
     expect(html).toContain("Calendar stale");
     expect(html).toContain("Test environment · no live credentials");
+    expect(html).not.toContain("Unsaved pricing draft");
     expect(html).not.toContain("Template editor");
   });
 
@@ -23,6 +24,6 @@ describe("admin configuration UI contract", () => {
 
     expect(html).toContain("Permission denied");
     expect(html).toMatch(/<fieldset[^>]*disabled=""/);
-    expect(html).toContain("cannot publish or operate provider controls");
+    expect(html).toContain("cannot publish changes or operate integrations");
   });
 });

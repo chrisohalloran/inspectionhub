@@ -247,10 +247,7 @@ export class DemoRecipientStateStore implements RecipientStateAuthority {
     const grant = grantForSession(projection, session, now);
     const buildingWithdrawn = projection.withdrawnModules.has("building");
     const timberPestWithdrawn = projection.withdrawnModules.has("timber_pest");
-    const activeModule = grant.modules.some(
-      (module) => !projection.withdrawnModules.has(module),
-    );
-    if (!grant.actions.includes("read_report") || !activeModule) {
+    if (!grant.actions.includes("read_report")) {
       throw new DemoRecipientStateError();
     }
     return {

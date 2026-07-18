@@ -4,7 +4,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { PortalState } from "../_lib/recipient-authority";
 import type { PortalSession } from "../_lib/recipient-session";
-import DemoReportPage, { DemoReportContent } from "./page";
+import DemoReportPage from "./page";
+import { DemoReportContent } from "./report-content";
 
 const mocks = vi.hoisted(() => ({
   portalState: vi.fn(),
@@ -31,9 +32,9 @@ describe("recipient report module visibility", () => {
       timberPestWithdrawn: true,
     });
 
-    expect(html).toContain("Building condition");
+    expect(html).toContain("Building findings");
     expect(html).toContain("Building report PDF");
-    expect(html).not.toContain("Timber Pest condition");
+    expect(html).not.toContain("Timber Pest findings");
     expect(html).not.toContain("Timber Pest report PDF");
     expect(html).not.toContain("Garden bed against external wall");
   });
@@ -44,9 +45,9 @@ describe("recipient report module visibility", () => {
       timberPestWithdrawn: false,
     });
 
-    expect(html).toContain("Timber Pest condition");
+    expect(html).toContain("Timber Pest findings");
     expect(html).toContain("Timber Pest report PDF");
-    expect(html).not.toContain("Building condition");
+    expect(html).not.toContain("Building findings");
     expect(html).not.toContain("Building report PDF");
     expect(html).not.toContain("Cracked shower and bathroom floor tiles");
   });
@@ -57,8 +58,8 @@ describe("recipient report module visibility", () => {
       ["building"],
     );
 
-    expect(html).toContain("Building condition");
-    expect(html).not.toContain("Timber Pest condition");
+    expect(html).toContain("Building findings");
+    expect(html).not.toContain("Timber Pest findings");
     expect(html).not.toContain("Timber Pest report PDF");
   });
 
@@ -68,12 +69,12 @@ describe("recipient report module visibility", () => {
       ["timber_pest"],
     );
 
-    expect(html).toContain("Timber Pest condition");
-    expect(html).not.toContain("Building condition");
+    expect(html).toContain("Timber Pest findings");
+    expect(html).not.toContain("Building findings");
     expect(html).not.toContain("Building report PDF");
   });
 
-  it("redirects when no granted module remains active", async () => {
+  it("keeps a durable withdrawal notice when no granted module remains active", async () => {
     mocks.readSession.mockResolvedValue(session());
     mocks.portalState.mockResolvedValue({
       buildingWithdrawn: true,
@@ -82,8 +83,17 @@ describe("recipient report module visibility", () => {
       contactRequests: [],
     });
 
-    await expect(DemoReportPage()).rejects.toThrow("redirect:/auth/invitation");
-    expect(mocks.redirect).toHaveBeenCalledWith("/auth/invitation");
+    const html = renderToStaticMarkup(await DemoReportPage());
+
+    expect(html).toContain("Building report withdrawn");
+    expect(html).toContain("Timber Pest report withdrawn");
+    expect(html).toContain("report modules have been withdrawn");
+    expect(html).toContain("Sign out of this report");
+    expect(html).not.toContain("Building report PDF");
+    expect(html).not.toContain("Timber Pest report PDF");
+    expect(html).not.toContain("Signed inspection agreement");
+    expect(html).not.toContain("Build Week demo actions");
+    expect(mocks.redirect).not.toHaveBeenCalled();
   });
 });
 

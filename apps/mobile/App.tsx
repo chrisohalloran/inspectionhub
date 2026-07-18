@@ -1,6 +1,10 @@
 import { demoJob } from "@inspection/test-fixtures";
 import { domainFixtureIds } from "@inspection/test-fixtures/domain";
 import { theme } from "@inspection/theme/tokens";
+import type {
+  BuildingClassification,
+  TimberPestCategory,
+} from "@inspection/contracts";
 import {
   RecordingPresets,
   requestRecordingPermissionsAsync,
@@ -22,6 +26,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
@@ -48,6 +53,7 @@ import { fieldJobContext } from "./src/jobs/field-job-context";
 import { describeFieldActionFailure } from "./src/investigations/field-action-recovery";
 import { InvestigationControlDock } from "./src/investigations/investigation-controls";
 import {
+  compactOperationStatus,
   durabilityAnnouncement,
   investigationCompletionVoiceBlock,
   type DockOperationState,
@@ -94,6 +100,7 @@ import {
 } from "./src/delivery/delivery-status";
 import { InvestigationReviewCard } from "./src/review/investigation-review-card";
 import { createSyntheticReviewFixture } from "./src/review/demo-review-items";
+import { createManualInvestigationReview } from "./src/review/manual-review-draft";
 import {
   createSeededInvestigationReview,
   SEEDED_CRACKED_TILE_OBSERVATION_TEXT,
@@ -105,6 +112,7 @@ import {
   editReviewItem,
   recordExactReverification,
   rejectReviewItem,
+  resolveReviewCheck,
   type InvestigationReviewItem,
 } from "./src/review/investigation-review";
 import {
@@ -270,6 +278,8 @@ function nextRenderedFrame(): Promise<void> {
 }
 
 export default function App() {
+  const { fontScale } = useWindowDimensions();
+  const largeTextLayout = fontScale >= 1.5;
   const camera = useRef<CameraView>(null);
   const inspectionRepositoryRef = useRef<LocalInspectionRepository | undefined>(
     undefined,
@@ -331,6 +341,9 @@ export default function App() {
   const [findingSourceDrafts, setFindingSourceDrafts] = useState<
     readonly FindingCandidateModuleSelection[]
   >([]);
+  const [findingSourceEditors, setFindingSourceEditors] = useState<
+    readonly ("building" | "timber_pest")[]
+  >([]);
   const [networkOverride, setNetworkOverride] = useState<
     "available" | "unavailable"
   >();
@@ -342,6 +355,10 @@ export default function App() {
   const [workflowView, setWorkflowView] = useState<"capture" | "review">(
     "capture",
   );
+  const [captureStatusOpen, setCaptureStatusOpen] = useState(false);
+  const [investigationToolsOpen, setInvestigationToolsOpen] = useState(false);
+  const [testToolsOpen, setTestToolsOpen] = useState(false);
+  const [recipientPreviewOpen, setRecipientPreviewOpen] = useState(false);
   const [reviewItems, setReviewItems] = useState<
     readonly InvestigationReviewItem[]
   >([]);
@@ -352,8 +369,18 @@ export default function App() {
     readonly ModuleApprovalBinding[]
   >([]);
   const [editingReviewId, setEditingReviewId] = useState<string>();
+  const [selectedReplacementReviewId, setSelectedReplacementReviewId] =
+    useState<string>();
   const [editObservation, setEditObservation] = useState("");
   const [editOpinion, setEditOpinion] = useState("");
+  const [editLocation, setEditLocation] = useState("");
+  const [editExtent, setEditExtent] = useState("");
+  const [editUncertainty, setEditUncertainty] = useState("");
+  const [editFurtherInvestigation, setEditFurtherInvestigation] = useState("");
+  const [editBuildingClassification, setEditBuildingClassification] =
+    useState<BuildingClassification>("minor_defect");
+  const [editTimberPestCategory, setEditTimberPestCategory] =
+    useState<TimberPestCategory>("conducive_condition");
   const [deliveryState, setDeliveryState] = useState<FieldDeliveryState>(
     "waiting_for_approval",
   );
@@ -732,6 +759,9 @@ export default function App() {
         setModuleApprovalBindings(restoredWorkflow.moduleApprovalBindings);
         setDeliveryState(restoredWorkflow.deliveryState);
         setPreflight(signals);
+        const queuedPhotoCount = openedLedger
+          .listQueue("photo_upload")
+          .filter(({ state }) => state !== "server_durable").length;
         refreshQueue(openedLedger);
         setStartupState("ready");
         setDockOperationState("ready");
@@ -740,7 +770,7 @@ export default function App() {
             ? `Recovery blocked draft regeneration because ${recoveryBlockedCandidateSourceIds.length} selected evidence ${recoveryBlockedCandidateSourceIds.length === 1 ? "source is" : "sources are"} missing or corrupt. The candidate remains saved and unprocessed; no draft was created. Manual inspection follow-up is required.`
             : recovery.actions.length === 0
               ? "Protected local storage ready."
-              : `Recovery checked ${recovery.actions.length} interrupted capture ${recovery.actions.length === 1 ? "boundary" : "boundaries"}.`,
+              : `Recovery checked ${recovery.actions.length} interrupted capture ${recovery.actions.length === 1 ? "boundary" : "boundaries"}. ${queuedPhotoCount} ${queuedPhotoCount === 1 ? "photo" : "photos"} ready locally.`,
         );
       } catch (error) {
         if (!mounted) return;
@@ -997,6 +1027,7 @@ export default function App() {
     setFinishChoiceOpen(false);
     setFindingEvidenceSelections([]);
     setFindingSourceDrafts([]);
+    setFindingSourceEditors([]);
   }
 
   async function saveInvestigationTransition(
@@ -1825,11 +1856,20 @@ export default function App() {
         },
         "investigation_started",
       );
-      setFindingModules([]);
-      setFindingSourceDrafts([]);
       closeInvestigationPanels();
+      const replacementItem = reviewItems.find(
+        (item) =>
+          item.status === "stale" &&
+          (selectedReplacementReviewId === undefined ||
+            item.reviewId === selectedReplacementReviewId),
+      );
+      setFindingModules(
+        replacementItem === undefined ? [] : [replacementItem.module],
+      );
       setLastAction(
-        "Investigation started — capture remains private until inspector review.",
+        replacementItem === undefined
+          ? "Investigation started — capture remains private until inspector review."
+          : `${replacementItem.module === "building" ? "Building" : "Timber Pest"} replacement investigation started for ${replacementItem.finding.content.location}.`,
       );
     } else if (investigationStatus === "active") {
       const active = await loadActiveInvestigation();
@@ -1874,16 +1914,33 @@ export default function App() {
   }
 
   function toggleFindingModule(module: "building" | "timber_pest"): void {
+    const removing = findingModules.includes(module);
     setFindingEvidenceSelections((current) =>
       current.filter((selection) => selection.module !== module),
     );
     setFindingModules((current) =>
-      current.includes(module)
+      removing
         ? current.filter((candidate) => candidate !== module)
         : [...current, module],
     );
-    setFindingSourceDrafts((current) =>
-      current.filter((draft) => draft.module !== module),
+    setFindingSourceDrafts((current) => [
+      ...current.filter((draft) => draft.module !== module),
+      ...(removing || investigation === null
+        ? []
+        : [
+            {
+              module,
+              sourceArtifactIds: investigation.evidence.map(
+                ({ artifactId }) => artifactId,
+              ),
+              sourceObservationIds: investigation.observations.map(
+                ({ observationId }) => observationId,
+              ),
+            },
+          ]),
+    ]);
+    setFindingSourceEditors((current) =>
+      current.filter((candidate) => candidate !== module),
     );
   }
 
@@ -2104,6 +2161,8 @@ export default function App() {
     setFindingModules([]);
     setFindingEvidenceSelections([]);
     setFindingSourceDrafts([]);
+    setFindingSourceEditors([]);
+    if (result === "candidate") setSelectedReplacementReviewId(undefined);
     await saveSession((currentSession) =>
       reconcileFieldSessionInvestigation(
         currentSession,
@@ -2152,33 +2211,130 @@ export default function App() {
     );
   }
 
+  async function writeManualFindings(): Promise<void> {
+    const current = workflowRef.current;
+    const completed = investigation;
+    if (
+      current === undefined ||
+      completed === null ||
+      completed.status !== "completed_findings" ||
+      completed.completion?.outcome !== "finding_candidates" ||
+      ledger === undefined
+    ) {
+      setLastAction(
+        "Complete a finding-candidate investigation before writing the finding.",
+      );
+      return;
+    }
+    const createdAt = new Date().toISOString();
+    const drafts = await createManualInvestigationReview({
+      investigation: completed,
+      artifactHash: (artifactId) =>
+        ledger.getArtifact(artifactId)?.sha256 ??
+        ledger.getManualNote(artifactId)?.contentHash,
+      areaLabel: currentAreaLabel,
+      digest: digestFieldPayload,
+      idFactory: randomUUID,
+    });
+    const candidates = completed.completion.moduleLinks;
+    const invalidated = invalidateProfessionalModulesForCandidates({
+      candidates,
+      investigationId: completed.investigationId,
+      recordedAt: createdAt,
+      workflow: current,
+    });
+    const affectedModules = new Set(candidates.map(({ module }) => module));
+    await saveWorkflow(
+      {
+        ...invalidated,
+        reviewItems: [
+          ...invalidated.reviewItems.filter(
+            (item) => !affectedModules.has(item.module),
+          ),
+          ...drafts,
+        ],
+      },
+      "review_changed",
+    );
+    const firstDraft = drafts[0];
+    if (firstDraft !== undefined) beginReviewEdit(firstDraft);
+    setLastAction(
+      "Inspector-authored draft opened from the selected evidence. Complete the professional fields before accepting it.",
+    );
+  }
+
   function beginReviewEdit(item: InvestigationReviewItem): void {
     setEditingReviewId(item.reviewId);
+    setEditLocation(item.finding.content.location);
     setEditObservation(item.finding.content.observation);
+    setEditExtent(item.finding.content.apparentExtent);
     setEditOpinion(item.finding.content.qualifiedOpinion);
+    setEditUncertainty(item.finding.content.uncertainty.join("\n"));
+    setEditFurtherInvestigation(
+      item.finding.content.furtherInvestigation ?? "",
+    );
+    if (item.finding.content.module === "building") {
+      setEditBuildingClassification(item.finding.content.classification);
+    } else {
+      setEditTimberPestCategory(item.finding.content.category);
+    }
   }
 
   async function saveReviewEdit(
     item: InvestigationReviewItem,
     pathway: "convert_to_human" | "reverify_ai",
   ): Promise<void> {
-    const content = {
-      ...item.finding.content,
+    const professionalContent = {
+      apparentExtent: editExtent.trim(),
+      furtherInvestigation:
+        editFurtherInvestigation.trim().length === 0
+          ? null
+          : editFurtherInvestigation.trim(),
+      location: editLocation.trim(),
       observation: editObservation.trim(),
       qualifiedOpinion: editOpinion.trim(),
+      uncertainty: editUncertainty
+        .split("\n")
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0),
     };
+    const content =
+      item.module === "building"
+        ? {
+            ...professionalContent,
+            classification: editBuildingClassification,
+            module: "building" as const,
+          }
+        : {
+            ...professionalContent,
+            category: editTimberPestCategory,
+            module: "timber_pest" as const,
+          };
     if (
+      content.location.length === 0 ||
       content.observation.length === 0 ||
+      content.apparentExtent.length === 0 ||
       content.qualifiedOpinion.length === 0
     ) {
-      setLastAction("Observation and qualified opinion are required.");
+      setLastAction(
+        "Location, observation, apparent extent and qualified opinion are required.",
+      );
       return;
     }
     const newContentHash = await digestFieldPayload(
       findingContentPayload(content),
     );
+    const manualDraftCheck = item.checks.find(
+      (check) =>
+        check.code === "manual_finding_details_required" &&
+        check.state === "open",
+    );
+    const editableItem =
+      pathway === "convert_to_human" && manualDraftCheck !== undefined
+        ? resolveReviewCheck(item, manualDraftCheck.checkId)
+        : item;
     await replaceReviewItem(
-      editReviewItem(item, {
+      editReviewItem(editableItem, {
         content,
         newVersionId: randomUUID(),
         newContentHash,
@@ -2214,6 +2370,16 @@ export default function App() {
     );
     setLastAction(
       "AI suggestion rejected — it cannot enter a report snapshot.",
+    );
+  }
+
+  async function resolveFindingCheck(
+    item: InvestigationReviewItem,
+    checkId: string,
+  ): Promise<void> {
+    await replaceReviewItem(resolveReviewCheck(item, checkId));
+    setLastAction(
+      "Required check resolved by the inspector for this exact finding version.",
     );
   }
 
@@ -2526,6 +2692,32 @@ export default function App() {
       ? network.isConnected !== false
       : networkOverride === "available";
   const captureEnabled = startupState === "ready" && session !== undefined;
+  const captureAttention =
+    startupState === "terminal"
+      ? {
+          detail: lastAction,
+          label: "Capture unavailable",
+        }
+      : preflight !== undefined && !preflight.allowMediaCapture
+        ? {
+            detail: preflightText(preflight),
+            label: "Use manual observation",
+          }
+        : session?.session === "expired"
+          ? {
+              detail:
+                "This cached job can keep capturing locally. Sign in before sync, approval or delivery.",
+              label: "Sign-in required later",
+            }
+          : !networkAvailable
+            ? {
+                detail:
+                  "Photos, voice notes and manual observations continue saving on this device.",
+                label: "Offline — saving locally",
+              }
+            : null;
+  const captureStatusSummary =
+    captureAttention?.label ?? compactOperationStatus(dockOperationState);
   const finishActionView = deriveInvestigationFinishActionView({
     busy: fieldActionBusy,
     voiceState,
@@ -2536,6 +2728,25 @@ export default function App() {
       : coverageCompletionIssues(coverageLedger);
   const professionalWorkOpen =
     investigationStatus === "active" || investigationStatus === "paused";
+  const replacementReviewItem =
+    reviewItems.find(
+      (item) =>
+        item.status === "stale" &&
+        item.reviewId === selectedReplacementReviewId,
+    ) ?? reviewItems.find((item) => item.status === "stale");
+  const manualDraftAvailable =
+    reviewItems.length === 0 &&
+    investigation?.status === "completed_findings" &&
+    investigation.completion?.outcome === "finding_candidates" &&
+    investigation.completion.moduleLinks.length > 0;
+  const focusedCaptureTaskOpen =
+    areaPickerOpen ||
+    coverageCloseoutOpen ||
+    evidenceAreasOpen ||
+    finishChoiceOpen ||
+    (largeTextLayout && investigationToolsOpen) ||
+    measurementOpen ||
+    testToolsOpen;
   const activeJob =
     session === undefined ? undefined : fieldJobContext(session);
   const commissionedModuleTypes = activeJob?.commissionedModuleTypes ?? [];
@@ -2597,12 +2808,17 @@ export default function App() {
   });
 
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider style={styles.provider}>
       <SafeAreaView style={styles.safeArea} testID="field-shell">
         <StatusBar style="dark" />
         <View style={styles.shell}>
           <ScrollView
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[
+              styles.scrollContent,
+              workflowView === "capture" && !focusedCaptureTaskOpen
+                ? styles.scrollContentWithCaptureDock
+                : undefined,
+            ]}
             keyboardDismissMode="on-drag"
             keyboardShouldPersistTaps="handled"
             style={styles.scroll}
@@ -2618,136 +2834,205 @@ export default function App() {
               accessibilityLabel="Inspection workflow"
               style={styles.workflowTabs}
             >
-              <SmallControl
+              <WorkflowTab
                 label="Capture"
                 onPress={() => {
                   setWorkflowView("capture");
                 }}
+                selected={workflowView === "capture"}
               />
-              <SmallControl
-                label="Review & complete"
+              <WorkflowTab
+                label="Review & issue"
                 onPress={() => {
                   setWorkflowView("review");
                 }}
+                selected={workflowView === "review"}
               />
             </View>
 
             {workflowView === "capture" ? (
               <>
-                {e2eMode ? (
+                {captureAttention !== null ? (
                   <View
-                    accessibilityLabel="Development test controls"
-                    style={styles.testPanel}
+                    accessibilityLiveRegion="polite"
+                    style={styles.captureAttention}
                   >
-                    <Text style={styles.metadataLabel}>
-                      Development test controls
+                    <Text style={styles.captureAttentionTitle}>
+                      {captureAttention.label}
                     </Text>
-                    <View style={styles.wrapRow}>
+                    <Text style={styles.body}>{captureAttention.detail}</Text>
+                  </View>
+                ) : null}
+                {replacementReviewItem !== undefined ? (
+                  <View
+                    accessibilityRole="alert"
+                    style={styles.captureAttention}
+                  >
+                    <Text style={styles.captureAttentionTitle}>
+                      Replacing{" "}
+                      {replacementReviewItem.module === "building"
+                        ? "Building"
+                        : "Timber Pest"}{" "}
+                      finding
+                    </Text>
+                    <Text style={styles.body}>
+                      {replacementReviewItem.finding.content.location}. Capture
+                      current evidence, investigate its apparent extent, then
+                      finish a replacement finding.
+                    </Text>
+                    {professionalWorkOpen ? (
+                      <Text style={styles.metadataLabel}>
+                        Replacement investigation active
+                      </Text>
+                    ) : (
                       <SmallControl
-                        label={
-                          networkAvailable
-                            ? "Test: go offline"
-                            : "Test: reconnect"
-                        }
+                        label="Start replacement investigation"
                         onPress={() => {
-                          setNetworkOverride(
-                            networkAvailable ? "unavailable" : "available",
+                          setSelectedReplacementReviewId(
+                            replacementReviewItem.reviewId,
                           );
-                          setLastAction(
-                            networkAvailable
-                              ? "Offline — local capture remains available."
-                              : "Connection restored — pending identities are ready to reconcile.",
-                          );
+                          void runFieldAction(changeInvestigationState);
                         }}
+                        testID="start-replacement-investigation"
                       />
-                      <SmallControl
-                        label="Test: expire session"
-                        onPress={() => {
-                          if (session !== undefined) {
-                            void saveSession((currentSession) => ({
-                              ...currentSession,
-                              session: "expired",
-                              updatedAt: new Date().toISOString(),
-                            }));
-                          }
-                          setLastAction(
-                            "Session expired — the open cached job can still capture; sync and approval require sign-in.",
-                          );
-                        }}
-                      />
-                      <SmallControl
-                        busy={fieldActionBusy}
-                        label="Test: complete coverage"
-                        onPress={() => {
-                          void runFieldAction(completeCoverageForTest);
-                        }}
-                      />
-                      <SmallControl
-                        label="Test: terminate after copy"
-                        onPress={() => {
-                          setNextDebugFailure("terminate_after_copy");
-                          setLastAction(
-                            "Next synthetic capture will terminate after the temporary copy.",
-                          );
-                        }}
-                      />
-                      <SmallControl
-                        label="Test: terminate after durable sync"
-                        onPress={() => {
-                          setNextDebugFailure("terminate_after_partial_sync");
-                          setLastAction(
-                            "Next synthetic capture will terminate after durable file synchronisation.",
-                          );
-                        }}
-                      />
-                      <SmallControl
-                        label="Test: return after partial sync"
-                        onPress={() => {
-                          setNextDebugFailure("return_after_partial_sync");
-                          setLastAction(
-                            "Next synthetic capture will return before local durability is complete.",
-                          );
-                        }}
-                      />
-                      <SmallControl
-                        label="Test: terminate after hash"
-                        onPress={() => {
-                          setNextDebugFailure("terminate_after_hash");
-                          setLastAction(
-                            "Next synthetic capture will terminate after hashing.",
-                          );
-                        }}
-                      />
-                      <SmallControl
-                        label="Test: terminate after rename"
-                        onPress={() => {
-                          setNextDebugFailure("terminate_after_atomic_rename");
-                          setLastAction(
-                            "Next synthetic capture will terminate after atomic rename.",
-                          );
-                        }}
-                      />
-                      <SmallControl
-                        label="Test: terminate after SQLite"
-                        onPress={() => {
-                          setNextCoordinatorTermination("after_sqlite_commit");
-                          setLastAction(
-                            "Next synthetic capture will terminate after the ledger transaction.",
-                          );
-                        }}
-                      />
-                      <SmallControl
-                        label="Test: terminate after acknowledgement"
-                        onPress={() => {
-                          setNextCoordinatorTermination(
-                            "after_acknowledgement",
-                          );
-                          setLastAction(
-                            "Next synthetic capture will terminate at the acknowledgement boundary.",
-                          );
-                        }}
-                      />
-                    </View>
+                    )}
+                  </View>
+                ) : null}
+                {e2eMode ? (
+                  <View style={styles.testToolsShell}>
+                    <SmallControl
+                      label={
+                        testToolsOpen ? "Hide test tools" : "Show test tools"
+                      }
+                      onPress={() => setTestToolsOpen((current) => !current)}
+                    />
+                    {testToolsOpen ? (
+                      <View
+                        accessibilityLabel="Development test controls"
+                        style={styles.testPanel}
+                      >
+                        <Text style={styles.metadataLabel}>
+                          Development test controls
+                        </Text>
+                        <View style={styles.wrapRow}>
+                          <SmallControl
+                            label={
+                              networkAvailable
+                                ? "Test: go offline"
+                                : "Test: reconnect"
+                            }
+                            onPress={() => {
+                              setNetworkOverride(
+                                networkAvailable ? "unavailable" : "available",
+                              );
+                              setLastAction(
+                                networkAvailable
+                                  ? "Offline — local capture remains available."
+                                  : "Connection restored — pending identities are ready to reconcile.",
+                              );
+                            }}
+                          />
+                          <SmallControl
+                            label="Test: expire session"
+                            onPress={() => {
+                              if (session !== undefined) {
+                                void saveSession((currentSession) => ({
+                                  ...currentSession,
+                                  session: "expired",
+                                  updatedAt: new Date().toISOString(),
+                                }));
+                              }
+                              setLastAction(
+                                "Session expired — the open cached job can still capture; sync and approval require sign-in.",
+                              );
+                            }}
+                          />
+                          <SmallControl
+                            busy={fieldActionBusy}
+                            label="Test: complete coverage"
+                            onPress={() => {
+                              void runFieldAction(completeCoverageForTest);
+                            }}
+                          />
+                          <SmallControl
+                            label="Test: terminate after copy"
+                            onPress={() => {
+                              setNextDebugFailure("terminate_after_copy");
+                              setLastAction(
+                                "Next synthetic capture will terminate after the temporary copy.",
+                              );
+                            }}
+                          />
+                          <SmallControl
+                            label="Test: terminate after durable sync"
+                            onPress={() => {
+                              setNextDebugFailure(
+                                "terminate_after_partial_sync",
+                              );
+                              setLastAction(
+                                "Next synthetic capture will terminate after durable file synchronisation.",
+                              );
+                            }}
+                          />
+                          <SmallControl
+                            label="Test: return after partial sync"
+                            onPress={() => {
+                              setNextDebugFailure("return_after_partial_sync");
+                              setLastAction(
+                                "Next synthetic capture will return before local durability is complete.",
+                              );
+                            }}
+                          />
+                          <SmallControl
+                            label="Test: terminate after hash"
+                            onPress={() => {
+                              setNextDebugFailure("terminate_after_hash");
+                              setLastAction(
+                                "Next synthetic capture will terminate after hashing.",
+                              );
+                            }}
+                          />
+                          <SmallControl
+                            label={
+                              nextDebugFailure ===
+                              "terminate_after_atomic_rename"
+                                ? "Test: terminate after rename selected"
+                                : "Test: terminate after rename"
+                            }
+                            onPress={() => {
+                              setNextDebugFailure(
+                                "terminate_after_atomic_rename",
+                              );
+                              setLastAction(
+                                "Next synthetic capture will terminate after atomic rename.",
+                              );
+                            }}
+                          />
+                          <SmallControl
+                            label="Test: terminate after SQLite"
+                            onPress={() => {
+                              setNextCoordinatorTermination(
+                                "after_sqlite_commit",
+                              );
+                              setLastAction(
+                                "Next synthetic capture will terminate after the ledger transaction.",
+                              );
+                            }}
+                          />
+                          <SmallControl
+                            label="Test: terminate after acknowledgement"
+                            onPress={() => {
+                              setNextCoordinatorTermination(
+                                "after_acknowledgement",
+                              );
+                              setLastAction(
+                                "Next synthetic capture will terminate at the acknowledgement boundary.",
+                              );
+                            }}
+                          />
+                        </View>
+                      </View>
+                    ) : null}
                   </View>
                 ) : null}
 
@@ -2802,11 +3087,22 @@ export default function App() {
                     ))
                   )}
                   <View style={styles.wrapRow}>
+                    {largeTextLayout && investigationStatus === "active" ? (
+                      <SmallControl
+                        busy={fieldActionBusy}
+                        disabled={!captureEnabled || fieldActionBusy}
+                        label="Pause investigation"
+                        onPress={() => {
+                          void runFieldAction(changeInvestigationState);
+                        }}
+                      />
+                    ) : null}
                     <SmallControl
                       label="Change area"
                       onPress={() => {
                         setAreaPickerOpen((current) => !current);
                       }}
+                      testID="change-area-control"
                     />
                     <SmallControl
                       label="Close out area"
@@ -2818,6 +3114,7 @@ export default function App() {
                         setEvidenceAreasOpen(false);
                         setFinishChoiceOpen(false);
                       }}
+                      testID="close-out-area-control"
                     />
                     {investigationStatus === "active" &&
                     recentCaptures.length > 0 ? (
@@ -2832,25 +3129,44 @@ export default function App() {
                     {investigationStatus === "active" ? (
                       <>
                         <SmallControl
-                          label="Add measurement"
-                          onPress={() => {
-                            setMeasurementOpen(true);
-                            setAreaPickerOpen(false);
-                            setCoverageCloseoutOpen(false);
-                            setEvidenceAreasOpen(false);
-                            setFinishChoiceOpen(false);
-                          }}
+                          label={
+                            investigationToolsOpen
+                              ? "Hide investigation tools"
+                              : "More investigation tools"
+                          }
+                          onPress={() =>
+                            setInvestigationToolsOpen((current) => !current)
+                          }
+                          testID="investigation-tools-toggle"
                         />
-                        <SmallControl
-                          label="Review evidence areas"
-                          onPress={() => {
-                            setEvidenceAreasOpen(true);
-                            setAreaPickerOpen(false);
-                            setCoverageCloseoutOpen(false);
-                            setMeasurementOpen(false);
-                            setFinishChoiceOpen(false);
-                          }}
-                        />
+                        {investigationToolsOpen ? (
+                          <>
+                            <SmallControl
+                              label="Add measurement"
+                              onPress={() => {
+                                setMeasurementOpen(true);
+                                setAreaPickerOpen(false);
+                                setCoverageCloseoutOpen(false);
+                                setEvidenceAreasOpen(false);
+                                setFinishChoiceOpen(false);
+                                setInvestigationToolsOpen(false);
+                              }}
+                              testID="add-measurement-control"
+                            />
+                            <SmallControl
+                              label="Review evidence areas"
+                              onPress={() => {
+                                setEvidenceAreasOpen(true);
+                                setAreaPickerOpen(false);
+                                setCoverageCloseoutOpen(false);
+                                setMeasurementOpen(false);
+                                setFinishChoiceOpen(false);
+                                setInvestigationToolsOpen(false);
+                              }}
+                              testID="review-evidence-areas-control"
+                            />
+                          </>
+                        ) : null}
                         <SmallControl
                           disabled={finishActionView.finishDisabled}
                           label="Finish investigation"
@@ -2953,8 +3269,8 @@ export default function App() {
                       asynchronous and evidence stays available either way.
                     </Text>
                     <Text style={styles.body}>
-                      Select a module, then confirm the exact evidence and
-                      inspector observations that support that candidate.
+                      Choose a report. Evidence linked while this issue was open
+                      is included automatically; change it only when needed.
                     </Text>
                     <Text style={styles.metadataLabel}>
                       Finding candidate modules
@@ -2988,65 +3304,98 @@ export default function App() {
                           style={styles.candidateSourceGroup}
                         >
                           <Text style={styles.moduleChecklistLabel}>
-                            {moduleLabel} candidate sources
+                            {moduleLabel} finding
                           </Text>
                           <Text style={styles.metadataLabel}>
-                            Select supporting evidence
+                            {draft?.sourceArtifactIds.length ?? 0} linked
+                            evidence
+                            {(draft?.sourceArtifactIds.length ?? 0) === 1
+                              ? " item"
+                              : " items"}
+                            {" · "}
+                            {draft?.sourceObservationIds.length ?? 0} inspector
+                            {(draft?.sourceObservationIds.length ?? 0) === 1
+                              ? " observation"
+                              : " observations"}
                           </Text>
-                          {investigation?.evidence.map((source, index) => (
-                            <CandidateSourceControl
-                              key={`${module}-artifact-${source.artifactId}`}
-                              label={`Evidence ${index + 1}: ${source.artifactKind.replaceAll("_", " ")} · ${currentAreaLabel(source.currentAreaId)}`}
-                              onPress={() =>
-                                toggleFindingSource(
-                                  module,
-                                  "artifact",
-                                  source.artifactId,
-                                )
-                              }
-                              selected={
-                                draft?.sourceArtifactIds.includes(
-                                  source.artifactId,
-                                ) ?? false
-                              }
-                              testID={`candidate-${module}-evidence-${index}`}
-                            />
-                          ))}
-                          <Text style={styles.metadataLabel}>
-                            Select supporting inspector observations
-                          </Text>
-                          {investigation?.observations.map(
-                            (observation, index) => (
-                              <CandidateSourceControl
-                                key={`${module}-observation-${observation.observationId}`}
-                                label={`Observation ${index + 1}: ${observation.text} · ${currentAreaLabel(observation.areaId)}`}
-                                onPress={() =>
-                                  toggleFindingSource(
-                                    module,
-                                    "observation",
-                                    observation.observationId,
-                                  )
-                                }
-                                selected={
-                                  draft?.sourceObservationIds.includes(
-                                    observation.observationId,
-                                  ) ?? false
-                                }
-                                testID={`candidate-${module}-observation-${index}`}
-                              />
-                            ),
-                          )}
+                          {findingSourceEditors.includes(module) ? (
+                            <View style={styles.candidateSourceGroup}>
+                              <Text style={styles.metadataLabel}>
+                                Supporting evidence
+                              </Text>
+                              {investigation?.evidence.map((source, index) => (
+                                <CandidateSourceControl
+                                  key={`${module}-artifact-${source.artifactId}`}
+                                  label={`Evidence ${index + 1}: ${source.artifactKind.replaceAll("_", " ")} · ${currentAreaLabel(source.currentAreaId)}`}
+                                  onPress={() =>
+                                    toggleFindingSource(
+                                      module,
+                                      "artifact",
+                                      source.artifactId,
+                                    )
+                                  }
+                                  selected={
+                                    draft?.sourceArtifactIds.includes(
+                                      source.artifactId,
+                                    ) ?? false
+                                  }
+                                  testID={`candidate-${module}-evidence-${index}`}
+                                />
+                              ))}
+                              <Text style={styles.metadataLabel}>
+                                Inspector observations
+                              </Text>
+                              {investigation?.observations.map(
+                                (observation, index) => (
+                                  <CandidateSourceControl
+                                    key={`${module}-observation-${observation.observationId}`}
+                                    label={`Observation ${index + 1}: ${observation.text} · ${currentAreaLabel(observation.areaId)}`}
+                                    onPress={() =>
+                                      toggleFindingSource(
+                                        module,
+                                        "observation",
+                                        observation.observationId,
+                                      )
+                                    }
+                                    selected={
+                                      draft?.sourceObservationIds.includes(
+                                        observation.observationId,
+                                      ) ?? false
+                                    }
+                                    testID={`candidate-${module}-observation-${index}`}
+                                  />
+                                ),
+                              )}
+                            </View>
+                          ) : null}
+                          <SmallControl
+                            label={
+                              findingSourceEditors.includes(module)
+                                ? "Done changing sources"
+                                : "Change sources"
+                            }
+                            onPress={() =>
+                              setFindingSourceEditors((current) =>
+                                current.includes(module)
+                                  ? current.filter(
+                                      (candidate) => candidate !== module,
+                                    )
+                                  : [...current, module],
+                              )
+                            }
+                          />
                           <SmallControl
                             label={
                               confirmed
                                 ? `${moduleLabel} sources confirmed — ${selection.sourceArtifactIds.length} evidence ${selection.sourceArtifactIds.length === 1 ? "item" : "items"}, ${selection.sourceObservationIds.length} ${selection.sourceObservationIds.length === 1 ? "observation" : "observations"}`
-                                : `Confirm ${moduleLabel} candidate sources`
+                                : `Confirm ${moduleLabel} linked sources`
                             }
                             onPress={() => {
                               void runFieldAction(() =>
                                 confirmFindingEvidence(module),
                               );
                             }}
+                            testID={`confirm-${module}-linked-sources`}
                           />
                         </View>
                       );
@@ -3090,65 +3439,96 @@ export default function App() {
                   </View>
                 ) : null}
 
-                <View
-                  accessibilityLiveRegion="polite"
-                  style={styles.statusList}
+                <Pressable
+                  accessibilityLabel={`${captureStatusOpen ? "Hide" : "Show"} capture details. ${captureStatusSummary}. ${queueCounts.photos} photos. ${queueCounts.voiceNotes} voice notes.`}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: captureStatusOpen }}
+                  onPress={() => setCaptureStatusOpen((current) => !current)}
+                  style={({ pressed }) => [
+                    styles.captureStatusToggle,
+                    pressed && styles.pressed,
+                  ]}
+                  testID="capture-status-toggle"
                 >
-                  <StatusCard
-                    detail={lastAction}
-                    label={
-                      startupState === "ready"
-                        ? "Local capture ready"
-                        : startupState === "loading"
-                          ? "Local storage loading"
-                          : "Local capture unavailable"
-                    }
-                  />
-                  <StatusCard
-                    detail={
-                      networkAvailable
-                        ? "Pending evidence may synchronise after authorisation."
-                        : "Photos, voice notes, and manual notes continue saving locally."
-                    }
-                    label={
-                      networkAvailable
-                        ? "Connection available"
-                        : "Offline — local capture available"
-                    }
-                  />
-                  <StatusCard
-                    detail={
-                      session?.session === "expired"
-                        ? "Only this open cached assigned job may capture. New jobs, sync, approval, package and delivery are blocked."
-                        : "Open assigned job capture and foreground sync are authorised."
-                    }
-                    label={
-                      session?.session === "expired"
-                        ? "Session expired"
-                        : "Session active"
-                    }
-                  />
-                  <StatusCard
-                    detail={preflightText(preflight)}
-                    label="Device preflight"
-                  />
-                </View>
+                  <View>
+                    <Text style={styles.metadataLabel}>Capture status</Text>
+                    <Text style={styles.queueCount}>
+                      {captureStatusSummary} · {queueCounts.photos} photos ·{" "}
+                      {queueCounts.voiceNotes} voice notes
+                    </Text>
+                  </View>
+                  <Text style={styles.captureStatusAction}>
+                    {captureStatusOpen ? "Hide details" : "Show details"}
+                  </Text>
+                </Pressable>
 
-                <View accessible style={styles.queueCard}>
-                  <Text style={styles.metadataLabel}>Local queue</Text>
-                  <Text style={styles.queueCount}>
-                    {queueCounts.photos} photos · {queueCounts.voiceNotes} voice
-                    notes · {queueCounts.manualNotes} manual notes
-                  </Text>
-                  <Text style={styles.body}>
-                    A local count does not indicate inspection coverage or
-                    condition.
-                  </Text>
-                </View>
+                {captureStatusOpen ? (
+                  <>
+                    <View
+                      accessibilityLiveRegion="polite"
+                      style={styles.statusList}
+                    >
+                      <StatusCard
+                        detail={lastAction}
+                        label={
+                          startupState === "ready"
+                            ? "Local capture ready"
+                            : startupState === "loading"
+                              ? "Local storage loading"
+                              : "Local capture unavailable"
+                        }
+                      />
+                      <StatusCard
+                        detail={
+                          networkAvailable
+                            ? "Pending evidence may synchronise after authorisation."
+                            : "Photos, voice notes, and manual notes continue saving locally."
+                        }
+                        label={
+                          networkAvailable
+                            ? "Connection available"
+                            : "Offline — local capture available"
+                        }
+                      />
+                      <StatusCard
+                        detail={
+                          session?.session === "expired"
+                            ? "Only this open cached assigned job may capture. New jobs, sync, approval, package and delivery are blocked."
+                            : "Open assigned job capture and foreground sync are authorised."
+                        }
+                        label={
+                          session?.session === "expired"
+                            ? "Session expired"
+                            : "Session active"
+                        }
+                      />
+                      <StatusCard
+                        detail={preflightText(preflight)}
+                        label="Device preflight"
+                      />
+                    </View>
+
+                    <View accessible style={styles.queueCard}>
+                      <Text style={styles.metadataLabel}>Local queue</Text>
+                      <Text style={styles.queueCount}>
+                        {queueCounts.photos} photos · {queueCounts.voiceNotes}{" "}
+                        voice notes · {queueCounts.manualNotes} manual notes
+                      </Text>
+                      <Text style={styles.body}>
+                        A local count does not indicate inspection coverage or
+                        condition.
+                      </Text>
+                    </View>
+                  </>
+                ) : null}
 
                 <Pressable
                   accessibilityHint={fieldControls.manualNote.hint}
                   accessibilityRole="button"
+                  accessibilityState={{
+                    disabled: !captureEnabled,
+                    expanded: manualNoteOpen,
+                  }}
                   disabled={!captureEnabled}
                   onPress={() => {
                     setManualNoteOpen((current) => !current);
@@ -3193,8 +3573,19 @@ export default function App() {
               </>
             ) : (
               <View style={styles.reviewStack}>
-                <StatusCard detail={lastAction} label="Review status" />
                 {recipientOverview !== null ? (
+                  <SmallControl
+                    label={
+                      recipientPreviewOpen
+                        ? "Hide recipient preview"
+                        : "Preview recipient report"
+                    }
+                    onPress={() =>
+                      setRecipientPreviewOpen((current) => !current)
+                    }
+                  />
+                ) : null}
+                {recipientOverview !== null && recipientPreviewOpen ? (
                   <View
                     accessibilityLabel="Recipient overview preview"
                     style={styles.reviewNotice}
@@ -3290,16 +3681,10 @@ export default function App() {
                 <View accessible style={styles.reviewNotice}>
                   <Text style={styles.sectionTitle}>Inspector review</Text>
                   <Text style={styles.body}>
-                    AI text is provisional. Accept, edit or reject each exact
-                    version; Building and Timber Pest approvals remain separate.
+                    AI suggestions stay provisional until you accept, edit or
+                    reject them. Building and Timber Pest approvals remain
+                    separate.
                   </Text>
-                  {demoMode ? (
-                    <Text style={styles.body}>
-                      Demo review can include a current field-linked Building
-                      packet and separately seeded synthetic fixture packets.
-                      Check each module's source disclosure before acceptance.
-                    </Text>
-                  ) : null}
                 </View>
                 <View style={styles.checklistCard}>
                   <Text accessibilityRole="header" style={styles.sectionTitle}>
@@ -3402,10 +3787,32 @@ export default function App() {
                   ) : null}
                 </View>
                 {reviewItems.length === 0 ? (
-                  <StatusCard
-                    detail="No current review packet is available. Continue capture or complete findings manually."
-                    label="No suggestions"
-                  />
+                  <View style={styles.noteCard}>
+                    <Text
+                      accessibilityRole="header"
+                      style={styles.sectionTitle}
+                    >
+                      No suggestions ready
+                    </Text>
+                    <Text style={styles.body}>
+                      AI never blocks the inspection. Write the finding directly
+                      from the evidence already selected for this investigation.
+                    </Text>
+                    {manualDraftAvailable ? (
+                      <SmallControl
+                        label="Write finding manually"
+                        onPress={() => {
+                          void runFieldAction(writeManualFindings);
+                        }}
+                        testID="write-manual-finding"
+                      />
+                    ) : (
+                      <SmallControl
+                        label="Continue field work"
+                        onPress={() => setWorkflowView("capture")}
+                      />
+                    )}
+                  </View>
                 ) : null}
                 {reviewItems.map((item) => (
                   <View key={item.reviewId} style={styles.reviewItem}>
@@ -3426,6 +3833,23 @@ export default function App() {
                       onReverify={() => {
                         void runFieldAction(() => reverifyReview(item));
                       }}
+                      onReturnToCapture={() => {
+                        setSelectedReplacementReviewId(item.reviewId);
+                        setWorkflowView("capture");
+                        setAreaPickerOpen(false);
+                        setCoverageCloseoutOpen(false);
+                        setMeasurementOpen(false);
+                        setEvidenceAreasOpen(false);
+                        setFinishChoiceOpen(false);
+                        setLastAction(
+                          `${item.module === "building" ? "Building" : "Timber Pest"} finding is stale. Capture current evidence, investigate its extent, then complete a replacement finding.`,
+                        );
+                      }}
+                      onResolveCheck={(checkId) => {
+                        void runFieldAction(() =>
+                          resolveFindingCheck(item, checkId),
+                        );
+                      }}
                     />
                     {editingReviewId === item.reviewId ? (
                       <View style={styles.noteCard}>
@@ -3435,6 +3859,69 @@ export default function App() {
                         >
                           Edit finding
                         </Text>
+                        <Text style={styles.metadataLabel}>Location</Text>
+                        <TextInput
+                          accessibilityLabel="Finding location"
+                          onChangeText={setEditLocation}
+                          style={styles.noteInput}
+                          value={editLocation}
+                        />
+                        <Text style={styles.metadataLabel}>
+                          {item.module === "building"
+                            ? "Classification"
+                            : "Category"}
+                        </Text>
+                        {item.module === "building" ? (
+                          <View
+                            accessibilityLabel="Building classification"
+                            accessibilityRole="radiogroup"
+                            style={styles.wrapRow}
+                          >
+                            {(
+                              [
+                                "major_defect",
+                                "minor_defect",
+                                "safety_hazard",
+                                "other_building_condition",
+                              ] as const
+                            ).map((classification) => (
+                              <ReviewChoice
+                                key={classification}
+                                label={classification.replaceAll("_", " ")}
+                                onPress={() =>
+                                  setEditBuildingClassification(classification)
+                                }
+                                selected={
+                                  editBuildingClassification === classification
+                                }
+                              />
+                            ))}
+                          </View>
+                        ) : (
+                          <View
+                            accessibilityLabel="Timber Pest category"
+                            accessibilityRole="radiogroup"
+                            style={styles.wrapRow}
+                          >
+                            {(
+                              [
+                                "visible_evidence",
+                                "timber_damage",
+                                "conducive_condition",
+                                "no_visible_evidence",
+                              ] as const
+                            ).map((category) => (
+                              <ReviewChoice
+                                key={category}
+                                label={category.replaceAll("_", " ")}
+                                onPress={() =>
+                                  setEditTimberPestCategory(category)
+                                }
+                                selected={editTimberPestCategory === category}
+                              />
+                            ))}
+                          </View>
+                        )}
                         <Text style={styles.metadataLabel}>Observation</Text>
                         <TextInput
                           accessibilityLabel="Finding observation"
@@ -3442,6 +3929,16 @@ export default function App() {
                           onChangeText={setEditObservation}
                           style={styles.noteInput}
                           value={editObservation}
+                        />
+                        <Text style={styles.metadataLabel}>
+                          Apparent extent
+                        </Text>
+                        <TextInput
+                          accessibilityLabel="Finding apparent extent"
+                          multiline
+                          onChangeText={setEditExtent}
+                          style={styles.noteInput}
+                          value={editExtent}
                         />
                         <Text style={styles.metadataLabel}>
                           Qualified opinion
@@ -3453,17 +3950,46 @@ export default function App() {
                           style={styles.noteInput}
                           value={editOpinion}
                         />
+                        <Text style={styles.metadataLabel}>
+                          Uncertainty (one item per line)
+                        </Text>
+                        <TextInput
+                          accessibilityLabel="Finding uncertainty"
+                          multiline
+                          onChangeText={setEditUncertainty}
+                          style={styles.noteInput}
+                          value={editUncertainty}
+                        />
+                        <Text style={styles.metadataLabel}>
+                          Further inspection
+                        </Text>
+                        <TextInput
+                          accessibilityLabel="Finding further inspection"
+                          multiline
+                          onChangeText={setEditFurtherInvestigation}
+                          placeholder="Leave blank when none is identified."
+                          placeholderTextColor={theme.color.inkMuted}
+                          style={styles.noteInput}
+                          value={editFurtherInvestigation}
+                        />
                         <View style={styles.wrapRow}>
+                          {item.status === "awaiting_decision" &&
+                          item.finding.authorship.origin === "ai" ? (
+                            <SmallControl
+                              label="Save & reverify AI"
+                              onPress={() => {
+                                void runFieldAction(() =>
+                                  saveReviewEdit(item, "reverify_ai"),
+                                );
+                              }}
+                            />
+                          ) : null}
                           <SmallControl
-                            label="Save & reverify AI"
-                            onPress={() => {
-                              void runFieldAction(() =>
-                                saveReviewEdit(item, "reverify_ai"),
-                              );
-                            }}
-                          />
-                          <SmallControl
-                            label="Save as inspector-authored"
+                            label={
+                              item.status === "rejected"
+                                ? "Save inspector replacement"
+                                : "Save as inspector-authored"
+                            }
                             onPress={() => {
                               void runFieldAction(() =>
                                 saveReviewEdit(item, "convert_to_human"),
@@ -3481,6 +4007,23 @@ export default function App() {
                     ) : null}
                   </View>
                 ))}
+                <ModuleCompletionDock
+                  busy={fieldActionBusy || startupState !== "ready"}
+                  manualFindingAvailable={manualDraftAvailable}
+                  onApproveModule={(module) => {
+                    void runFieldAction(() => approveModule(module));
+                  }}
+                  onConfirmPackage={() => {
+                    void runFieldAction(confirmDeliveryPackage);
+                  }}
+                  onWriteManualFinding={() => {
+                    void runFieldAction(writeManualFindings);
+                  }}
+                  packageConfirmed={
+                    workflowRef.current?.packageManifestSha256 != null
+                  }
+                  projection={completionProjection}
+                />
                 <DeliveryStatusCard
                   status={fieldDeliveryStatus(deliveryState)}
                 />
@@ -3527,7 +4070,7 @@ export default function App() {
             )}
           </ScrollView>
 
-          {workflowView === "capture" ? (
+          {workflowView === "capture" && !focusedCaptureTaskOpen ? (
             <InvestigationControlDock
               captureEnabled={captureEnabled}
               currentAreaLabel={currentArea.label}
@@ -3546,23 +4089,12 @@ export default function App() {
               }}
               photoBusy={photoSaving}
               recentCaptureCount={recentCaptures.length}
+              showInvestigationAction={
+                !largeTextLayout || investigationStatus !== "active"
+              }
               voiceState={voiceState}
             />
-          ) : (
-            <ModuleCompletionDock
-              busy={fieldActionBusy || startupState !== "ready"}
-              onApproveModule={(module) => {
-                void runFieldAction(() => approveModule(module));
-              }}
-              onConfirmPackage={() => {
-                void runFieldAction(confirmDeliveryPackage);
-              }}
-              packageConfirmed={
-                workflowRef.current?.packageManifestSha256 != null
-              }
-              projection={completionProjection}
-            />
-          )}
+          ) : null}
         </View>
       </SafeAreaView>
     </SafeAreaProvider>
@@ -3591,6 +4123,57 @@ function SmallControl(props: {
       ]}
     >
       <Text style={styles.smallControlLabel}>{props.label}</Text>
+    </Pressable>
+  );
+}
+
+function WorkflowTab(props: {
+  label: string;
+  onPress: () => void;
+  selected: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="tab"
+      accessibilityState={{ selected: props.selected }}
+      onPress={props.onPress}
+      style={({ pressed }) => [
+        styles.workflowTab,
+        props.selected && styles.workflowTabSelected,
+        pressed && styles.pressed,
+      ]}
+    >
+      <Text
+        style={[
+          styles.workflowTabLabel,
+          props.selected && styles.workflowTabLabelSelected,
+        ]}
+      >
+        {props.label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function ReviewChoice(props: {
+  label: string;
+  onPress: () => void;
+  selected: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityState={{ checked: props.selected }}
+      onPress={props.onPress}
+      style={({ pressed }) => [
+        styles.smallControl,
+        props.selected && styles.reviewChoiceSelected,
+        pressed && styles.pressed,
+      ]}
+    >
+      <Text style={styles.smallControlLabel}>
+        {props.selected ? `Selected: ${props.label}` : props.label}
+      </Text>
     </Pressable>
   );
 }
@@ -3711,6 +4294,37 @@ const styles = StyleSheet.create({
     color: theme.color.surface,
     textAlign: "center",
   },
+  captureStatusAction: {
+    ...theme.typography.labelLg,
+    alignSelf: "flex-start",
+    color: theme.color.action,
+    fontWeight: "700",
+  },
+  captureAttention: {
+    backgroundColor: theme.color.limitationContainer,
+    borderColor: theme.color.limitation,
+    borderRadius: theme.radius.medium,
+    borderWidth: 1,
+    gap: theme.space[2],
+    marginTop: theme.space[4],
+    padding: theme.space[4],
+  },
+  captureAttentionTitle: {
+    ...theme.typography.labelLg,
+    color: theme.color.limitation,
+    fontWeight: "700",
+  },
+  captureStatusToggle: {
+    alignItems: "flex-start",
+    backgroundColor: theme.color.surface,
+    borderColor: theme.color.outline,
+    borderRadius: theme.radius.medium,
+    borderWidth: 1,
+    gap: theme.space[3],
+    marginTop: theme.space[4],
+    minHeight: theme.target.minimum,
+    padding: theme.space[3],
+  },
   disabled: { opacity: 0.55 },
   eyebrow: {
     ...theme.typography.labelSm,
@@ -3720,7 +4334,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.space[2],
   },
   heading: {
-    ...theme.typography.display,
+    ...theme.typography.headlineLg,
     color: theme.color.ink,
   },
   metadataLabel: {
@@ -3753,6 +4367,7 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
   },
   pressed: { backgroundColor: theme.color.canvas },
+  provider: { flex: 1 },
   queueCard: {
     backgroundColor: theme.color.surface,
     borderColor: theme.color.outline,
@@ -3805,10 +4420,16 @@ const styles = StyleSheet.create({
     gap: theme.space[2],
     padding: theme.space[4],
   },
+  reviewChoiceSelected: {
+    backgroundColor: theme.color.buildingContainer,
+    borderColor: theme.color.action,
+    borderWidth: 2,
+  },
   reviewStack: { gap: theme.space[4], marginTop: theme.space[4] },
   safeArea: { backgroundColor: theme.color.canvas, flex: 1 },
-  scroll: { flex: 1 },
+  scroll: { flex: 1, minHeight: 0 },
   scrollContent: { padding: theme.space[4], paddingBottom: theme.space[6] },
+  scrollContentWithCaptureDock: { paddingBottom: theme.space[7] * 6 },
   secondaryAction: {
     alignItems: "center",
     backgroundColor: theme.color.surface,
@@ -3830,7 +4451,7 @@ const styles = StyleSheet.create({
     color: theme.color.ink,
     fontWeight: "700",
   },
-  shell: { flex: 1 },
+  shell: { flex: 1, minHeight: 0 },
   smallControl: {
     alignItems: "center",
     backgroundColor: theme.color.surface,
@@ -3881,10 +4502,37 @@ const styles = StyleSheet.create({
     marginTop: theme.space[4],
     padding: theme.space[3],
   },
+  testToolsShell: {
+    marginTop: theme.space[3],
+  },
+  workflowTab: {
+    alignItems: "center",
+    backgroundColor: theme.color.surface,
+    borderBottomColor: theme.color.outline,
+    borderBottomWidth: 2,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: theme.target.minimum,
+    minWidth: theme.component.fieldControlMinimumWidth,
+    padding: theme.space[3],
+  },
+  workflowTabLabel: {
+    ...theme.typography.labelLg,
+    color: theme.color.inkMuted,
+    textAlign: "center",
+  },
+  workflowTabLabelSelected: {
+    color: theme.color.action,
+    fontWeight: "700",
+  },
+  workflowTabSelected: {
+    backgroundColor: theme.color.surface,
+    borderBottomColor: theme.color.action,
+    borderBottomWidth: 4,
+  },
   workflowTabs: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: theme.space[2],
+    gap: theme.space[1],
     marginTop: theme.space[4],
   },
   wrapRow: { flexDirection: "row", flexWrap: "wrap", gap: theme.space[3] },

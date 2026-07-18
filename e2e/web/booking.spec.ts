@@ -8,41 +8,37 @@ test.describe("quote-to-ready booking", () => {
     await page.goto("/booking");
 
     await expect(
-      page.getByRole("heading", { name: "Choose the inspection service" }),
+      page.getByRole("heading", { name: "Book your inspection" }),
     ).toBeVisible();
     await expect(page.getByText("Total including GST")).toBeVisible();
     await expect(page.getByText("$715.00")).toBeVisible();
-    await page
-      .getByRole("button", { name: "Continue to property details" })
-      .click();
-    await page.getByRole("button", { name: "Continue to appointment" }).click();
+    await page.getByRole("button", { name: "Continue" }).click();
     await page
       .getByRole("radio", {
-        name: /Wednesday 15 July, 1:30 pm.*Available after travel buffer/,
+        name: /Wednesday 22 July, 1:30 pm.*Available after travel buffer/,
       })
       .check();
-    await page
-      .getByRole("button", { name: "Confirm test appointment" })
-      .click();
+    await page.getByRole("button", { name: "Continue to review" }).click();
     await page.getByLabel(/I am Alex Morgan/).check();
-    await page.getByRole("button", { name: "Sign test agreement" }).click();
-
-    await expect(
-      page.getByRole("heading", { name: "Waiting for required test actions" }),
-    ).toBeVisible();
-    await page.getByRole("button", { name: "Complete test payment" }).click();
     await page
-      .getByRole("button", { name: "Send test access request" })
-      .click();
-    await page
-      .getByRole("button", { name: "Mark access confirmed (test)" })
+      .getByRole("button", { name: "Accept agreement and continue" })
       .click();
 
     await expect(
-      page.getByRole("heading", { name: "Ready for test inspection" }),
+      page.getByRole("heading", { name: "Actions remaining" }),
     ).toBeVisible();
-    await expect(page.getByText("Test state: succeeded")).toBeVisible();
-    await expect(page.getByText("Test state: confirmed")).toHaveCount(2);
+    await page.getByRole("button", { name: "Complete payment" }).click();
+    await page.getByRole("button", { name: "Send access request" }).click();
+    await page.getByText("Demo control", { exact: true }).click();
+    await page
+      .getByRole("button", { name: "Simulate contact confirmation" })
+      .click();
+
+    await expect(
+      page.getByRole("heading", { name: "Inspection confirmed" }),
+    ).toBeVisible();
+    await expect(page.getByText("Signed", { exact: true })).toBeVisible();
+    await expect(page.getByText("Confirmed", { exact: true })).toHaveCount(3);
   });
 
   test("recovers a declined test payment without dropping captured details", async ({
@@ -59,9 +55,9 @@ test.describe("quote-to-ready booking", () => {
       }),
     ).toBeVisible();
     await expect(page.getByText(/alex@example\.test/)).toBeVisible();
-    await page.getByRole("button", { name: "Retry test payment" }).click();
+    await page.getByRole("button", { name: "Retry payment" }).click();
     await expect(page.getByRole("status")).toContainText(
-      "Test payment succeeded",
+      "Demo payment confirmed",
     );
   });
 
@@ -73,18 +69,16 @@ test.describe("quote-to-ready booking", () => {
     ).toContainText("Another test client confirmed");
     await page
       .getByRole("radio", {
-        name: /Thursday 16 July, 10:30 am.*Available/,
+        name: /Thursday 23 July, 10:30 am.*Available/,
       })
       .check();
     await page
-      .getByRole("button", { name: "Confirm replacement appointment" })
+      .getByRole("button", { name: "Confirm replacement time" })
       .click();
+    await expect(page.getByText(/Replacement time confirmed/)).toBeVisible();
+    await page.getByRole("button", { name: "Continue to review" }).click();
     await expect(
-      page.getByText(/Test replacement appointment confirmed/),
-    ).toBeVisible();
-    await page.getByRole("button", { name: "Continue to agreement" }).click();
-    await expect(
-      page.getByRole("heading", { name: "Review the inspection scope" }),
+      page.getByRole("heading", { name: "Review and accept" }),
     ).toBeVisible();
   });
 
@@ -101,15 +95,13 @@ test.describe("quote-to-ready booking", () => {
     ).toContainText("18 Example Street, Southport QLD 4215");
     await page
       .getByRole("radio", {
-        name: /Thursday 16 July, 10:30 am.*Available/,
+        name: /Thursday 23 July, 10:30 am.*Available/,
       })
       .check();
     await page
-      .getByRole("button", { name: "Confirm replacement appointment" })
+      .getByRole("button", { name: "Confirm replacement time" })
       .click();
-    await expect(
-      page.getByText(/Test replacement appointment confirmed/),
-    ).toBeVisible();
+    await expect(page.getByText(/Replacement time confirmed/)).toBeVisible();
   });
 
   test("deduplicates booking webhooks and rejects stale or changed authority", async ({
@@ -198,13 +190,13 @@ test.describe("quote-to-ready booking", () => {
     await page.goto("/booking");
 
     const continueButton = page.getByRole("button", {
-      name: "Continue to property details",
+      name: "Continue",
     });
     await continueButton.focus();
     await page.keyboard.press("Enter");
     await expect(
       page.getByRole("heading", {
-        name: "Tell us about the property and people",
+        name: "Choose a time and access",
       }),
     ).toBeFocused();
 
@@ -247,15 +239,19 @@ test.describe("booking changes", () => {
     page,
   }) => {
     await page.goto("/booking/reschedule");
-    await page.getByRole("button", { name: "Request test reschedule" }).click();
+    await page.getByRole("button", { name: "Confirm new time" }).click();
     await expect(
-      page.getByText("Test state: reschedule-pending"),
+      page.getByRole("status").filter({ hasText: "Reschedule pending" }),
     ).toBeVisible();
-    await expect(page.getByText("Test state: still current")).toBeVisible();
-    await page
-      .getByRole("button", { name: "Observe successful test result" })
-      .click();
-    await expect(page.getByText("Test state: invalidated")).toBeVisible();
+    await page.getByText("Technical status", { exact: true }).click();
+    await expect(
+      page.getByText("still current", { exact: true }),
+    ).toBeVisible();
+    await page.getByText("Demo control", { exact: true }).click();
+    await page.getByRole("button", { name: "Complete demo update" }).click();
+    await expect(
+      page.getByRole("status").filter({ hasText: "Inspection rescheduled" }),
+    ).toBeVisible();
   });
 
   test("shows booking, refund, calendar and access cancellation independently", async ({
@@ -265,17 +261,18 @@ test.describe("booking changes", () => {
     await page
       .getByLabel(/I understand the appointment will be cancelled/)
       .check();
-    await page
-      .getByRole("button", { name: "Request test cancellation" })
-      .click();
-    await expect(page.getByText("Test state: cancel-pending")).toBeVisible();
-    await expect(page.getByText("Test state: pending")).toBeVisible();
+    await page.getByRole("button", { name: "Cancel inspection" }).click();
     await expect(
-      page.getByText("Test state: cancellation-pending"),
+      page
+        .getByRole("status")
+        .filter({ hasText: "Cancellation and refund pending" }),
     ).toBeVisible();
+    await page.getByText("Demo control", { exact: true }).click();
     await page
-      .getByRole("button", { name: "Observe provider results (test)" })
+      .getByRole("button", { name: "Complete demo cancellation" })
       .click();
-    await expect(page.getByText("Test booking cancelled")).toBeVisible();
+    await expect(
+      page.getByRole("status").filter({ hasText: "Booking cancelled" }),
+    ).toBeVisible();
   });
 });

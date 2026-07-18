@@ -11,6 +11,8 @@ export function ModuleCompletionDock(
     projection: CompletionProjection;
     onConfirmPackage: () => void;
     onApproveModule: (module: "building" | "timber_pest") => void;
+    onWriteManualFinding: () => void;
+    manualFindingAvailable: boolean;
   }>,
 ) {
   const packageControl = packageConfirmationControl({
@@ -24,72 +26,76 @@ export function ModuleCompletionDock(
       {props.projection.manualMode ? (
         <Text style={styles.manual}>Manual workflow</Text>
       ) : null}
+      {props.projection.manualMode && props.manualFindingAvailable ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ busy: props.busy, disabled: props.busy }}
+          disabled={props.busy}
+          onPress={props.onWriteManualFinding}
+          style={({ pressed }) => [
+            styles.approvalButton,
+            pressed && styles.pressed,
+            props.busy && styles.disabled,
+          ]}
+        >
+          <Text style={styles.approvalButtonText}>Write finding manually</Text>
+        </Pressable>
+      ) : null}
       {props.projection.modules.map((module) => {
-        const blockers = props.projection.blockers
-          .filter((blocker) => blocker.startsWith(`${module.label}:`))
-          .map((blocker) => blocker.slice(module.label.length + 2));
+        if (
+          module.approvalState !== "ready" &&
+          module.approvalState !== "approved"
+        ) {
+          return null;
+        }
         return (
           <View key={module.module} style={styles.modulePanel}>
-            {module.approvalState === "ready" ||
-            module.approvalState === "approved" ? (
-              <Pressable
-                accessibilityHint={`Freezes the current inspector-reviewed ${module.label} snapshot only`}
-                accessibilityRole="button"
-                accessibilityState={{
-                  busy: props.busy,
-                  disabled: props.busy || module.approvalState === "approved",
-                }}
-                disabled={props.busy || module.approvalState === "approved"}
-                onPress={() => {
-                  props.onApproveModule(module.module);
-                }}
-                style={({ pressed }) => [
-                  styles.approvalButton,
-                  pressed && styles.pressed,
-                  (props.busy || module.approvalState === "approved") &&
-                    styles.disabled,
-                ]}
-              >
-                <Text style={styles.approvalButtonText}>
-                  {module.approvalState === "approved"
-                    ? `${module.label} approved`
-                    : `Approve ${module.label}`}
-                </Text>
-              </Pressable>
-            ) : (
-              <View style={styles.moduleRow}>
-                <Text style={styles.moduleLabel}>{module.label}</Text>
-                <Text style={styles.state}>
-                  {module.approvalState.replaceAll("_", " ")}
-                </Text>
-              </View>
-            )}
-            {blockers.length === 0 ? null : (
-              <Text style={styles.blocker}>
-                {blockers.length} checklist{" "}
-                {blockers.length === 1 ? "item" : "items"}
+            <Pressable
+              accessibilityHint={`Freezes the current inspector-reviewed ${module.label} snapshot only`}
+              accessibilityRole="button"
+              accessibilityState={{
+                busy: props.busy,
+                disabled: props.busy || module.approvalState === "approved",
+              }}
+              disabled={props.busy || module.approvalState === "approved"}
+              onPress={() => {
+                props.onApproveModule(module.module);
+              }}
+              style={({ pressed }) => [
+                styles.approvalButton,
+                pressed && styles.pressed,
+                (props.busy || module.approvalState === "approved") &&
+                  styles.disabled,
+              ]}
+            >
+              <Text style={styles.approvalButtonText}>
+                {module.approvalState === "approved"
+                  ? `${module.label} approved`
+                  : `Approve ${module.label}`}
               </Text>
-            )}
+            </Pressable>
           </View>
         );
       })}
-      <Pressable
-        accessibilityHint="Freezes the exact approved commissioned module set and queues delivery"
-        accessibilityRole="button"
-        accessibilityState={{
-          busy: props.busy,
-          disabled: packageControl.disabled,
-        }}
-        disabled={packageControl.disabled}
-        onPress={props.onConfirmPackage}
-        style={({ pressed }) => [
-          styles.button,
-          pressed && styles.pressed,
-          packageControl.disabled && styles.disabled,
-        ]}
-      >
-        <Text style={styles.buttonText}>{packageControl.label}</Text>
-      </Pressable>
+      {props.projection.canConfirmPackage || props.packageConfirmed ? (
+        <Pressable
+          accessibilityHint="Freezes the exact approved commissioned module set and queues delivery"
+          accessibilityRole="button"
+          accessibilityState={{
+            busy: props.busy,
+            disabled: packageControl.disabled,
+          }}
+          disabled={packageControl.disabled}
+          onPress={props.onConfirmPackage}
+          style={({ pressed }) => [
+            styles.button,
+            pressed && styles.pressed,
+            packageControl.disabled && styles.disabled,
+          ]}
+        >
+          <Text style={styles.buttonText}>{packageControl.label}</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -125,12 +131,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "center",
   },
-  blocker: {
-    color: theme.color.major,
-    fontSize: 14,
-    fontWeight: "600",
-    lineHeight: 20,
-  },
   disabled: { opacity: 0.5 },
   dock: {
     backgroundColor: theme.color.surface,
@@ -146,15 +146,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  moduleLabel: { color: theme.color.ink, fontSize: 16, fontWeight: "700" },
   modulePanel: { gap: theme.space[2] },
-  moduleRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    minHeight: theme.target.minimum,
-  },
   pressed: { backgroundColor: theme.color.actionPressed },
-  state: { color: theme.color.inkMuted, fontSize: 16 },
 });

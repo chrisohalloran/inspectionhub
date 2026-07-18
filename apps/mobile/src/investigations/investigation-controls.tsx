@@ -1,5 +1,11 @@
 import { theme } from "@inspection/theme/tokens";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 
 import {
   compactOperationStatus,
@@ -20,6 +26,7 @@ export type InvestigationControlDockProps = {
   readonly operationState: DockOperationState;
   readonly photoBusy: boolean;
   readonly recentCaptureCount: number;
+  readonly showInvestigationAction: boolean;
   readonly voiceState: VoiceControlState;
   readonly onPhoto: () => void;
   readonly onVoice: () => void;
@@ -28,20 +35,27 @@ export type InvestigationControlDockProps = {
 
 export function InvestigationControlDock(props: InvestigationControlDockProps) {
   const view = deriveInvestigationShellView(props);
+  const { fontScale } = useWindowDimensions();
+  const largeText = fontScale >= 1.5;
   return (
-    <View accessibilityLabel="Field capture controls" style={styles.dock}>
-      <View style={styles.context}>
-        <View
-          accessible
-          accessibilityLabel={`Current area ${view.currentAreaLabel}. ${view.investigationStatusLabel}. ${view.voiceStateLabel}. ${compactOperationStatus(props.operationState)}. ${props.operationStatus}`}
-        >
-          <Text style={styles.metadata}>Current area</Text>
-          <Text style={styles.area}>{view.currentAreaLabel}</Text>
-          <Text accessibilityLiveRegion="polite" style={styles.status}>
-            {compactOperationStatus(props.operationState)}
-          </Text>
+    <View
+      accessibilityLabel={`Field capture controls. Current area ${view.currentAreaLabel}. ${view.investigationStatusLabel}. ${view.voiceStateLabel}. ${compactOperationStatus(props.operationState)}. ${props.operationStatus}`}
+      style={styles.dock}
+    >
+      {!largeText ? (
+        <View style={styles.context}>
+          <View
+            accessible
+            accessibilityLabel={`Current area ${view.currentAreaLabel}. ${view.investigationStatusLabel}. ${view.voiceStateLabel}. ${compactOperationStatus(props.operationState)}. ${props.operationStatus}`}
+          >
+            <Text style={styles.metadata}>Current area</Text>
+            <Text style={styles.area}>{view.currentAreaLabel}</Text>
+            <Text accessibilityLiveRegion="polite" style={styles.status}>
+              {compactOperationStatus(props.operationState)}
+            </Text>
+          </View>
         </View>
-      </View>
+      ) : null}
       <Pressable
         accessibilityHint={investigationFieldControls.photo.hint}
         accessibilityRole="button"
@@ -74,13 +88,15 @@ export function InvestigationControlDock(props: InvestigationControlDockProps) {
           label={view.voiceLabel}
           onPress={props.onVoice}
         />
-        <Control
-          busy={props.investigationActionBusy}
-          disabled={!props.captureEnabled || props.investigationActionBusy}
-          hint={investigationFieldControls.investigation.hint}
-          label={view.investigationActionLabel}
-          onPress={props.onInvestigationAction}
-        />
+        {props.showInvestigationAction ? (
+          <Control
+            busy={props.investigationActionBusy}
+            disabled={!props.captureEnabled || props.investigationActionBusy}
+            hint={investigationFieldControls.investigation.hint}
+            label={view.investigationActionLabel}
+            onPress={props.onInvestigationAction}
+          />
+        ) : null}
       </View>
     </View>
   );
@@ -123,8 +139,13 @@ const styles = StyleSheet.create({
     backgroundColor: theme.color.surface,
     borderColor: theme.color.outline,
     borderTopWidth: 1,
+    bottom: 0,
     gap: theme.space[3],
+    left: 0,
     padding: theme.space[4],
+    position: "absolute",
+    right: 0,
+    zIndex: 10,
   },
   disabled: { opacity: 0.55 },
   metadata: {

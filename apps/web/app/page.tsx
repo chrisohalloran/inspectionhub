@@ -16,7 +16,7 @@ function resolveSurface(host: string): Surface {
       heading: "Clear property condition, without the industry shorthand.",
       summary:
         "Book a combined inspection and receive separate Building and Timber Pest reports.",
-      action: "Start a test booking",
+      action: "Book an inspection",
     };
   }
   if (host.includes("buildingpestinspectiongoldcoast")) {
@@ -25,7 +25,7 @@ function resolveSurface(host: string): Surface {
       heading: "Independent visual inspection for an informed decision.",
       summary:
         "A focused acquisition surface that routes into the shared booking experience.",
-      action: "View inspection service",
+      action: "Book an inspection",
     };
   }
   return {
@@ -33,7 +33,7 @@ function resolveSurface(host: string): Surface {
     heading: "Finish the inspection onsite.",
     summary:
       "Capture evidence, investigate possible defects, approve each module and queue delivery.",
-    action: "Open inspector workspace",
+    action: "Open booking demo",
   };
 }
 
@@ -55,9 +55,9 @@ export default async function HomePage() {
       </section>
       <section className="module-preview" aria-labelledby="demo-heading">
         <div>
-          <p className="eyebrow">Synthetic demo</p>
+          <p className="eyebrow">Example inspection</p>
           <h2 id="demo-heading">{demoJob.propertyLabel}</h2>
-          <p>Two independently governed modules share one evidence record.</p>
+          <p>One inspection, with separate Building and Timber Pest reports.</p>
         </div>
         <ul aria-label="Commissioned modules">
           <li data-module="building">Building report</li>

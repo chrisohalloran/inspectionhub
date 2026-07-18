@@ -78,6 +78,7 @@
 .brand:focus-visible,
 .masthead a:focus-visible,
 .releaseBoundary a:focus-visible,
+.releaseBoundary summary:focus-visible,
 .panel input:focus-visible,
 .panel button:focus-visible,
 .history summary:focus-visible {
@@ -145,6 +146,15 @@
   font-size: 1.5rem;
   line-height: 1.25;
   margin: 0;
+}
+
+.releaseBoundary summary {
+  color: var(--color-action);
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 700;
+  min-height: var(--target-primary);
+  padding-block: var(--space-2);
 }
 
 .panel h3 {
@@ -267,12 +277,12 @@
 }
 
 .history summary {
-  align-items: center;
   color: var(--color-action);
   cursor: pointer;
-  display: flex;
+  display: list-item;
   font-weight: 700;
   min-height: var(--target-minimum);
+  padding-block: var(--space-2);
 }
 
 .history table {

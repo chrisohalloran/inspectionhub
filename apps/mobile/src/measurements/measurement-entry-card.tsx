@@ -77,11 +77,10 @@ export function MeasurementEntryCard(props: {
         Add measurement
       </Text>
       <Text style={styles.body}>
-        Measurements remain structured evidence in the active investigation and
-        do not assign a classification.
+        Save the reading as evidence. You choose the classification later.
       </Text>
       <Text style={styles.label}>Measurement type</Text>
-      <View style={styles.row}>
+      <View accessibilityRole="radiogroup" style={styles.row}>
         {kinds.map((option) => (
           <Choice
             key={option.kind}
@@ -111,7 +110,7 @@ export function MeasurementEntryCard(props: {
       <Text style={styles.label}>
         {measurementFieldContract.unitInputLabel}
       </Text>
-      <View style={styles.row}>
+      <View accessibilityRole="radiogroup" style={styles.row}>
         {unitsForMeasurement(kind).map((option) => (
           <Choice
             key={option}
@@ -144,11 +143,7 @@ export function MeasurementEntryCard(props: {
           label={saving ? "Saving measurement" : "Save measurement"}
           onPress={() => void save()}
         />
-        <Action
-          disabled={saving}
-          label="Cancel measurement"
-          onPress={props.onCancel}
-        />
+        <Action disabled={saving} label="Cancel" onPress={props.onCancel} />
       </View>
     </View>
   );
@@ -161,8 +156,8 @@ function Choice(props: {
 }) {
   return (
     <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected: props.selected }}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: props.selected }}
       onPress={props.onPress}
       style={({ pressed }) => [
         styles.choice,
@@ -170,7 +165,9 @@ function Choice(props: {
         pressed && styles.pressed,
       ]}
     >
-      <Text style={styles.choiceLabel}>{props.label}</Text>
+      <Text style={styles.choiceLabel}>
+        {props.selected ? `Selected: ${props.label}` : props.label}
+      </Text>
     </Pressable>
   );
 }

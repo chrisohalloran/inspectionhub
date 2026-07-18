@@ -76,8 +76,7 @@ export function EvidenceAreaCard(props: {
         Evidence areas
       </Text>
       <Text style={styles.body}>
-        Original capture areas remain immutable. Correcting an assignment adds
-        visible history to the investigation.
+        Correct an assignment without changing where the evidence was captured.
       </Text>
       {visible.length === 0 ? (
         <Text style={styles.metadata}>No evidence is attached yet.</Text>
@@ -214,7 +213,7 @@ export function EvidenceAreaCard(props: {
         onPress={props.onClose}
         style={({ pressed }) => [styles.action, pressed && styles.pressed]}
       >
-        <Text style={styles.actionLabel}>Close evidence areas</Text>
+        <Text style={styles.actionLabel}>Done</Text>
       </Pressable>
     </View>
   );

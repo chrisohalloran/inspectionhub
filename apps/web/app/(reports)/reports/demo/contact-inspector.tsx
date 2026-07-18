@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import styles from "./report.module.css";
 import { recipientMutationFailureMessage } from "./recipient-mutation-feedback";
@@ -22,8 +22,13 @@ export function ContactInspector({
   initialRequests: readonly ContactRequest[];
 }>) {
   const [requests, setRequests] = useState(initialRequests);
+  const [hydrated, setHydrated] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   async function recordRequest(form: HTMLFormElement) {
     setBusy(true);
@@ -59,10 +64,10 @@ export function ContactInspector({
 
   return (
     <section aria-labelledby="contact-heading">
-      <h3 id="contact-heading">Contact the inspector</h3>
+      <h3 id="contact-heading">Ask the inspector</h3>
       <p>
-        The handoff identifies report version 2 and, if selected, one finding.
-        Report content and evidence are not copied into the notification.
+        Choose a finding so the inspector can see what your question relates to.
+        Private evidence is not copied into the message.
       </p>
       <form
         className={styles.form}
@@ -87,8 +92,8 @@ export function ContactInspector({
         </select>
         <label htmlFor="contact-message">Your question</label>
         <textarea id="contact-message" name="message" required />
-        <button disabled={busy} type="submit">
-          Record question reference
+        <button disabled={!hydrated || busy} type="submit">
+          {busy ? "Saving question" : "Save question"}
         </button>
       </form>
       {error !== null ? (
@@ -98,8 +103,7 @@ export function ContactInspector({
       ) : null}
       {requests.length > 0 ? (
         <p className={styles.status} role="status">
-          Question reference recorded in the synthetic portal. No notification
-          was sent and no report content was copied. Reference{" "}
+          Question saved in this demo. No notification was sent. Reference{" "}
           {requests[0]?.contactRequestId}.
         </p>
       ) : null}

@@ -9,15 +9,27 @@ export default async function InvitationPage({
   return (
     <main className={styles.shell}>
       <section className={styles.card} aria-labelledby="invitation-heading">
-        <p className={styles.eyebrow}>See It Inspections report access</p>
-        <h1 id="invitation-heading">Open your named invitation</h1>
+        <p className={styles.eyebrow}>Secure report access</p>
+        <h1 id="invitation-heading">Open your inspection report</h1>
         <p>
-          The invitation identifies the synthetic report access fixture. Your
-          mailbox is verified separately before any report content is shown.
+          Enter the Build Week demo invitation code and email address below. No
+          email is sent from this public demo.
         </p>
         {error === "unavailable" ? (
           <p className={styles.error} role="alert">
             This invitation is unavailable, expired, revoked, or already used.
+          </p>
+        ) : null}
+        {error === "rate-limited" ? (
+          <p className={styles.error} role="alert">
+            Too many attempts were made. Wait a moment, then try this page
+            again.
+          </p>
+        ) : null}
+        {error === "temporarily-unavailable" ? (
+          <p className={styles.error} role="alert">
+            Secure report access is temporarily unavailable. Your invitation has
+            not been used; try again shortly.
           </p>
         ) : null}
         <form
@@ -33,12 +45,9 @@ export default async function InvitationPage({
               name="invitationToken"
               required
             />
-            <p className={styles.help} id="invitation-help">
-              Synthetic demo code: demo-invite-followed-by-any-unique-value.
-            </p>
           </div>
           <div className={styles.field}>
-            <label htmlFor="recipient-email">Invited email address</label>
+            <label htmlFor="recipient-email">Email address</label>
             <input
               autoComplete="email"
               id="recipient-email"
@@ -48,12 +57,18 @@ export default async function InvitationPage({
               defaultValue="recipient@example.com"
             />
           </div>
-          <button type="submit">Continue to mailbox verification</button>
+          <button type="submit">Continue</button>
         </form>
-        <p className={styles.help}>
-          Forwarding this invitation does not transfer report access. Access is
-          fixed to the named mailbox, report version, modules, actions and
-          expiry.
+        <details className={styles.demoHelp}>
+          <summary>Demo invitation details</summary>
+          <p>
+            Use <strong>demo-invite-</strong> followed by any unique value and
+            the email <strong>recipient@example.com</strong>.
+          </p>
+        </details>
+        <p className={styles.securityNote}>
+          Access is limited to the invited email address and the report version
+          shared with you.
         </p>
       </section>
     </main>

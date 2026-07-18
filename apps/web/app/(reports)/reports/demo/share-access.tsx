@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import styles from "./report.module.css";
 import { recipientMutationFailureMessage } from "./recipient-mutation-feedback";
@@ -29,9 +29,14 @@ export function ShareAccess({
   proposedExpiry: number;
 }>) {
   const [invitations, setInvitations] = useState(initialInvitations);
+  const [hydrated, setHydrated] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const expiry = dateFormatter.format(proposedExpiry);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   async function recordInvitation(email: string) {
     setBusy(true);
@@ -91,10 +96,10 @@ export function ShareAccess({
 
   return (
     <section aria-labelledby="share-heading">
-      <h3 id="share-heading">Record a named access request</h3>
+      <h3 id="share-heading">Share report access</h3>
       <p>
-        This synthetic demo records the intended recipient and scope. It does
-        not send an email or create a provider delivery claim.
+        Create access for one named person. They can only open the same report
+        version and modules available to you.
       </p>
       <form
         className={styles.form}
@@ -112,22 +117,13 @@ export function ShareAccess({
           required
           type="email"
         />
-        <p>
-          Use a synthetic <code>@example.com</code> address. Real recipient
-          details are not accepted in this public demo.
-        </p>
+        <p>For this public demo, use an email ending in @example.com.</p>
         <p>
           <strong>Access expiry:</strong> {expiry}. The invitation cannot extend
           your access or module scope.
         </p>
-        <label className={styles.checkbox}>
-          <input required type="checkbox" />
-          <span>
-            I confirm the named recipient and expiry before recording.
-          </span>
-        </label>
-        <button disabled={busy} type="submit">
-          Record named access request
+        <button disabled={!hydrated || busy} type="submit">
+          {busy ? "Creating invitation" : "Create access invitation"}
         </button>
       </form>
       {error !== null ? (
@@ -135,9 +131,9 @@ export function ShareAccess({
           {error}
         </p>
       ) : null}
-      <h4>Invitation activity</h4>
+      <h4>Access invitations</h4>
       {invitations.length === 0 ? (
-        <p>No named access requests have been recorded from this grant.</p>
+        <p>No access invitations have been created.</p>
       ) : (
         <ul className={styles.statusList} aria-label="Invitation activity">
           {invitations.map((invitation) => (
@@ -154,7 +150,7 @@ export function ShareAccess({
                   onClick={() => void revokeInvitation(invitation.invitationId)}
                   type="button"
                 >
-                  Revoke recorded request
+                  Revoke invitation
                 </button>
               ) : null}
             </li>

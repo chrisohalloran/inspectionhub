@@ -99,7 +99,7 @@ describe("test-only recipient state adapter", () => {
     });
   });
 
-  it("retains Building when Timber Pest is withdrawn and denies a fully withdrawn portal", async () => {
+  it("retains withdrawal notices while denying fully withdrawn report actions", async () => {
     const [writer, reader] = runtimes();
     const grant = await issueGrant(writer, "inverse-withdrawal");
     const session = sessionFor(grant);
@@ -125,9 +125,31 @@ describe("test-only recipient state adapter", () => {
     ).rejects.toThrow(DemoRecipientStateError);
 
     await writer.setModuleWithdrawn("building", true);
-    await expect(reader.portalState(session)).rejects.toThrow(
-      DemoRecipientStateError,
-    );
+    await expect(reader.portalState(session)).resolves.toMatchObject({
+      buildingWithdrawn: true,
+      timberPestWithdrawn: true,
+    });
+    await expect(
+      reader.authorise(session, {
+        reportVersionId: "report_demo_v2",
+        module: "building",
+        action: "download_pdf",
+      }),
+    ).rejects.toThrow(DemoRecipientStateError);
+    await expect(
+      reader.recordShareInvitation({
+        session,
+        email: "withdrawn@example.com",
+        expiresAt: grant.expiresAt - 1,
+      }),
+    ).rejects.toThrow(DemoRecipientStateError);
+    await expect(
+      reader.recordContactRequest({
+        session,
+        findingReference: null,
+        module: null,
+      }),
+    ).rejects.toThrow(DemoRecipientStateError);
   });
 
   it("records share and contact transitions without claiming provider egress", async () => {

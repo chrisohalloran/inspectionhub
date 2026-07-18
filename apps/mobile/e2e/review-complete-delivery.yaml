@@ -3,6 +3,7 @@ name: Persisted exact review, independent approval and synthetic delivery state
 ---
 - launchApp:
     clearState: true
+- openLink: "exp+inspectionhub-field://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8081"
 - tapOn:
     text: "InspectionHub Field, http://.*"
     optional: true
@@ -14,9 +15,10 @@ name: Persisted exact review, independent approval and synthetic delivery state
     optional: true
 - scrollUntilVisible:
     element:
-      text: "Review & complete"
+      text: "Show test tools"
     direction: UP
     centerElement: false
+- tapOn: "Show test tools"
 - scrollUntilVisible:
     element:
       text: "Test: complete coverage"
@@ -24,13 +26,19 @@ name: Persisted exact review, independent approval and synthetic delivery state
     visibilityPercentage: 50
     centerElement: false
 - tapOn: "Test: complete coverage"
+- scrollUntilVisible:
+    element:
+      text: "Hide test tools"
+    direction: UP
+    centerElement: true
+- tapOn: "Hide test tools"
 - assertVisible: ".*Synthetic test coverage completed.*"
 - scrollUntilVisible:
     element:
-      text: "Review & complete"
+      text: "Review & issue"
     direction: UP
     centerElement: true
-- tapOn: "Review & complete"
+- tapOn: "Review & issue"
 - scrollUntilVisible:
     element:
       text: ".*Completion checklist.*"
@@ -48,19 +56,33 @@ name: Persisted exact review, independent approval and synthetic delivery state
     element:
       text: "Accept finding"
     direction: DOWN
-    centerElement: true
+    visibilityPercentage: 50
+    centerElement: false
 - tapOn:
     text: "Accept finding"
     index: 0
+- scrollUntilVisible:
+    element:
+      text: "Finding accepted"
+    direction: UP
+    visibilityPercentage: 50
+    centerElement: false
 - assertVisible: "Finding accepted"
 - scrollUntilVisible:
     element:
       text: "Accept finding"
     direction: DOWN
-    centerElement: true
+    visibilityPercentage: 50
+    centerElement: false
 - tapOn:
     text: "Accept finding"
     index: 0
+- scrollUntilVisible:
+    element:
+      text: "Finding accepted"
+    direction: UP
+    visibilityPercentage: 50
+    centerElement: false
 - assertVisible: "Finding accepted"
 - scrollUntilVisible:
     element:
@@ -68,8 +90,20 @@ name: Persisted exact review, independent approval and synthetic delivery state
     direction: DOWN
 - tapOn: "Approve Building"
 - assertVisible: "Building approved"
+- scrollUntilVisible:
+    element:
+      text: "Approve Timber Pest"
+    direction: DOWN
+    visibilityPercentage: 50
+    centerElement: false
 - tapOn: "Approve Timber Pest"
-- assertVisible: "Timber Pest approved"
+- assertVisible: "Both commissioned modules are independently approved"
+- scrollUntilVisible:
+    element:
+      text: "Confirm delivery package"
+    direction: DOWN
+    visibilityPercentage: 50
+    centerElement: false
 - tapOn: "Confirm delivery package"
 - scrollUntilVisible:
     element:
@@ -79,13 +113,16 @@ name: Persisted exact review, independent approval and synthetic delivery state
 - assertVisible: "Delivery queued.*"
 - stopApp
 - launchApp
+- tapOn:
+    text: "Close"
+    optional: true
 - assertVisible: ".*Storage ready.*"
 - scrollUntilVisible:
     element:
-      text: "Review & complete"
+      text: "Review & issue"
     direction: UP
     centerElement: true
-- tapOn: "Review & complete"
+- tapOn: "Review & issue"
 - scrollUntilVisible:
     element:
       text: ".*Completion checklist.*"
@@ -95,9 +132,13 @@ name: Persisted exact review, independent approval and synthetic delivery state
 - assertVisible: ".*Completion checklist.*"
 - scrollUntilVisible:
     element:
-      text: "Building approved"
+      text: "Both commissioned modules are independently approved"
     direction: DOWN
-- assertVisible: "Timber Pest approved"
+    speed: 90
+    timeout: 60000
+    visibilityPercentage: 25
+    centerElement: false
+- assertVisible: "Both commissioned modules are independently approved"
 - scrollUntilVisible:
     element:
       text: "Delivery queued.*"

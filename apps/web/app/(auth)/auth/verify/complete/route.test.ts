@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createOtpVerificationHandler } from "./route";
+import { createOtpVerificationHandler } from "./handler";
 
 describe("recipient OTP verification rate limit", () => {
   it("consumes the fixed recipient bucket before pending state or OTP verification", async () => {
@@ -46,9 +46,11 @@ describe("recipient OTP verification rate limit", () => {
 
     const response = await post(otpRequest("482913"));
 
-    expect(response.status).toBe(429);
+    expect(response.status).toBe(303);
     expect(response.headers.get("retry-after")).toBe("31");
-    await expect(response.json()).resolves.toEqual({ error: "rate_limited" });
+    expect(response.headers.get("location")).toBe(
+      "/auth/verify?error=rate-limited",
+    );
     expect(readPendingSession).not.toHaveBeenCalled();
     expect(completeOtp).not.toHaveBeenCalled();
   });
@@ -64,10 +66,10 @@ describe("recipient OTP verification rate limit", () => {
 
     const response = await post(otpRequest("482913"));
 
-    expect(response.status).toBe(503);
-    await expect(response.json()).resolves.toEqual({
-      error: "security_boundary_unavailable",
-    });
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(
+      "/auth/verify?error=temporarily-unavailable",
+    );
     expect(readPendingSession).not.toHaveBeenCalled();
     expect(completeOtp).not.toHaveBeenCalled();
   });

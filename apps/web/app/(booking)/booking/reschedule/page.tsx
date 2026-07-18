@@ -12,9 +12,7 @@ export default function ReschedulePage() {
         <Link className={styles.brand} href="/booking">
           See It Inspections
         </Link>
-        <p className={styles.environment}>
-          Synthetic Build Week journey · no real calendar change
-        </p>
+        <p className={styles.environment}>Build Week demo</p>
       </header>
       <RescheduleFlow />
     </main>

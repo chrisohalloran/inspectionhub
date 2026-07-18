@@ -1,7 +1,19 @@
 appId: co.inspectionhub.field
 name: Fresh Building lineage with persisted synthetic Timber Pest package completion
+# Intentional cross-flow handoff: this resumes the investigation and draft
+# persisted by investigation-coverage.yaml immediately before it.
 ---
 - launchApp
+- openLink: "exp+inspectionhub-field://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8081"
+- tapOn:
+    text: "InspectionHub Field, http://.*"
+    optional: true
+- tapOn:
+    text: "Continue"
+    optional: true
+- tapOn:
+    text: "Close"
+    optional: true
 - scrollUntilVisible:
     element:
       text: "Close out area"
@@ -14,6 +26,17 @@ name: Fresh Building lineage with persisted synthetic Timber Pest package comple
     direction: DOWN
     centerElement: true
 - tapOn: "Timber Pest"
+- assertVisible: "Selected: Timber Pest"
+- scrollUntilVisible:
+    element:
+      text: "Inspected"
+    direction: DOWN
+    visibilityPercentage: 50
+    centerElement: false
+- tapOn:
+    text: "Inspected"
+    retryTapIfNoChange: true
+- assertVisible: "Selected: Inspected"
 - scrollUntilVisible:
     element:
       text: "Save coverage"
@@ -23,9 +46,10 @@ name: Fresh Building lineage with persisted synthetic Timber Pest package comple
 - assertVisible: ".*Timber Pest coverage recorded as inspected.*"
 - scrollUntilVisible:
     element:
-      text: "Review & complete"
+      text: "Show test tools"
     direction: UP
     centerElement: false
+- tapOn: "Show test tools"
 - scrollUntilVisible:
     element:
       text: "Test: complete coverage"
@@ -33,18 +57,24 @@ name: Fresh Building lineage with persisted synthetic Timber Pest package comple
     visibilityPercentage: 50
     centerElement: false
 - tapOn: "Test: complete coverage"
-- assertVisible: ".*Synthetic test coverage completed.*"
 - scrollUntilVisible:
     element:
-      text: "Review & complete"
+      text: "Review & issue"
     direction: UP
     centerElement: true
-- tapOn: "Review & complete"
+- tapOn: "Review & issue"
+- scrollUntilVisible:
+    element:
+      text: "Second floor / Main bathroom"
+    direction: DOWN
+    visibilityPercentage: 50
+    centerElement: false
 - scrollUntilVisible:
     element:
       text: "Cracking was observed through several tiles in the shower base and main bathroom floor area."
     direction: DOWN
-    centerElement: true
+    visibilityPercentage: 10
+    centerElement: false
 - assertVisible: "Cracking was observed through several tiles in the shower base and main bathroom floor area."
 - scrollUntilVisible:
     element:
@@ -52,12 +82,29 @@ name: Fresh Building lineage with persisted synthetic Timber Pest package comple
     direction: DOWN
     centerElement: true
 - tapOn: "Accept finding"
-- assertVisible: "Finding accepted"
+- assertVisible: "Building investigation finding, accepted"
+- scrollUntilVisible:
+    element:
+      text: "Completion checklist"
+    direction: UP
+    speed: 90
+    timeout: 60000
+    visibilityPercentage: 50
+    centerElement: false
+- scrollUntilVisible:
+    element:
+      text: "Accessible internal, external and roof-void areas"
+    direction: DOWN
+    speed: 40
+    timeout: 20000
+    visibilityPercentage: 10
+    centerElement: false
 - scrollUntilVisible:
     element:
       text: "No visible evidence of timber pest activity was observed in the accessible areas inspected at the inspection time."
-    direction: UP
-    centerElement: true
+    direction: DOWN
+    visibilityPercentage: 10
+    centerElement: false
 - assertVisible: "No visible evidence of timber pest activity was observed in the accessible areas inspected at the inspection time."
 - scrollUntilVisible:
     element:
@@ -65,16 +112,39 @@ name: Fresh Building lineage with persisted synthetic Timber Pest package comple
     direction: DOWN
     centerElement: true
 - tapOn: "Accept finding"
-- assertVisible: "Finding accepted"
+- assertVisible: "Timber Pest investigation finding, accepted"
 - scrollUntilVisible:
     element:
       text: "Approve Building"
     direction: DOWN
+    visibilityPercentage: 50
+    centerElement: false
 - tapOn: "Approve Building"
 - assertVisible: "Building approved"
+- scrollUntilVisible:
+    element:
+      text: "Approve Timber Pest"
+    direction: DOWN
+    visibilityPercentage: 50
+    centerElement: false
 - tapOn: "Approve Timber Pest"
 - assertVisible: "Timber Pest approved"
+- scrollUntilVisible:
+    element:
+      text: "Confirm delivery package"
+    direction: DOWN
+    visibilityPercentage: 50
+    centerElement: false
 - tapOn: "Confirm delivery package"
+- scrollUntilVisible:
+    element:
+      text: "Preview recipient report"
+    direction: UP
+    speed: 90
+    timeout: 60000
+    visibilityPercentage: 50
+    centerElement: false
+- tapOn: "Preview recipient report"
 - scrollUntilVisible:
     element:
       text: "Condition overview"
@@ -88,44 +158,76 @@ name: Fresh Building lineage with persisted synthetic Timber Pest package comple
     element:
       text: "Active material limitations"
     direction: DOWN
-    centerElement: true
+    visibilityPercentage: 50
+    centerElement: false
 - assertVisible: "Active material limitations"
+- scrollUntilVisible:
+    element:
+      text: "Roof void: Access hatch obstructed at the time of inspection."
+    direction: DOWN
+    visibilityPercentage: 30
+    centerElement: false
 - assertVisible: "Roof void: Access hatch obstructed at the time of inspection."
+- scrollUntilVisible:
+    element:
+      text: "Second floor / Main bathroom · major defect"
+    direction: DOWN
+    visibilityPercentage: 30
+    centerElement: false
 - assertVisible: "Second floor / Main bathroom · major defect"
+- scrollUntilVisible:
+    element:
+      text: "5 inspector-selected evidence source references; private evidence identities are not shown."
+    direction: DOWN
+    visibilityPercentage: 30
+    centerElement: false
+- assertVisible: "5 inspector-selected evidence source references; private evidence identities are not shown."
+- scrollUntilVisible:
+    element:
+      text: "Accessible internal, external and roof-void areas · no visible evidence"
+    direction: DOWN
+    visibilityPercentage: 30
+    centerElement: false
 - assertVisible: "Accessible internal, external and roof-void areas · no visible evidence"
-- assertVisible: "2 inspector-selected evidence source references; private evidence identities are not shown."
 - scrollUntilVisible:
     element:
       text: "1 inspector-selected evidence source reference; private evidence identities are not shown."
     direction: DOWN
-    centerElement: true
+    visibilityPercentage: 30
+    centerElement: false
 - assertVisible: "1 inspector-selected evidence source reference; private evidence identities are not shown."
 - scrollUntilVisible:
     element:
       text: "Synthetic Build Week timber pest inspector"
     direction: UP
-    centerElement: true
+    visibilityPercentage: 50
+    centerElement: false
 - assertVisible: "Synthetic Build Week timber pest inspector"
-- scrollUntilVisible:
-    element:
-      text: ".*Approved package manifest saved locally — server delivery waits for evidence durability.*"
-    direction: UP
-    centerElement: true
-- assertVisible: ".*Approved package manifest saved locally — server delivery waits for evidence durability.*"
 - stopApp
 - launchApp
+- tapOn:
+    text: "Close"
+    optional: true
 - assertVisible: ".*Storage ready.*"
 - scrollUntilVisible:
     element:
-      text: "Review & complete"
+      text: "Review & issue"
     direction: UP
     centerElement: true
-- tapOn: "Review & complete"
+- tapOn: "Review & issue"
+- scrollUntilVisible:
+    element:
+      text: "Preview recipient report"
+    direction: DOWN
+    visibilityPercentage: 50
+    centerElement: false
+- tapOn: "Preview recipient report"
 - scrollUntilVisible:
     element:
       text: "Condition overview"
-    direction: DOWN
-    centerElement: true
+    direction: UP
+    visibilityPercentage: 50
+    centerElement: false
 - assertVisible: "Condition overview"
 - assertVisible: "Synthetic Build Week building inspector"
 - assertVisible: "Synthetic fixture credential — not a live licensing claim"
@@ -133,56 +235,89 @@ name: Fresh Building lineage with persisted synthetic Timber Pest package comple
     element:
       text: "Roof void: Access hatch obstructed at the time of inspection."
     direction: DOWN
-    centerElement: true
+    visibilityPercentage: 30
+    centerElement: false
 - assertVisible: "Roof void: Access hatch obstructed at the time of inspection."
 - scrollUntilVisible:
     element:
       text: "Second floor / Main bathroom · major defect"
     direction: DOWN
-    centerElement: true
+    visibilityPercentage: 30
+    centerElement: false
 - assertVisible: "Second floor / Main bathroom · major defect"
-- assertVisible: "2 inspector-selected evidence source references; private evidence identities are not shown."
+- scrollUntilVisible:
+    element:
+      text: "5 inspector-selected evidence source references; private evidence identities are not shown."
+    direction: DOWN
+    visibilityPercentage: 30
+    centerElement: false
+- assertVisible: "5 inspector-selected evidence source references; private evidence identities are not shown."
 - scrollUntilVisible:
     element:
       text: "Synthetic Build Week timber pest inspector"
     direction: DOWN
-    centerElement: true
+    visibilityPercentage: 30
+    centerElement: false
 - assertVisible: "Synthetic Build Week timber pest inspector"
 - scrollUntilVisible:
     element:
       text: "Accessible internal, external and roof-void areas · no visible evidence"
     direction: DOWN
-    centerElement: true
+    visibilityPercentage: 30
+    centerElement: false
 - assertVisible: "Accessible internal, external and roof-void areas · no visible evidence"
+- scrollUntilVisible:
+    element:
+      text: "1 inspector-selected evidence source reference; private evidence identities are not shown."
+    direction: DOWN
+    visibilityPercentage: 30
+    centerElement: false
 - assertVisible: "1 inspector-selected evidence source reference; private evidence identities are not shown."
+- scrollUntilVisible:
+    element:
+      text: "Hide recipient preview"
+    direction: UP
+    visibilityPercentage: 50
+    centerElement: false
+- tapOn: "Hide recipient preview"
 - scrollUntilVisible:
     element:
       text: "Delivery queued — evidence synchronising"
     direction: DOWN
-    visibilityPercentage: 30
+    speed: 90
+    timeout: 60000
+    visibilityPercentage: 20
     centerElement: false
 - assertVisible: "Delivery queued — evidence synchronising"
 - scrollUntilVisible:
     element:
       text: "Test: confirm evidence durable"
     direction: DOWN
-    centerElement: true
+    speed: 90
+    timeout: 60000
+    visibilityPercentage: 50
+    centerElement: false
 - tapOn: "Test: confirm evidence durable"
 - scrollUntilVisible:
     element:
       text: "Delivery queued"
     direction: UP
-    centerElement: true
+    visibilityPercentage: 50
+    centerElement: false
 - assertVisible: "Delivery queued"
 - scrollUntilVisible:
     element:
       text: "Test: provider confirms sent"
     direction: DOWN
-    centerElement: true
+    speed: 90
+    timeout: 60000
+    visibilityPercentage: 50
+    centerElement: false
 - tapOn: "Test: provider confirms sent"
 - scrollUntilVisible:
     element:
       text: "Sent"
     direction: UP
-    centerElement: true
+    visibilityPercentage: 50
+    centerElement: false
 - assertVisible: "Sent"

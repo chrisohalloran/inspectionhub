@@ -22,18 +22,21 @@ export function AreaCloseoutCard(props: {
   const [module, setModule] = useState<ModuleType>(
     props.initialModule ?? "building",
   );
-  const [state, setState] = useState<CoverageOption["state"]>("inspected");
+  const [state, setState] = useState<CoverageOption["state"]>();
   const [detail, setDetail] = useState("");
   const [error, setError] = useState<string>();
   const [saving, setSaving] = useState(false);
   const selectedOption = coverageOptions.find(
     (option) => option.state === state,
-  )!;
-  const detailRequired = selectedOption.requiresDetail;
-  const saveDisabled = saving || (detailRequired && detail.trim().length === 0);
+  );
+  const detailRequired = selectedOption?.requiresDetail ?? false;
+  const saveDisabled =
+    saving ||
+    state === undefined ||
+    (detailRequired && detail.trim().length === 0);
 
   async function save(): Promise<void> {
-    if (saveDisabled) return;
+    if (saveDisabled || state === undefined) return;
     setSaving(true);
     setError(undefined);
     try {
@@ -58,8 +61,7 @@ export function AreaCloseoutCard(props: {
         Close out {props.areaLabel}
       </Text>
       <Text style={styles.body}>
-        Record the inspector’s coverage judgement separately for each
-        commissioned module. Photo count never determines coverage.
+        Record coverage for each report. Photos do not complete an area.
       </Text>
       {props.summaries.length === 0 ? (
         <Text style={styles.metadata}>No coverage judgement recorded yet.</Text>
@@ -71,7 +73,7 @@ export function AreaCloseoutCard(props: {
         ))
       )}
       <Text style={styles.label}>Professional module</Text>
-      <View style={styles.row}>
+      <View accessibilityRole="radiogroup" style={styles.row}>
         <Choice
           label="Building"
           onPress={() => setModule("building")}
@@ -84,7 +86,7 @@ export function AreaCloseoutCard(props: {
         />
       </View>
       <Text style={styles.label}>Coverage state</Text>
-      <View style={styles.row}>
+      <View accessibilityRole="radiogroup" style={styles.row}>
         {coverageOptions.map((option) => (
           <Choice
             key={option.state}
@@ -121,11 +123,7 @@ export function AreaCloseoutCard(props: {
           label={saving ? "Saving coverage" : "Save coverage"}
           onPress={() => void save()}
         />
-        <Action
-          disabled={saving}
-          label="Cancel close-out"
-          onPress={props.onCancel}
-        />
+        <Action disabled={saving} label="Cancel" onPress={props.onCancel} />
       </View>
     </View>
   );
@@ -140,8 +138,8 @@ function Choice(props: {
   return (
     <Pressable
       accessibilityHint={props.hint}
-      accessibilityRole="button"
-      accessibilityState={{ selected: props.selected }}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: props.selected }}
       onPress={props.onPress}
       style={({ pressed }) => [
         styles.choice,
@@ -149,7 +147,9 @@ function Choice(props: {
         pressed && styles.pressed,
       ]}
     >
-      <Text style={styles.choiceLabel}>{props.label}</Text>
+      <Text style={styles.choiceLabel}>
+        {props.selected ? `Selected: ${props.label}` : props.label}
+      </Text>
     </Pressable>
   );
 }
