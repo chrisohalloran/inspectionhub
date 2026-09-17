@@ -21,7 +21,7 @@ Guidance for AI coding agents working in the InspectionHub repository.
 
 Environment files live in `.cursor/`:
 
-- `environment.json` — Cloud Agent build and startup config
+- `environment.json` — Cloud Agent container build and startup config (`container.build`)
 - `Dockerfile` — system packages (Node, PostgreSQL 17, git, sudo); does **not** copy the repo
 - `install.sh` — idempotent dependency install run during Builds
 

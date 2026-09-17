@@ -1,8 +1,11 @@
 {
   "name": "inspectionhub",
-  "build": {
-    "dockerfile": "Dockerfile",
-    "context": ".."
+  "container": {
+    "build": {
+      "dockerfile": "Dockerfile",
+      "context": ".."
+    },
+    "agentCanUpdateSnapshot": false
   },
   "install": "bash .cursor/install.sh",
   "start": "true",
