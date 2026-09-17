@@ -12,7 +12,7 @@
   "terminals": [
     {
       "name": "dev",
-      "command": "pnpm dev",
+      "command": "bash -lc 'test -f .env.local || cp .env.example .env.local; pnpm dev'",
       "description": "Turbo dev servers (Next.js web on :3000, worker, Expo mobile)"
     }
   ],

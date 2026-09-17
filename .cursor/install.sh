@@ -13,9 +13,4 @@ pnpm install --frozen-lockfile
 # Web e2e gate (CI installs Chromium with system deps).
 pnpm exec playwright install --with-deps chromium
 
-# Safe fake-adapter defaults for cloud development — never commit secrets.
-if [[ ! -f .env.local ]]; then
-  cp .env.example .env.local
-fi
-
 echo "InspectionHub cloud environment install complete."

@@ -27,10 +27,19 @@ Environment files live in `.cursor/`:
 
 ### Secrets and adapters
 
-Keep `PROVIDER_MODE=fake` for routine development and verification. The install
-script seeds `.env.local` from `.env.example` when missing. Never commit API keys,
-service-role tokens, or other secrets. Add live credentials only through Cursor
-Secrets when a task explicitly requires them.
+Keep `PROVIDER_MODE=fake` for routine development and verification. Never commit
+API keys, service-role tokens, or other secrets. Add live credentials only through
+Cursor Secrets when a task explicitly requires them.
+
+For local env files, copy the example once (the dev terminal does this
+automatically):
+
+```bash
+cp .env.example .env.local
+```
+
+Remove `.env.local` before `pnpm test:security`; the static security gate rejects
+any `.env*` file other than `.env.example` in the workspace.
 
 ### Dev servers
 
